@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { initializeAdminAppSingleton } from '@/lib/firebase-admin';
 
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
     const idToken = await request.json();
 
