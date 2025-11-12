@@ -5,11 +5,9 @@ import { getDashboardStats } from "@/lib/server-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PoundSterling, Hash, Landmark, CreditCard, HandCoins } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useUser } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, isUserLoading } = useUser();
   const [stats, setStats] = useState({
     dailySales: 0,
     totalInputs: 0,
@@ -20,16 +18,14 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      getDashboardStats(user.uid).then(data => {
-        setStats(data);
-        setIsLoading(false);
-      });
-    }
-  }, [user]);
+    setIsLoading(true);
+    getDashboardStats().then(data => {
+      setStats(data);
+      setIsLoading(false);
+    });
+  }, []);
 
-  if (isUserLoading || isLoading) {
+  if (isLoading) {
     return (
         <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />

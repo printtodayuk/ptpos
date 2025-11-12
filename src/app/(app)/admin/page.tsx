@@ -4,27 +4,23 @@ import { useEffect, useState } from 'react';
 import { getPendingTransactions } from '@/lib/server-actions';
 import { AdminClient } from '@/components/admin/admin-client';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useUser } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import type { Transaction } from '@/lib/types';
 
 
 export default function AdminPage() {
-  const { user, isUserLoading } = useUser();
   const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      getPendingTransactions(user.uid).then((data) => {
-        setPendingTransactions(data);
-        setIsLoading(false);
-      });
-    }
-  }, [user]);
+    setIsLoading(true);
+    getPendingTransactions().then((data) => {
+      setPendingTransactions(data);
+      setIsLoading(false);
+    });
+  }, []);
 
-  if (isUserLoading || isLoading) {
+  if (isLoading) {
     return <div className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
 

@@ -4,25 +4,21 @@ import { getTransactions } from "@/lib/server-actions";
 import { TransactionForm } from "@/components/transactions/transaction-form";
 import { TransactionsTable } from "@/components/transactions/transactions-table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useUser } from '@/firebase';
 import type { Transaction } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
 export default function NonInvoicingPage() {
-  const { user, isUserLoading } = useUser();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      getTransactions('non-invoicing', user.uid).then((data) => {
-        setTransactions(data);
-        setIsLoading(false);
-      });
-    }
-  }, [user]);
+    setIsLoading(true);
+    getTransactions('non-invoicing').then((data) => {
+      setTransactions(data);
+      setIsLoading(false);
+    });
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +29,7 @@ export default function NonInvoicingPage() {
           <CardDescription>A list of the most recent non-invoicing transactions.</CardDescription>
         </CardHeader>
         <CardContent>
-          {isUserLoading || isLoading ? (
+          {isLoading ? (
              <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />

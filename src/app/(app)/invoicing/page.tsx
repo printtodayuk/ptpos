@@ -4,24 +4,20 @@ import { getTransactions } from "@/lib/server-actions";
 import { TransactionForm } from "@/components/transactions/transaction-form";
 import { TransactionsTable } from "@/components/transactions/transactions-table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useUser } from '@/firebase';
 import type { Transaction } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function InvoicingPage() {
-  const { user, isUserLoading } = useUser();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      getTransactions('invoicing', user.uid).then((data) => {
-        setTransactions(data);
-        setIsLoading(false);
-      });
-    }
-  }, [user]);
+    setIsLoading(true);
+    getTransactions('invoicing').then((data) => {
+      setTransactions(data);
+      setIsLoading(false);
+    });
+  }, []);
 
 
   return (
@@ -33,7 +29,7 @@ export default function InvoicingPage() {
           <CardDescription>A list of the most recent invoicing transactions.</CardDescription>
         </CardHeader>
         <CardContent>
-          {isUserLoading || isLoading ? (
+          {isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />

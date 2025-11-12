@@ -15,6 +15,7 @@ import { getDb } from '@/lib/firebase-admin';
 const CreateTransactionSchema = TransactionSchema.omit({
   id: true,
   createdAt: true,
+  userId: true, // Remove userId from validation
 });
 
 export async function addTransaction(
@@ -29,14 +30,6 @@ export async function addTransaction(
     };
   }
 
-  const userId = validatedData.data.userId;
-  if (!userId) {
-    return {
-      success: false,
-      message: 'You must be logged in to add a transaction.',
-    };
-  }
-
   try {
     const firestore = getDb();
 
@@ -44,7 +37,6 @@ export async function addTransaction(
       ...validatedData.data,
       date: Timestamp.fromDate(validatedData.data.date),
       createdAt: serverTimestamp(),
-      userId: userId,
     });
 
     revalidatePath(`/${validatedData.data.type}`);
@@ -61,32 +53,26 @@ export async function addTransaction(
   }
 }
 
-// Keeping other server-only actions here if they exist.
-// We are moving all functions that use `firebase-admin` into this file.
-
 import {
-  doc,
   getDocs,
   limit,
   orderBy,
   query,
   updateDoc,
+  doc,
   where,
 } from 'firebase-admin/firestore';
 
 export async function getTransactions(
   type: 'invoicing' | 'non-invoicing',
-  userId: string,
   count: number = 20
 ): Promise<Transaction[]> {
   try {
     const firestore = getDb();
-    if (!userId) return [];
-
+    
     const q = query(
       collection(firestore, 'transactions'),
       where('type', '==', type),
-      where('userId', '==', userId),
       orderBy('createdAt', 'desc'),
       limit(count)
     );
@@ -106,23 +92,11 @@ export async function getTransactions(
   }
 }
 
-export async function getDashboardStats(userId: string) {
+export async function getDashboardStats() {
   try {
     const firestore = getDb();
-    if (!userId) {
-      return {
-        dailySales: 0,
-        totalInputs: 0,
-        cashAmount: 0,
-        bankAmount: 0,
-        cardAmount: 0,
-      };
-    }
-
-    const q = query(
-      collection(firestore, 'transactions'),
-      where('userId', '==', userId)
-    );
+    
+    const q = query(collection(firestore, 'transactions'));
     const querySnapshot = await getDocs(q);
     const transactions = querySnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -171,15 +145,13 @@ export async function getDashboardStats(userId: string) {
   }
 }
 
-export async function getPendingTransactions(userId: string): Promise<Transaction[]> {
+export async function getPendingTransactions(): Promise<Transaction[]> {
   try {
     const firestore = getDb();
-    if (!userId) return [];
-
+    
     const q = query(
       collection(firestore, 'transactions'),
       where('adminChecked', '==', false),
-      where('userId', '==', userId),
       orderBy('createdAt', 'asc')
     );
     const querySnapshot = await getDocs(q);
@@ -219,22 +191,18 @@ export async function markTransactionAsChecked(id: string) {
 export async function getReportData({
   from,
   to,
-  userId,
 }: {
   from: Date;
   to: Date;
-  userId: string;
 }): Promise<Transaction[]> {
   try {
     const firestore = getDb();
-    if (!userId) return [];
-
+    
     const fromTimestamp = Timestamp.fromDate(from);
     const toTimestamp = Timestamp.fromDate(to);
 
     const q = query(
       collection(firestore, 'transactions'),
-      where('userId', '==', userId),
       where('date', '>=', fromTimestamp),
       where('date', '<=', toTimestamp),
       orderBy('date', 'desc')

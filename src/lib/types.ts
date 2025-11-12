@@ -9,7 +9,7 @@ export type PaymentMethod = typeof paymentMethods[number];
 
 export const TransactionSchema = z.object({
   id: z.string().optional(),
-  userId: z.string(),
+  userId: z.string().optional(), // Made optional to simplify
   type: z.enum(['invoicing', 'non-invoicing']),
   invoiceNumber: z.string().optional(),
   date: z.date(),

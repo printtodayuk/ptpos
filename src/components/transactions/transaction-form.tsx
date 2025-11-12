@@ -30,24 +30,21 @@ import { addTransaction } from '@/lib/actions';
 import { TransactionSchema, operators, paymentMethods, type Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
-import { useUser } from '@/firebase';
 
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
 };
 
-type FormValues = Omit<Transaction, 'id' | 'createdAt'>;
+type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'userId'>;
 
 export function TransactionForm({ type }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { user, isUserLoading } = useUser();
   const [totalAmount, setTotalAmount] = useState<number>(0);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true })),
+    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, userId: true })),
     defaultValues: {
-      userId: '',
       type: type,
       date: new Date(),
       clientName: '',
@@ -64,12 +61,6 @@ export function TransactionForm({ type }: TransactionFormProps) {
     },
   });
   
-  useEffect(() => {
-    if(user) {
-        form.setValue('userId', user.uid);
-    }
-  }, [user, form]);
-
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
 
@@ -81,14 +72,6 @@ export function TransactionForm({ type }: TransactionFormProps) {
   }, [watchedAmount, watchedVatApplied, form]);
 
   const onSubmit = (data: FormValues) => {
-    if (!user) {
-         toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'You must be logged in to add a transaction.',
-        });
-        return;
-    }
     startTransition(async () => {
       const result = await addTransaction(data);
       if (result.success) {
@@ -97,7 +80,6 @@ export function TransactionForm({ type }: TransactionFormProps) {
           description: result.message,
         });
         form.reset({
-            userId: user.uid,
             type: type,
             date: new Date(),
             clientName: '',
@@ -121,22 +103,6 @@ export function TransactionForm({ type }: TransactionFormProps) {
       }
     });
   };
-
-  if (isUserLoading || !user) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="capitalize">{type}</CardTitle>
-                <CardDescription>Enter the details for the new transaction.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-center p-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            </CardContent>
-        </Card>
-    )
-  }
 
   return (
     <Card>
@@ -280,7 +246,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
 
         </CardContent>
         <CardFooter>
-          <Button type="submit" disabled={isPending || !user} className="ml-auto">
+          <Button type="submit" disabled={isPending} className="ml-auto">
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Add Transaction
           </Button>
