@@ -26,6 +26,7 @@ import type { Transaction } from '@/lib/types';
 import { cn, exportToCsv } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
+import { useUser } from '@/firebase';
 
 export function ReportClient() {
   const [isPending, startTransition] = useTransition();
@@ -35,12 +36,13 @@ export function ReportClient() {
   });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const { user } = useUser();
 
   const handleSearch = () => {
-    if (!date?.from || !date?.to) return;
+    if (!date?.from || !date?.to || !user) return;
 
     startTransition(async () => {
-      const data = await getReportData({ from: date.from!, to: date.to! });
+      const data = await getReportData({ from: date.from!, to: date.to!, userId: user.uid });
       setTransactions(data);
       setHasSearched(true);
     });
@@ -116,7 +118,7 @@ export function ReportClient() {
         </Popover>
         <Button variant="secondary" onClick={setDailyRange}>Today</Button>
         <Button variant="secondary" onClick={setMonthlyRange}>This Month</Button>
-        <Button onClick={handleSearch} disabled={isPending}>
+        <Button onClick={handleSearch} disabled={isPending || !user}>
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Generate Report
         </Button>

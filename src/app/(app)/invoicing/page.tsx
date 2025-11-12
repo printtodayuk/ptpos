@@ -1,12 +1,28 @@
+'use client';
+import { useState, useEffect } from 'react';
 import { getTransactions } from "@/lib/actions";
 import { TransactionForm } from "@/components/transactions/transaction-form";
 import { TransactionsTable } from "@/components/transactions/transactions-table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useUser } from '@/firebase';
+import type { Transaction } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export const dynamic = 'force-dynamic';
+export default function InvoicingPage() {
+  const { user, isUserLoading } = useUser();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-export default async function InvoicingPage() {
-  const transactions = await getTransactions('invoicing');
+  useEffect(() => {
+    if (user) {
+      setIsLoading(true);
+      getTransactions('invoicing', user.uid).then((data) => {
+        setTransactions(data);
+        setIsLoading(false);
+      });
+    }
+  }, [user]);
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -17,7 +33,15 @@ export default async function InvoicingPage() {
           <CardDescription>A list of the most recent invoicing transactions.</CardDescription>
         </CardHeader>
         <CardContent>
-          <TransactionsTable transactions={transactions} />
+          {isUserLoading || isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : (
+            <TransactionsTable transactions={transactions} />
+          )}
         </CardContent>
       </Card>
     </div>

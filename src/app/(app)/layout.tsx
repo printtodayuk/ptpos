@@ -20,14 +20,9 @@ import { Button } from '@/components/ui/button';
 import { getAuth, signOut } from 'firebase/auth';
 import { useAuth } from '@/firebase/provider';
 
-async function handleSignOut(auth: any) {
+async function handleSignOut(auth: any, router: any) {
     await signOut(auth);
-    const response = await fetch('/api/auth/sign-out', {
-        method: 'POST',
-    });
-    if (response.ok) {
-        window.location.href = '/login';
-    }
+    router.push('/login');
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -65,8 +60,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Nav />
           </SidebarContent>
           <SidebarFooter className="p-4 flex flex-col gap-2">
-            <Button variant="outline" size="sm" onClick={() => handleSignOut(auth)} className="w-full group-data-[collapsible=icon]:hidden">Sign Out</Button>
-             <Button variant="outline" size="icon" onClick={() => handleSignOut(auth)} className="hidden w-full group-data-[collapsible=icon]:block">
+            <Button variant="outline" size="sm" onClick={() => handleSignOut(auth, router)} className="w-full group-data-[collapsible=icon]:hidden">Sign Out</Button>
+             <Button variant="outline" size="icon" onClick={() => handleSignOut(auth, router)} className="hidden w-full group-data-[collapsible=icon]:block">
                 <LogOut />
              </Button>
             <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">&copy; {new Date().getFullYear()} Print Today</p>

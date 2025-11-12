@@ -1,10 +1,41 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { getDashboardStats } from "@/lib/actions";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PoundSterling, Hash, Landmark, CreditCard, HandCoins } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUser } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 
-export default async function DashboardPage() {
-  const stats = await getDashboardStats();
+export default function DashboardPage() {
+  const { user, isUserLoading } = useUser();
+  const [stats, setStats] = useState({
+    dailySales: 0,
+    totalInputs: 0,
+    bankAmount: 0,
+    cardAmount: 0,
+    cashAmount: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      setIsLoading(true);
+      getDashboardStats(user.uid).then(data => {
+        setStats(data);
+        setIsLoading(false);
+      });
+    }
+  }, [user]);
+
+  if (isUserLoading || isLoading) {
+    return (
+        <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">
