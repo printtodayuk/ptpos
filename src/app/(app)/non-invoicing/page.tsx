@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { getTransactions } from "@/lib/server-actions";
 import { TransactionForm } from "@/components/transactions/transaction-form";
 import { TransactionsTable } from "@/components/transactions/transactions-table";
@@ -13,19 +13,20 @@ export default function NonInvoicingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
-  const fetchTransactions = useCallback(() => {
+  const fetchTransactions = () => {
     startTransition(() => {
-        setIsLoading(true);
         getTransactions('non-invoicing').then((data) => {
           setTransactions(data);
           setIsLoading(false);
         });
     });
-  }, []);
+  };
 
   useEffect(() => {
+    setIsLoading(true);
     fetchTransactions();
-  }, [fetchTransactions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">
