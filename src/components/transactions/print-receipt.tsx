@@ -17,6 +17,10 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
       <hr className="border-dashed border-black my-2" />
       <div className="space-y-1">
         <div className="flex justify-between">
+          <span>TID:</span>
+          <span>{transaction.transactionId}</span>
+        </div>
+        <div className="flex justify-between">
           <span>Date:</span>
           <span>{format(transaction.date, 'dd/MM/yyyy HH:mm')}</span>
         </div>

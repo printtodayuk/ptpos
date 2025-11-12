@@ -12,6 +12,7 @@ import {
   updateDoc,
   doc,
   where,
+  runTransaction,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -22,7 +23,7 @@ import { db } from '@/lib/firebase';
 const CreateTransactionSchema = TransactionSchema.omit({
   id: true,
   createdAt: true,
-  userId: true, 
+  transactionId: true,
 });
 
 export async function addTransaction(
@@ -38,8 +39,17 @@ export async function addTransaction(
   }
 
   try {
+    const counterRef = doc(db, 'counters', 'transactions');
+    const newTransactionId = await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      const newCount = (counterDoc.data()?.count || 0) + 1;
+      transaction.set(counterRef, { count: newCount }, { merge: true });
+      return `TID${String(newCount).padStart(4, '0')}`;
+    });
+
     await addDoc(collection(db, 'transactions'), {
       ...validatedData.data,
+      transactionId: newTransactionId,
       date: Timestamp.fromDate(validatedData.data.date),
       createdAt: serverTimestamp(),
     });

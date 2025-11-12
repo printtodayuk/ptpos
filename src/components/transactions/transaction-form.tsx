@@ -36,7 +36,7 @@ type TransactionFormProps = {
   onTransactionAdded?: () => void;
 };
 
-type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'userId'>;
+type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'transactionId'>;
 
 export function TransactionForm({ type, onTransactionAdded }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
@@ -44,7 +44,7 @@ export function TransactionForm({ type, onTransactionAdded }: TransactionFormPro
   const [totalAmount, setTotalAmount] = useState<number>(0);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, userId: true })),
+    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
     defaultValues: {
       type: type,
       date: new Date(),

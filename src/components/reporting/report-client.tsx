@@ -48,6 +48,7 @@ export function ReportClient() {
 
     const filename = `${activeTab}_report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     const dataToExport = transactionsToExport.map(t => ({
+        transactionId: t.transactionId,
         date: format(t.date, 'yyyy-MM-dd'),
         clientName: t.clientName,
         type: t.type,

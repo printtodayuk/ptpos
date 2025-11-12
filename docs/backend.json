@@ -8,7 +8,11 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the transaction."
+          "description": "Unique identifier for the transaction document."
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "Auto-incrementing transaction ID (e.g., TID0001)."
         },
         "type": {
           "type": "string",
@@ -66,6 +70,7 @@
       },
       "required": [
         "id",
+        "transactionId",
         "type",
         "date",
         "clientName",
@@ -76,6 +81,19 @@
         "operator",
         "adminChecked"
       ]
+    },
+    "Counter": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Counter",
+      "type": "object",
+      "description": "A generic counter document for sequential IDs.",
+      "properties": {
+        "count": {
+          "type": "number",
+          "description": "The current count."
+        }
+      },
+      "required": ["count"]
     }
   },
   "auth": {
@@ -94,12 +112,28 @@
           "params": [
             {
               "name": "transactionId",
-              "description": "Unique identifier for the transaction."
+              "description": "Unique identifier for the transaction document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/counters/{counterId}",
+        "definition": {
+          "entityName": "Counter",
+          "schema": {
+            "$ref": "#/backend/entities/Counter"
+          },
+          "description": "Stores counter documents for generating sequential IDs.",
+          "params": [
+            {
+              "name": "counterId",
+              "description": "The name of the counter (e.g., 'transactions')."
             }
           ]
         }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly, removing the need to manage separate collections for invoices and non-invoices. This aligns with the goal of a simpler application by removing user-based ownership and complex security rules."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions in a reliable way."
   }
 }

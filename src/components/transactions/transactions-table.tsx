@@ -73,6 +73,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>TID</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="hidden md:table-cell">Payment</TableHead>
@@ -87,6 +88,9 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
           <TableBody>
             {transactions.map((tx) => (
               <TableRow key={tx.id}>
+                <TableCell>
+                  <Badge variant="secondary">{tx.transactionId}</Badge>
+                </TableCell>
                 <TableCell className="font-medium">
                   {format(tx.date, 'dd/MM/yyyy')}
                 </TableCell>
