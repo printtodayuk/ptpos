@@ -36,7 +36,7 @@ type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
 };
 
-type FormValues = Omit<Transaction, 'id' | 'createdAt'>;
+type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'userId'>;
 
 export function TransactionForm({ type }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
@@ -45,7 +45,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
   const [totalAmount, setTotalAmount] = useState<number>(0);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true })),
+    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, userId: true })),
     defaultValues: {
       type: type,
       date: new Date(),
@@ -75,7 +75,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
-      const result = await addTransaction({ ...data, userId: user?.uid });
+      const result = await addTransaction(data, user?.uid);
       if (result.success) {
         toast({
           title: 'Success',

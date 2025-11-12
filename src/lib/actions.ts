@@ -17,25 +17,17 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
-import { headers } from 'next/headers';
-import { db } from './firebase'; // Import the initialized db instance
+import { db } from './firebase';
 
-const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true });
+const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true, userId: true });
 
-async function getUserIdFromRequest() {
-    // This is a stand-in for a proper session management solution.
-    // In a real app, you would get the user from a session cookie.
-    const headersList = headers();
-    return headersList.get('x-user-id');
-}
-
-
-export async function addTransaction(data: z.infer<typeof CreateTransactionSchema>) {
+export async function addTransaction(
+  data: z.infer<typeof CreateTransactionSchema>,
+  userId: string | undefined
+) {
   try {
-    const userId = await getUserIdFromRequest();
-
     if (!userId) {
-        return { success: false, message: 'You must be logged in to add a transaction.' };
+      return { success: false, message: 'You must be logged in to add a transaction.' };
     }
 
     const validatedData = CreateTransactionSchema.parse(data);
@@ -44,7 +36,7 @@ export async function addTransaction(data: z.infer<typeof CreateTransactionSchem
       ...validatedData,
       date: Timestamp.fromDate(validatedData.date),
       createdAt: serverTimestamp(),
-      userId: userId, // Associate transaction with user
+      userId: userId,
     });
 
     revalidatePath(`/${validatedData.type}`);
@@ -62,11 +54,17 @@ export async function addTransaction(data: z.infer<typeof CreateTransactionSchem
   }
 }
 
+async function getUserIdFromHeaders() {
+    const { headers } = await import('next/headers');
+    const headersList = headers();
+    return headersList.get('x-user-id');
+}
+
 export async function getTransactions(
   type: 'invoicing' | 'non-invoicing',
   count: number = 20
 ): Promise<Transaction[]> {
-  const userId = await getUserIdFromRequest();
+  const userId = await getUserIdFromHeaders();
   if (!userId) return [];
 
   const q = query(
@@ -89,7 +87,7 @@ export async function getTransactions(
 }
 
 export async function getDashboardStats() {
-    const userId = await getUserIdFromRequest();
+    const userId = await getUserIdFromHeaders();
     if (!userId) {
         return {
             dailySales: 0,
@@ -128,7 +126,7 @@ export async function getDashboardStats() {
 
 
 export async function getPendingTransactions(): Promise<Transaction[]> {
-  const userId = await getUserIdFromRequest();
+  const userId = await getUserIdFromHeaders();
   if (!userId) return [];
 
   const q = query(
@@ -151,7 +149,7 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
 
 export async function markTransactionAsChecked(id: string) {
   try {
-    const userId = await getUserIdFromRequest();
+    const userId = await getUserIdFromHeaders();
     
     if (!userId) {
         return { success: false, message: 'You must be logged in.' };
@@ -172,7 +170,7 @@ export async function markTransactionAsChecked(id: string) {
 }
 
 export async function getReportData({ from, to }: { from: Date; to: Date }): Promise<Transaction[]> {
-  const userId = await getUserIdFromRequest();
+  const userId = await getUserIdFromHeaders();
   if (!userId) return [];
 
   const fromTimestamp = Timestamp.fromDate(from);
