@@ -17,22 +17,23 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
-import { db } from './firebase';
+import { getAuthenticatedAppForUser } from './firebase';
 
 const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true, userId: true });
 
 export async function addTransaction(
   data: z.infer<typeof CreateTransactionSchema>,
-  userId: string | undefined
+  userId: string
 ) {
   try {
-    if (!userId) {
-      return { success: false, message: 'You must be logged in to add a transaction.' };
+    const { firestore } = await getAuthenticatedAppForUser(userId);
+    if (!firestore) {
+        return { success: false, message: 'You must be logged in to add a transaction.' };
     }
 
     const validatedData = CreateTransactionSchema.parse(data);
     
-    await addDoc(collection(db, 'transactions'), {
+    await addDoc(collection(firestore, 'transactions'), {
       ...validatedData,
       date: Timestamp.fromDate(validatedData.date),
       createdAt: serverTimestamp(),
@@ -67,8 +68,11 @@ export async function getTransactions(
   const userId = await getUserIdFromHeaders();
   if (!userId) return [];
 
+  const { firestore } = await getAuthenticatedAppForUser(userId);
+  if (!firestore) return [];
+
   const q = query(
-    collection(db, 'transactions'),
+    collection(firestore, 'transactions'),
     where('type', '==', type),
     where('userId', '==', userId),
     orderBy('createdAt', 'desc'),
@@ -97,8 +101,19 @@ export async function getDashboardStats() {
             cardAmount: 0,
         };
     }
+    
+    const { firestore } = await getAuthenticatedAppForUser(userId);
+    if (!firestore) {
+         return {
+            dailySales: 0,
+            totalInputs: 0,
+            cashAmount: 0,
+            bankAmount: 0,
+            cardAmount: 0,
+        };
+    }
 
-    const q = query(collection(db, 'transactions'), where('userId', '==', userId));
+    const q = query(collection(firestore, 'transactions'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     const transactions = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Transaction));
 
@@ -129,8 +144,11 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
   const userId = await getUserIdFromHeaders();
   if (!userId) return [];
 
+  const { firestore } = await getAuthenticatedAppForUser(userId);
+  if (!firestore) return [];
+
   const q = query(
-    collection(db, 'transactions'),
+    collection(firestore, 'transactions'),
     where('adminChecked', '==', false),
     where('userId', '==', userId),
     orderBy('createdAt', 'asc')
@@ -155,7 +173,12 @@ export async function markTransactionAsChecked(id: string) {
         return { success: false, message: 'You must be logged in.' };
     }
 
-    const transactionRef = doc(db, 'transactions', id);
+    const { firestore } = await getAuthenticatedAppForUser(userId);
+    if (!firestore) {
+         return { success: false, message: 'You must be logged in.' };
+    }
+
+    const transactionRef = doc(firestore, 'transactions', id);
     await updateDoc(transactionRef, {
       adminChecked: true,
       checkedBy: 'admin', // Using a placeholder
@@ -172,12 +195,15 @@ export async function markTransactionAsChecked(id: string) {
 export async function getReportData({ from, to }: { from: Date; to: Date }): Promise<Transaction[]> {
   const userId = await getUserIdFromHeaders();
   if (!userId) return [];
+  
+  const { firestore } = await getAuthenticatedAppForUser(userId);
+  if (!firestore) return [];
 
   const fromTimestamp = Timestamp.fromDate(from);
   const toTimestamp = Timestamp.fromTimestamp(to);
 
   const q = query(
-    collection(db, 'transactions'),
+    collection(firestore, 'transactions'),
     where('userId', '==', userId),
     where('date', '>=', fromTimestamp),
     where('date', '<=', toTimestamp),

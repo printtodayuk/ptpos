@@ -18,21 +18,28 @@ import { useUser } from '@/firebase';
 import { Loader2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuth, signOut } from 'firebase/auth';
+import { useAuth } from '@/firebase/provider';
+
+async function handleSignOut(auth: any) {
+    await signOut(auth);
+    const response = await fetch('/api/auth/sign-out', {
+        method: 'POST',
+    });
+    if (response.ok) {
+        window.location.href = '/login';
+    }
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-
+  const auth = useAuth();
+  
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
-
-  const handleSignOut = () => {
-    const auth = getAuth();
-    signOut(auth);
-  };
   
   if (isUserLoading || !user) {
     return (
@@ -58,8 +65,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Nav />
           </SidebarContent>
           <SidebarFooter className="p-4 flex flex-col gap-2">
-            <Button variant="outline" size="sm" onClick={handleSignOut} className="w-full group-data-[collapsible=icon]:hidden">Sign Out</Button>
-             <Button variant="outline" size="icon" onClick={handleSignOut} className="hidden w-full group-data-[collapsible=icon]:block">
+            <Button variant="outline" size="sm" onClick={() => handleSignOut(auth)} className="w-full group-data-[collapsible=icon]:hidden">Sign Out</Button>
+             <Button variant="outline" size="icon" onClick={() => handleSignOut(auth)} className="hidden w-full group-data-[collapsible=icon]:block">
                 <LogOut />
              </Button>
             <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">&copy; {new Date().getFullYear()} Print Today</p>

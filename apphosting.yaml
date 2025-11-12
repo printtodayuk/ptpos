@@ -5,3 +5,15 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+# Add the following to your App Hosting backend’s apphosting.yaml to grant
+# permissions to other services.
+iam:
+  serviceAccount:
+    roles:
+      - "firebaseauth.userAdmin"
+      - "firebasedatabase.user"
+      - "datastore.user"
+      - "cloudtasks.enqueuer"
+      - "iam.serviceAccountUser"
+      - "run.invoker"
+

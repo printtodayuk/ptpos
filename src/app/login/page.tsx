@@ -12,9 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { initiateEmailSignIn, initiateEmailSignUp, useUser } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useAuth } from '@/firebase/provider';
 import { Logo } from '@/components/logo';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -22,6 +23,17 @@ const LoginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof LoginSchema>;
+
+async function createSession(idToken: string) {
+    const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(idToken),
+    });
+    return response.ok;
+}
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +46,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-        router.push('/dashboard');
+        user.getIdToken().then(createSession).then(() => {
+             router.push('/dashboard');
+        });
     }
   }, [user, isUserLoading, router]);
 
@@ -46,18 +60,18 @@ export default function LoginPage() {
     resolver: zodResolver(LoginSchema),
   });
 
-  const onSubmit = (data: LoginFormValues) => {
+  const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
       if (isSignUp) {
-        initiateEmailSignUp(auth, data.email, data.password);
+        await createUserWithEmailAndPassword(auth, data.email, data.password);
         toast({
             title: 'Sign Up Successful',
             description: "Please sign in with your new credentials.",
         });
         setIsSignUp(false);
       } else {
-        initiateEmailSignIn(auth, data.email, data.password);
+        await signInWithEmailAndPassword(auth, data.email, data.password);
         toast({
           title: 'Success',
           description: "You've been signed in.",
