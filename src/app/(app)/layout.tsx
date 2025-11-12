@@ -75,7 +75,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
             </div>
           </header>
-          <main className="flex-1 flex flex-col p-4 md:p-6 bg-background/50">
+          <main className="flex-1 flex flex-col p-4 md:p-6 bg-secondary/20">
             {children}
           </main>
           <footer className="text-center p-4 text-xs text-muted-foreground border-t">

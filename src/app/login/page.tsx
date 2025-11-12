@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
+import { initiateEmailSignIn, initiateEmailSignUp, useUser } from '@/firebase';
 import { useAuth } from '@/firebase/provider';
 import { Logo } from '@/components/logo';
 
@@ -30,6 +30,13 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+        router.push('/dashboard');
+    }
+  }, [user, isUserLoading, router]);
 
   const {
     register,
@@ -55,7 +62,6 @@ export default function LoginPage() {
           title: 'Success',
           description: "You've been signed in.",
         });
-        router.push('/dashboard');
       }
     } catch (error: any) {
       toast({
@@ -67,9 +73,18 @@ export default function LoginPage() {
         setIsLoading(false);
     }
   };
+  
+    if (isUserLoading || user) {
+        return (
+        <div className="flex min-h-screen items-center justify-center bg-background">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+        );
+    }
+
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background/50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-secondary/20 p-4">
       <Card className="w-full max-w-sm">
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardHeader className="text-center">
