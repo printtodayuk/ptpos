@@ -24,8 +24,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div id="app-container" className="flex min-h-screen">
-        <Sidebar collapsible="icon" className="border-r bg-card print-hide">
+      <div id="app-container" className="flex min-h-screen print-hide">
+        <Sidebar collapsible="icon" className="border-r bg-card">
           <SidebarHeader className="p-4">
             <Link href="/" className="block group-data-[collapsible=icon]:hidden">
               <Logo />
@@ -42,17 +42,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 sm:px-6 print-hide">
+          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 sm:px-6">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1">
               <h1 className="text-lg font-semibold sm:hidden">Print Today</h1>
               <h1 className="text-lg font-semibold hidden sm:block">Print Today EPOS</h1>
             </div>
           </header>
-          <main className="flex-1 flex flex-col p-4 md:p-6 bg-secondary/20 print-hide">
+          <main className="flex-1 flex flex-col p-4 md:p-6 bg-secondary/20">
             {children}
           </main>
-          <footer className="text-center p-4 text-xs text-muted-foreground border-t print-hide">
+          <footer className="text-center p-4 text-xs text-muted-foreground border-t">
              Developed by{' '}
             <a
               href="mailto:info@remotizedit.com"
