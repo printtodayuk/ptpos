@@ -14,7 +14,7 @@ import {
   doc,
   where,
   runTransaction,
-  DocumentReference,
+  or,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -293,29 +293,66 @@ export async function getReportData({
   }
 }
 
-export async function searchTransactions(type: 'invoicing' | 'non-invoicing'): Promise<Transaction[]> {
-    // This action now only fetches the last 50 transactions for client-side filtering.
-    try {
-        const q = query(
-            collection(db, "transactions"),
-            where('type', '==', type),
-            orderBy('createdAt', 'desc'),
-            limit(50)
-        );
+export async function searchTransactions(
+  type: 'invoicing' | 'non-invoicing',
+  searchTerm: string
+): Promise<Transaction[]> {
+  if (!searchTerm) {
+    // Return last 50 transactions if search term is empty
+    const q = query(
+      collection(db, 'transactions'),
+      where('type', '==', type),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
+      } as Transaction;
+    });
+  }
+  
+  // As Firestore doesn't support native full-text search,
+  // we fetch recent records and filter them. For a more robust solution,
+  // a dedicated search service like Algolia or Elasticsearch would be needed.
+  // This implementation simulates a search over the last 1000 records for performance.
+  try {
+    const q = query(
+      collection(db, 'transactions'),
+      where('type', '==', type),
+      orderBy('createdAt', 'desc'),
+      limit(1000) // Search within the last 1000 transactions
+    );
 
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                ...data,
-                id: doc.id,
-                date: (data.date as Timestamp).toDate(),
-                createdAt: (data.createdAt as Timestamp)?.toDate(),
-            } as Transaction;
-        });
+    const querySnapshot = await getDocs(q);
+    const transactions = querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
+      } as Transaction;
+    });
 
-    } catch (e) {
-        console.error("Error searching transactions: ", e);
-        return [];
-    }
+    const lowercasedTerm = searchTerm.toLowerCase();
+    const searchAmount = parseFloat(lowercasedTerm);
+
+    return transactions.filter((t) => {
+      const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
+      const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
+      const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
+      // Check if amount matches if the search term is a valid number
+      const amountMatch = !isNaN(searchAmount) && t.totalAmount === searchAmount;
+      return tidMatch || clientMatch || jobMatch || amountMatch;
+    });
+  } catch (e) {
+    console.error('Error searching transactions: ', e);
+    return [];
+  }
 }

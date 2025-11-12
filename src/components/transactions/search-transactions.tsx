@@ -1,5 +1,5 @@
 'use client';
-import { useState, useTransition, useEffect, useMemo } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { searchTransactions } from '@/lib/server-actions';
 import { TransactionsTable } from '@/components/transactions/transactions-table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,82 +16,72 @@ type SearchTransactionsProps = {
 
 export function SearchTransactions({ type, onTransactionUpdated }: SearchTransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
 
-  const debouncedSearchTerm = useDebounce(searchTerm, 200);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const fetchInitialData = () => {
-    startSearchTransition(async () => {
-      const data = await searchTransactions(type);
-      setAllTransactions(data);
-    });
-  };
+  const performSearch = useCallback(
+    (term: string) => {
+      startSearchTransition(async () => {
+        const data = await searchTransactions(type, term);
+        setResults(data);
+      });
+    },
+    [type]
+  );
 
   useEffect(() => {
-    fetchInitialData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
-
-  const filteredResults = useMemo(() => {
-    if (!debouncedSearchTerm) {
-      return allTransactions;
-    }
-    const lowercasedTerm = debouncedSearchTerm.toLowerCase();
-    return allTransactions.filter(t => {
-        const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
-        const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
-        const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-        return tidMatch || clientMatch || jobMatch;
-    });
-  }, [debouncedSearchTerm, allTransactions]);
-
+    performSearch(debouncedSearchTerm);
+  }, [debouncedSearchTerm, performSearch]);
 
   const handleEdit = (transaction: Transaction) => {
     setTransactionToEdit(transaction);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  
+
   const handleUpdate = () => {
     setTransactionToEdit(null); // Clear the edit state
-    onTransactionUpdated(); // Notify parent to re-render (and thus re-fetch)
-    fetchInitialData(); // Re-fetch all data
-  }
+    onTransactionUpdated(); // Notify parent to re-render
+    performSearch(debouncedSearchTerm); // Re-run search to get fresh data
+  };
 
   return (
     <>
       {transactionToEdit && (
         <div className="mb-6">
-          <TransactionForm 
-            type={type} 
-            onTransactionAdded={handleUpdate} 
-            transactionToEdit={transactionToEdit} 
+          <TransactionForm
+            type={type}
+            onTransactionAdded={handleUpdate}
+            transactionToEdit={transactionToEdit}
           />
         </div>
       )}
       <Card>
         <CardHeader>
-          <CardTitle>Search Recent Transactions</CardTitle>
-          <CardDescription>Search the last 50 transactions by TID, client name, or job description.</CardDescription>
+          <CardTitle>Search Transactions</CardTitle>
+          <CardDescription>
+            Search by TID, client name, job description, or amount. Leave blank to see recent entries.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 mb-4">
             <Search className="h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="e.g. TID0012, John Doe, Flyer Design..."
+              placeholder="e.g. TID0002, John Doe, Flyer Design, 24.50..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full"
             />
           </div>
-          {isSearching && allTransactions.length === 0 ? (
+          {isSearching ? (
             <div className="flex justify-center items-center p-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <TransactionsTable transactions={filteredResults} onEdit={handleEdit} />
+            <TransactionsTable transactions={results} onEdit={handleEdit} />
           )}
         </CardContent>
       </Card>
