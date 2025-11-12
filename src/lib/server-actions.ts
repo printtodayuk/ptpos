@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -12,7 +13,6 @@ import {
   query,
   updateDoc,
   doc,
-  where,
   runTransaction,
   or,
 } from 'firebase/firestore';
@@ -300,14 +300,12 @@ export async function getReportData({
 }
 
 export async function searchTransactions(
-  searchTerm: string,
-  type: 'invoicing' | 'non-invoicing'
+  searchTerm: string
 ): Promise<Transaction[]> {
   if (!searchTerm) {
     // Return last 50 transactions if search term is empty
     const q = query(
       collection(db, 'transactions'),
-       where('type', '==', type),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -324,7 +322,7 @@ export async function searchTransactions(
   }
   
   try {
-     // This is not efficient for large datasets. For a production app,
+    // This is not efficient for large datasets. For a production app,
     // a dedicated search service like Algolia or Elasticsearch is recommended.
     // We will query for recent transactions and then filter in code.
     const q = query(
@@ -348,8 +346,6 @@ export async function searchTransactions(
     const searchAmount = parseFloat(lowercasedTerm);
 
     return transactions.filter((t) => {
-      if (t.type !== type) return false;
-      
       const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
       const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
       const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);

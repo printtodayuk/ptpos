@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useTransition, useEffect, useCallback } from 'react';
 import { searchTransactions } from '@/lib/server-actions';
