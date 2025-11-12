@@ -46,8 +46,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-        user.getIdToken().then(createSession).then(() => {
-             router.push('/dashboard');
+        user.getIdToken().then((idToken) => {
+            createSession(idToken).then((isSessionCreated) => {
+                if (isSessionCreated) {
+                    router.push('/dashboard');
+                }
+            });
         });
     }
   }, [user, isUserLoading, router]);
@@ -71,11 +75,17 @@ export default function LoginPage() {
         });
         setIsSignUp(false);
       } else {
-        await signInWithEmailAndPassword(auth, data.email, data.password);
-        toast({
-          title: 'Success',
-          description: "You've been signed in.",
-        });
+        const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+        const idToken = await userCredential.user.getIdToken();
+        const isSessionCreated = await createSession(idToken);
+        if (isSessionCreated) {
+            toast({
+              title: 'Success',
+              description: "You've been signed in.",
+            });
+        } else {
+            throw new Error('Could not create session.');
+        }
       }
     } catch (error: any) {
       toast({

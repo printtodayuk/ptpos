@@ -18,29 +18,34 @@ import { z } from 'zod';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
 import { getAuthenticatedAppForUser } from './firebase';
+import { headers } from 'next/headers';
 
-const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true, userId: true });
+const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true });
 
 export async function addTransaction(
-  data: z.infer<typeof CreateTransactionSchema>,
-  userId: string
+  data: z.infer<typeof CreateTransactionSchema>
 ) {
+  const validatedData = CreateTransactionSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
+  }
+  
+  const userId = validatedData.data.userId;
+  if (!userId) {
+      return { success: false, message: 'You must be logged in to add a transaction.' };
+  }
+
   try {
     const { firestore } = await getAuthenticatedAppForUser(userId);
-    if (!firestore) {
-        return { success: false, message: 'You must be logged in to add a transaction.' };
-    }
-
-    const validatedData = CreateTransactionSchema.parse(data);
     
     await addDoc(collection(firestore, 'transactions'), {
-      ...validatedData,
-      date: Timestamp.fromDate(validatedData.date),
+      ...validatedData.data,
+      date: Timestamp.fromDate(validatedData.data.date),
       createdAt: serverTimestamp(),
       userId: userId,
     });
 
-    revalidatePath(`/${validatedData.type}`);
+    revalidatePath(`/${validatedData.data.type}`);
     revalidatePath('/dashboard');
     revalidatePath('/reporting');
     revalidatePath('/admin');
@@ -48,15 +53,11 @@ export async function addTransaction(
     return { success: true, message: 'Transaction added successfully.' };
   } catch (error) {
     console.error(error);
-    if (error instanceof z.ZodError) {
-      return { success: false, message: 'Validation failed.', errors: error.flatten().fieldErrors };
-    }
     return { success: false, message: 'An unexpected error occurred.' };
   }
 }
 
 async function getUserIdFromHeaders() {
-    const { headers } = await import('next/headers');
     const headersList = headers();
     return headersList.get('x-user-id');
 }
@@ -69,7 +70,6 @@ export async function getTransactions(
   if (!userId) return [];
 
   const { firestore } = await getAuthenticatedAppForUser(userId);
-  if (!firestore) return [];
 
   const q = query(
     collection(firestore, 'transactions'),
@@ -103,25 +103,23 @@ export async function getDashboardStats() {
     }
     
     const { firestore } = await getAuthenticatedAppForUser(userId);
-    if (!firestore) {
-         return {
-            dailySales: 0,
-            totalInputs: 0,
-            cashAmount: 0,
-            bankAmount: 0,
-            cardAmount: 0,
-        };
-    }
 
     const q = query(collection(firestore, 'transactions'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
-    const transactions = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Transaction));
+    const transactions = querySnapshot.docs.map(doc => {
+       const data = doc.data();
+        return {
+            ...data,
+            id: doc.id,
+            date: (data.date as Timestamp).toDate(),
+        } as Transaction
+    });
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const dailySales = transactions
-        .filter(t => (t.date as unknown as Timestamp).toDate() >= today)
+        .filter(t => t.date >= today)
         .reduce((sum, t) => sum + t.totalAmount, 0);
 
     const totalInputs = transactions.length;
@@ -145,7 +143,6 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
   if (!userId) return [];
 
   const { firestore } = await getAuthenticatedAppForUser(userId);
-  if (!firestore) return [];
 
   const q = query(
     collection(firestore, 'transactions'),
@@ -174,9 +171,6 @@ export async function markTransactionAsChecked(id: string) {
     }
 
     const { firestore } = await getAuthenticatedAppForUser(userId);
-    if (!firestore) {
-         return { success: false, message: 'You must be logged in.' };
-    }
 
     const transactionRef = doc(firestore, 'transactions', id);
     await updateDoc(transactionRef, {
@@ -197,10 +191,9 @@ export async function getReportData({ from, to }: { from: Date; to: Date }): Pro
   if (!userId) return [];
   
   const { firestore } = await getAuthenticatedAppForUser(userId);
-  if (!firestore) return [];
 
   const fromTimestamp = Timestamp.fromDate(from);
-  const toTimestamp = Timestamp.fromTimestamp(to);
+  const toTimestamp = Timestamp.fromDate(to);
 
   const q = query(
     collection(firestore, 'transactions'),

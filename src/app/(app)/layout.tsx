@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, 'useEffect' from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -52,7 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
-        <Sidebar collapsible="icon" className="border-r">
+        <Sidebar collapsible="icon" className="border-r bg-card">
           <SidebarHeader className="p-4">
             <Link href="/dashboard" className="block group-data-[collapsible=icon]:hidden">
               <Logo />
@@ -76,6 +76,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="flex h-14 items-center gap-4 border-b bg-card px-4 sm:px-6">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1">
+              <h1 className="text-lg font-semibold sm:hidden">Print Today</h1>
               <h1 className="text-lg font-semibold hidden sm:block">Print Today EPOS</h1>
             </div>
              <div className="flex items-center gap-2 ml-auto">

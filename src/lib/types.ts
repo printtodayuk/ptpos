@@ -9,7 +9,7 @@ export type PaymentMethod = typeof paymentMethods[number];
 
 export const TransactionSchema = z.object({
   id: z.string().optional(),
-  userId: z.string().optional(), // Added to associate with a Firebase user
+  userId: z.string(),
   type: z.enum(['invoicing', 'non-invoicing']),
   invoiceNumber: z.string().optional(),
   date: z.date(),

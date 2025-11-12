@@ -36,7 +36,7 @@ type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
 };
 
-type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'userId'>;
+type FormValues = Omit<Transaction, 'id' | 'createdAt'>;
 
 export function TransactionForm({ type }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
@@ -45,8 +45,9 @@ export function TransactionForm({ type }: TransactionFormProps) {
   const [totalAmount, setTotalAmount] = useState<number>(0);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, userId: true })),
+    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true })),
     defaultValues: {
+      userId: '',
       type: type,
       date: new Date(),
       clientName: '',
@@ -62,6 +63,12 @@ export function TransactionForm({ type }: TransactionFormProps) {
       checkedBy: null,
     },
   });
+  
+  useEffect(() => {
+    if(user) {
+        form.setValue('userId', user.uid);
+    }
+  }, [user, form]);
 
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
@@ -83,13 +90,14 @@ export function TransactionForm({ type }: TransactionFormProps) {
         return;
     }
     startTransition(async () => {
-      const result = await addTransaction(data, user.uid);
+      const result = await addTransaction(data);
       if (result.success) {
         toast({
           title: 'Success',
           description: result.message,
         });
         form.reset({
+            userId: user.uid,
             type: type,
             date: new Date(),
             clientName: '',

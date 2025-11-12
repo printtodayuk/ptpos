@@ -26,6 +26,20 @@ export async function middleware(request: NextRequest) {
         requestHeaders.set('x-user-id', userId);
     }
 
+    const pathname = request.nextUrl.pathname;
+
+    if (!userId && !pathname.startsWith('/login') && !pathname.startsWith('/api')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    if (userId && pathname.startsWith('/login')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+
     return NextResponse.next({
         request: {
             headers: requestHeaders,
@@ -34,5 +48,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|favicon.ico|login|manifest.json).*)'],
+  matcher: ['/((?!_next/static|favicon.ico).*)'],
 };
