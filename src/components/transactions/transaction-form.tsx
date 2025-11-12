@@ -26,7 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { addTransaction } from '@/lib/actions';
+import { addTransaction } from '@/lib/server-actions';
 import { TransactionSchema, operators, paymentMethods, type Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
