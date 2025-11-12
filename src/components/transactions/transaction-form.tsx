@@ -26,7 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { addTransaction } from '@/lib/server-actions';
+import { addTransaction, updateTransaction } from '@/lib/server-actions';
 import { TransactionSchema, operators, paymentMethods, type Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -35,34 +35,53 @@ import { ReceiptDialog } from './receipt-dialog';
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
   onTransactionAdded?: () => void;
+  transactionToEdit?: Transaction | null;
 };
 
 type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'transactionId'>;
 
-export function TransactionForm({ type, onTransactionAdded }: TransactionFormProps) {
+const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): FormValues => ({
+    type: type,
+    date: new Date(),
+    clientName: '',
+    jobDescription: '',
+    amount: 0,
+    vatApplied: false,
+    totalAmount: 0,
+    paymentMethod: 'Bank Transfer',
+    operator: 'PTMGH',
+    invoiceNumber: '',
+    reference: '',
+    adminChecked: false,
+    checkedBy: null,
+});
+
+
+export function TransactionForm({ type, onTransactionAdded, transactionToEdit }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
-    defaultValues: {
-      type: type,
-      date: new Date(),
-      clientName: '',
-      jobDescription: '',
-      amount: 0,
-      vatApplied: false,
-      totalAmount: 0,
-      paymentMethod: 'Bank Transfer',
-      operator: 'PTMGH',
-      invoiceNumber: '',
-      reference: '',
-      adminChecked: false,
-      checkedBy: null,
-    },
+    defaultValues: getFreshDefaultValues(type),
   });
+
+  useEffect(() => {
+    if (transactionToEdit) {
+      setIsEditMode(true);
+      form.reset({
+        ...transactionToEdit,
+        date: new Date(transactionToEdit.date),
+      });
+    } else {
+      setIsEditMode(false);
+      form.reset(getFreshDefaultValues(type));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactionToEdit, type]);
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
@@ -76,24 +95,18 @@ export function TransactionForm({ type, onTransactionAdded }: TransactionFormPro
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
-      const result = await addTransaction(data);
+      const result = isEditMode && transactionToEdit?.id 
+        ? await updateTransaction(transactionToEdit.id, data)
+        : await addTransaction(data);
+
       if (result.success && result.transaction) {
-        setLastTransaction(result.transaction);
-        form.reset({
-            type: type,
-            date: new Date(),
-            clientName: '',
-            jobDescription: '',
-            amount: 0,
-            vatApplied: false,
-            totalAmount: 0,
-            paymentMethod: 'Bank Transfer',
-            operator: 'PTMGH',
-            invoiceNumber: '',
-            reference: '',
-            adminChecked: false,
-            checkedBy: null,
-        });
+        if (isEditMode) {
+            toast({ title: "Success", description: "Transaction updated successfully." });
+        } else {
+            setLastTransaction(result.transaction);
+        }
+        form.reset(getFreshDefaultValues(type));
+        setIsEditMode(false);
         onTransactionAdded?.();
       } else {
         toast({
@@ -105,18 +118,35 @@ export function TransactionForm({ type, onTransactionAdded }: TransactionFormPro
     });
   };
 
+  const handleEditFromDialog = (transaction: Transaction) => {
+    setLastTransaction(null); // Close the dialog
+    // The useEffect will handle setting the edit mode and form values
+  }
+
+  const cancelEdit = () => {
+    setIsEditMode(false);
+    setTransactionToEdit(null); // Clear the transaction being edited
+    form.reset(getFreshDefaultValues(type));
+    onTransactionAdded?.(); // To signal a refresh if needed
+  }
+
   return (
     <>
       <ReceiptDialog 
         transaction={lastTransaction}
-        isOpen={!!lastTransaction}
+        isOpen={!!lastTransaction && !isEditMode}
         onClose={() => setLastTransaction(null)}
+        onEdit={() => {
+            if(lastTransaction) {
+                handleEditFromDialog(lastTransaction)
+            }
+        }}
       />
       <Card>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
-            <CardTitle className="capitalize">{type}</CardTitle>
-            <CardDescription>Enter the details for the new transaction.</CardDescription>
+            <CardTitle className="capitalize">{isEditMode ? `Editing TID: ${transactionToEdit?.transactionId}` : `${type}`}</CardTitle>
+            <CardDescription>{isEditMode ? 'Update the transaction details below.' : 'Enter the details for the new transaction.'}</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
@@ -126,7 +156,7 @@ export function TransactionForm({ type, onTransactionAdded }: TransactionFormPro
                 control={form.control}
                 name="operator"
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger id="operator">
                       <SelectValue placeholder="Select operator" />
                     </SelectTrigger>
@@ -189,7 +219,7 @@ export function TransactionForm({ type, onTransactionAdded }: TransactionFormPro
             )}
 
             <div className={cn("lg:col-span-2", type === 'invoicing' ? "lg:col-start-3" : "")}>
-              <div className="spacey-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="jobDescription">Job Description (Optional)</Label>
                 <Textarea id="jobDescription" {...form.register('jobDescription')} />
               </div>
@@ -232,7 +262,7 @@ export function TransactionForm({ type, onTransactionAdded }: TransactionFormPro
                 control={form.control}
                 name="paymentMethod"
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger id="paymentMethod">
                       <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
@@ -252,10 +282,11 @@ export function TransactionForm({ type, onTransactionAdded }: TransactionFormPro
             </div>
 
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isPending} className="ml-auto">
+          <CardFooter className="justify-end gap-2">
+            {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
+            <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Transaction
+              {isEditMode ? "Update Transaction" : "Add Transaction"}
             </Button>
           </CardFooter>
         </form>

@@ -11,19 +11,19 @@ export const TransactionSchema = z.object({
   id: z.string().optional(),
   transactionId: z.string(),
   type: z.enum(['invoicing', 'non-invoicing']),
-  invoiceNumber: z.string().optional(),
+  invoiceNumber: z.string().optional().nullable(),
   date: z.date(),
   clientName: z.string().min(1, 'Client name is required'),
-  jobDescription: z.string().optional(),
+  jobDescription: z.string().optional().nullable(),
   amount: z.coerce.number().positive('Amount must be positive'),
   vatApplied: z.boolean(),
   totalAmount: z.number(),
   paymentMethod: z.enum(paymentMethods),
-  reference: z.string().optional(),
+  reference: z.string().optional().nullable(),
   operator: z.enum(operators),
   adminChecked: z.boolean().default(false),
   checkedBy: z.string().nullable().default(null),
-  createdAt: z.instanceof(Timestamp).optional(),
+  createdAt: z.any().optional(),
 });
 
 export type Transaction = z.infer<typeof TransactionSchema>;

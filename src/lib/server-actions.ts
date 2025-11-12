@@ -6,6 +6,7 @@ import {
   serverTimestamp,
   Timestamp,
   getDocs,
+  getDoc,
   limit,
   orderBy,
   query,
@@ -27,6 +28,9 @@ const CreateTransactionSchema = TransactionSchema.omit({
   transactionId: true,
 });
 
+const UpdateTransactionSchema = CreateTransactionSchema;
+
+
 export async function addTransaction(
   data: z.infer<typeof CreateTransactionSchema>
 ) {
@@ -46,7 +50,9 @@ export async function addTransaction(
     
     const newTransactionId = await runTransaction(db, async (transaction) => {
       const counterDoc = await transaction.get(counterRef);
-      const newCount = (counterDoc.data()?.count || 0) + 1;
+      // Initialize counter if it doesn't exist
+      const currentCount = counterDoc.exists() ? counterDoc.data()?.count : 0;
+      const newCount = (currentCount || 0) + 1;
       transaction.set(counterRef, { count: newCount }, { merge: true });
       return `TID${String(newCount).padStart(4, '0')}`;
     });
@@ -58,14 +64,15 @@ export async function addTransaction(
       createdAt: serverTimestamp(),
     });
 
-    // We can't get the full object back from addDoc directly with serverTimestamp
-    // So we construct it manually for the return value
+    const newDocSnap = await getDoc(docRef);
+    const newDocData = newDocSnap.data();
+
     newTransaction = {
-      ...validatedData.data,
+      ...(newDocData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
       id: docRef.id,
       transactionId: newTransactionId,
-      // We can't know the exact server timestamp, but client date is close enough for the immediate response
-      createdAt: new Date(), 
+      date: (newDocData?.date as Timestamp).toDate(),
+      createdAt: (newDocData?.createdAt as Timestamp)?.toDate() || new Date(), 
     };
 
     revalidatePath(`/${validatedData.data.type}`);
@@ -80,6 +87,51 @@ export async function addTransaction(
     };
   } catch (error) {
     console.error('Error adding transaction:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unexpected error occurred.';
+    return { success: false, message: errorMessage };
+  }
+}
+
+export async function updateTransaction(
+  id: string,
+  data: z.infer<typeof UpdateTransactionSchema>
+) {
+  const validatedData = UpdateTransactionSchema.safeParse(data);
+  if (!validatedData.success) {
+    return {
+      success: false,
+      message: 'Validation failed.',
+      errors: validatedData.error.flatten().fieldErrors,
+    };
+  }
+  
+  try {
+    const transactionRef = doc(db, 'transactions', id);
+    await updateDoc(transactionRef, {
+        ...validatedData.data,
+        date: Timestamp.fromDate(validatedData.data.date),
+    });
+
+    const updatedDocSnap = await getDoc(transactionRef);
+    const updatedData = updatedDocSnap.data();
+
+    const transaction = {
+        ...(updatedData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
+        id: updatedDocSnap.id,
+        date: (updatedData?.date as Timestamp).toDate(),
+        createdAt: (updatedData?.createdAt as Timestamp)?.toDate() || new Date(), 
+    };
+
+
+    revalidatePath(`/${validatedData.data.type}`);
+    revalidatePath('/dashboard');
+    revalidatePath('/reporting');
+    revalidatePath('/admin');
+
+    return { success: true, message: 'Transaction updated successfully.', transaction };
+  } catch (error) {
+    console.error('Error updating transaction:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'An unexpected error occurred.';
     return { success: false, message: errorMessage };
@@ -234,4 +286,46 @@ export async function getReportData({
     console.error(e);
     return [];
   }
+}
+
+export async function searchTransactions(searchTerm: string, type: 'invoicing' | 'non-invoicing'): Promise<Transaction[]> {
+    if (!searchTerm) {
+        return getTransactions(type, 20);
+    }
+
+    try {
+        // This is a simplified client-side search. A more robust solution for large datasets
+        // would involve a dedicated search service like Algolia or Elasticsearch.
+        const q = query(
+            collection(db, "transactions"),
+            where('type', '==', type),
+            orderBy('createdAt', 'desc')
+        );
+
+        const querySnapshot = await getDocs(q);
+        const allTransactions = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Transaction));
+        
+        const lowercasedTerm = searchTerm.toLowerCase();
+
+        const filtered = allTransactions.filter(t => {
+            return (
+                t.transactionId?.toLowerCase().includes(lowercasedTerm) ||
+                t.clientName?.toLowerCase().includes(lowercasedTerm) ||
+                t.jobDescription?.toLowerCase().includes(lowercasedTerm)
+            );
+        });
+
+        return filtered.map(t => ({
+            ...t,
+            date: (t.date as unknown as Timestamp).toDate(),
+            createdAt: (t.createdAt as unknown as Timestamp)?.toDate(),
+        }));
+
+    } catch (e) {
+        console.error("Error searching transactions: ", e);
+        return [];
+    }
 }

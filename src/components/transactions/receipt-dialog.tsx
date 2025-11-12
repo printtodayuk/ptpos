@@ -18,9 +18,10 @@ type ReceiptDialogProps = {
   transaction: Transaction | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit: (transaction: Transaction) => void;
 };
 
-export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogProps) {
+export function ReceiptDialog({ transaction, isOpen, onClose, onEdit }: ReceiptDialogProps) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -35,6 +36,12 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
       setIsPrinting(false);
     }, 100);
   };
+  
+  const handleEdit = () => {
+    if (transaction) {
+      onEdit(transaction);
+    }
+  }
 
   if (!transaction) {
     return null;
@@ -69,7 +76,7 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-md print-hide">
           <DialogHeader>
-            <DialogTitle>Transaction Added</DialogTitle>
+            <DialogTitle>Transaction Action</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center py-4">
              <div className="p-4 border rounded-lg bg-gray-50">
@@ -77,7 +84,7 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
             </div>
           </div>
           <DialogFooter className="sm:justify-between gap-2">
-             <Button type="button" variant="outline" onClick={onClose}>
+             <Button type="button" variant="outline" onClick={handleEdit}>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
             </Button>

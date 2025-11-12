@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
-import { MoreHorizontal, Printer, CheckCircle } from 'lucide-react';
+import { MoreHorizontal, Printer, CheckCircle, Edit } from 'lucide-react';
 
 import {
   Table,
@@ -27,9 +27,10 @@ import { cn } from '@/lib/utils';
 
 type TransactionsTableProps = {
   transactions: Transaction[];
+  onEdit?: (transaction: Transaction) => void;
 };
 
-export function TransactionsTable({ transactions }: TransactionsTableProps) {
+export function TransactionsTable({ transactions, onEdit }: TransactionsTableProps) {
   const [transactionToPrint, setTransactionToPrint] = useState<Transaction | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -56,7 +57,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
   if (transactions.length === 0) {
     return (
       <div className="text-center text-muted-foreground p-10">
-        No transactions found for this period.
+        No transactions found.
       </div>
     );
   }
@@ -117,6 +118,11 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {onEdit && (
+                        <DropdownMenuItem onSelect={() => onEdit(tx)}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onSelect={() => setTransactionToPrint(tx)}>
                         <Printer className="mr-2 h-4 w-4" /> Print Receipt
                       </DropdownMenuItem>
