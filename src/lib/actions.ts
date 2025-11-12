@@ -15,18 +15,10 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getFirestore } from 'firebase/firestore';
-import { getApp, getApps, initializeApp } from 'firebase/app';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
-import { firebaseConfig } from '@/firebase/config';
-import { getAuth } from 'firebase/auth';
 import { headers } from 'next/headers';
-
-// Helper to initialize Firebase App
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-
+import { db } from './firebase'; // Import the initialized db instance
 
 const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true });
 
@@ -160,15 +152,10 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
 export async function markTransactionAsChecked(id: string) {
   try {
     const userId = await getUserIdFromRequest();
-    const auth = getAuth(app);
-    const user = auth.currentUser; // Still not ideal, but let's get email from client
     
     if (!userId) {
         return { success: false, message: 'You must be logged in.' };
     }
-
-    // A better approach would be to get the email from a session.
-    // For now, let's assume we pass it from the client if needed or use a placeholder.
 
     const transactionRef = doc(db, 'transactions', id);
     await updateDoc(transactionRef, {
@@ -189,7 +176,7 @@ export async function getReportData({ from, to }: { from: Date; to: Date }): Pro
   if (!userId) return [];
 
   const fromTimestamp = Timestamp.fromDate(from);
-  const toTimestamp = Timestamp.fromDate(to);
+  const toTimestamp = Timestamp.fromTimestamp(to);
 
   const q = query(
     collection(db, 'transactions'),
