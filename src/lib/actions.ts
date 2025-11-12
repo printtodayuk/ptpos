@@ -52,8 +52,9 @@ export async function addTransaction(
 
     return { success: true, message: 'Transaction added successfully.' };
   } catch (error) {
-    console.error(error);
-    return { success: false, message: 'An unexpected error occurred.' };
+    console.error("Error adding transaction:", error);
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    return { success: false, message: errorMessage };
   }
 }
 
