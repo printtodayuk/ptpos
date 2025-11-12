@@ -50,7 +50,7 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
       </Dialog>
       {/* This is the hidden, printable version of the receipt */}
       <div className="print-only">
-        <PrintReceipt transaction={transaction} />
+        {transaction && <PrintReceipt transaction={transaction} />}
       </div>
     </>
   );
