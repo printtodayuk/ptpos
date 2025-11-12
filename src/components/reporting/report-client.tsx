@@ -13,19 +13,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { getReportData } from '@/lib/server-actions';
 import type { Transaction } from '@/lib/types';
 import { cn, exportToCsv } from '@/lib/utils';
-import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TransactionsTable } from '../transactions/transactions-table';
 
 export function ReportClient() {
   const [isPending, startTransition] = useTransition();
@@ -33,22 +26,28 @@ export function ReportClient() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [invoicingTransactions, setInvoicingTransactions] = useState<Transaction[]>([]);
+  const [nonInvoicingTransactions, setNonInvoicingTransactions] = useState<Transaction[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [activeTab, setActiveTab] = useState('invoicing');
 
   const handleSearch = () => {
     if (!date?.from || !date?.to) return;
 
     startTransition(async () => {
       const data = await getReportData({ from: date.from!, to: date.to! });
-      setTransactions(data);
+      setInvoicingTransactions(data.filter(t => t.type === 'invoicing'));
+      setNonInvoicingTransactions(data.filter(t => t.type === 'non-invoicing'));
       setHasSearched(true);
     });
   };
 
   const handleExport = () => {
-    const filename = `report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    const dataToExport = transactions.map(t => ({
+    const transactionsToExport = activeTab === 'invoicing' ? invoicingTransactions : nonInvoicingTransactions;
+    if (transactionsToExport.length === 0) return;
+
+    const filename = `${activeTab}_report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    const dataToExport = transactionsToExport.map(t => ({
         date: format(t.date, 'yyyy-MM-dd'),
         clientName: t.clientName,
         type: t.type,
@@ -73,6 +72,8 @@ export function ReportClient() {
     const today = new Date();
     setDate({ from: startOfMonth(today), to: endOfMonth(today) });
   }
+
+  const hasData = invoicingTransactions.length > 0 || nonInvoicingTransactions.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -120,7 +121,7 @@ export function ReportClient() {
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Generate Report
         </Button>
-        {transactions.length > 0 && (
+        {hasData && (
             <Button onClick={handleExport} variant="outline" className="ml-auto">
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
@@ -129,44 +130,34 @@ export function ReportClient() {
       </div>
 
       <Card>
-          {hasSearched && transactions.length === 0 && (
+          {isPending && (
+             <div className="p-10 text-center text-muted-foreground">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+            </div>
+          )}
+
+          {!isPending && hasSearched && !hasData && (
             <div className="p-10 text-center text-muted-foreground">
                 No data found for the selected period.
             </div>
           )}
 
-          {transactions.length > 0 && (
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Client</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Payment</TableHead>
-                        <TableHead>Admin Checked</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {transactions.map((tx) => (
-                        <TableRow key={tx.id}>
-                        <TableCell>{format(tx.date, 'dd/MM/yyyy')}</TableCell>
-                        <TableCell>{tx.clientName}</TableCell>
-                        <TableCell><Badge variant={tx.type === 'invoicing' ? 'default' : 'secondary'}>{tx.type}</Badge></TableCell>
-                        <TableCell><Badge variant="outline">{tx.paymentMethod}</Badge></TableCell>
-                        <TableCell>
-                            <Badge variant={tx.adminChecked ? 'default' : 'destructive'} className={cn(tx.adminChecked && 'bg-green-600')}>{tx.adminChecked ? 'Yes' : 'No'}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">£{tx.totalAmount.toFixed(2)}</TableCell>
-                        </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
-            </div>
+          {!isPending && hasData && (
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="m-4">
+                <TabsTrigger value="invoicing">Invoicing ({invoicingTransactions.length})</TabsTrigger>
+                <TabsTrigger value="non-invoicing">Non-Invoicing ({nonInvoicingTransactions.length})</TabsTrigger>
+              </TabsList>
+              <TabsContent value="invoicing" className="m-0 p-0">
+                  <TransactionsTable transactions={invoicingTransactions} />
+              </TabsContent>
+              <TabsContent value="non-invoicing" className="m-0 p-0">
+                  <TransactionsTable transactions={nonInvoicingTransactions} />
+              </TabsContent>
+            </Tabs>
           )}
           
-          {!hasSearched && (
+          {!isPending && !hasSearched && (
             <div className="p-10 text-center text-muted-foreground">
                 Select a date range and click "Generate Report" to see data.
             </div>

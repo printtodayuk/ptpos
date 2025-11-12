@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
-import { MoreHorizontal, Printer } from 'lucide-react';
+import { MoreHorizontal, Printer, CheckCircle } from 'lucide-react';
 
 import {
   Table,
@@ -23,6 +23,7 @@ import {
 import type { Transaction } from '@/lib/types';
 import { PrintReceipt } from './print-receipt';
 import { Badge } from '../ui/badge';
+import { cn } from '@/lib/utils';
 
 type TransactionsTableProps = {
   transactions: Transaction[];
@@ -43,7 +44,8 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
 
     if (transactionToPrint) {
       window.addEventListener('afterprint', handleAfterPrint);
-      window.print();
+      // A brief delay helps ensure the content is rendered before printing.
+      setTimeout(() => window.print(), 100);
     }
 
     return () => {
@@ -53,8 +55,8 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
 
   if (transactions.length === 0) {
     return (
-      <div className="text-center text-muted-foreground py-10">
-        No transactions recorded yet.
+      <div className="text-center text-muted-foreground p-10">
+        No transactions found for this period.
       </div>
     );
   }
@@ -67,7 +69,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
         </div>,
         document.body
       )}
-      <div className="rounded-lg border">
+      <div className="rounded-lg border-t">
         <Table>
           <TableHeader>
             <TableRow>
@@ -76,6 +78,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
               <TableHead className="hidden md:table-cell">Payment</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="hidden lg:table-cell">Operator</TableHead>
+              <TableHead className="hidden lg:table-cell text-center">Admin Checked</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -95,6 +98,12 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                   £{tx.totalAmount.toFixed(2)}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">{tx.operator}</TableCell>
+                <TableCell className="hidden lg:table-cell text-center">
+                    <Badge variant={tx.adminChecked ? 'default' : 'destructive'} className={cn(tx.adminChecked && 'bg-green-600 hover:bg-green-600/80')}>
+                        <CheckCircle className="mr-1 h-3 w-3"/>
+                        {tx.adminChecked ? 'Yes' : 'No'}
+                    </Badge>
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
