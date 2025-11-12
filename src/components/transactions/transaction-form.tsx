@@ -41,7 +41,7 @@ type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'userId'>;
 export function TransactionForm({ type }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const [totalAmount, setTotalAmount] = useState<number>(0);
 
   const form = useForm<FormValues>({
@@ -74,8 +74,16 @@ export function TransactionForm({ type }: TransactionFormProps) {
   }, [watchedAmount, watchedVatApplied, form]);
 
   const onSubmit = (data: FormValues) => {
+    if (!user) {
+         toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'You must be logged in to add a transaction.',
+        });
+        return;
+    }
     startTransition(async () => {
-      const result = await addTransaction(data, user?.uid);
+      const result = await addTransaction(data, user.uid);
       if (result.success) {
         toast({
           title: 'Success',
@@ -105,6 +113,22 @@ export function TransactionForm({ type }: TransactionFormProps) {
       }
     });
   };
+
+  if (isUserLoading) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="capitalize">{type}</CardTitle>
+                <CardDescription>Enter the details for the new transaction.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center justify-center p-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <Card>
