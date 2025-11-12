@@ -1,0 +1,115 @@
+/**
+ * @fileoverview Firestore Security Rules for the EPOS system.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a combination of ownership-based and role-based access control.
+ * Each entity (Invoice, NonInvoice, Operator, User) has specific rules that govern who can
+ * create, read, update, and delete documents.
+ *
+ * Data Structure:
+ * - /invoices/{invoiceId}: Stores invoice data, with each invoice linked to an operator via 'operatorId'.
+ * - /nonInvoices/{nonInvoiceId}: Stores non-invoice data, linked to an operator via 'operatorId'.
+ * - /operators/{operatorId}: Stores operator data.
+ * - /users/{userId}: Stores user data for admin users.
+ *
+ * Key Security Decisions:
+ * - Invoices and NonInvoices: Write access is restricted to the operator who created the record, enforced through the 'operatorId' field.
+ * - Operators: Only the operator themselves can modify their own record.
+ * - Users: Only the user can create and modify their own data, effectively admin users.
+ * - List operations are allowed for all collections based on the data model, but it is important that this is always checked and maintained.
+ *
+ * Denormalization for Authorization:
+ * - The 'operatorId' field is included in both the Invoice and NonInvoice entities. This is a critical denormalization strategy that allows
+ *   security rules to validate ownership without needing to perform additional `get()` operations to fetch the associated operator's document.
+ *   This drastically improves the performance and cost-effectiveness of the security rules.
+ *
+ * Structural Segregation:
+ * - Invoices and NonInvoices are stored in separate collections. This allows the application to evolve with potentially distinct security
+ *   requirements for each type of record without impacting the other. If they were stored in a single collection, a change to one set of
+ *   rules could inadvertently affect the other.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows management of invoice data. Operators can create, update, and delete their own invoices.
+     * @path /invoices/{invoiceId}
+     * @allow (create) request.auth.uid != null && request.resource.data.operatorId == request.auth.uid
+     * @allow (get, list) true
+     * @allow (update, delete) request.auth.uid != null && resource.data.operatorId == request.auth.uid
+     * @deny (create) request.auth.uid == null
+     * @deny (update, delete) request.auth.uid == null || resource.data.operatorId != request.auth.uid
+     * @principle Enforces operator-ownership for invoice writes.
+     */
+    match /invoices/{invoiceId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.operatorId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isExistingOwner(resource.data.operatorId);
+    }
+
+    /**
+     * @description Allows management of non-invoice data. Operators can create, update, and delete their own non-invoices.
+     * @path /nonInvoices/{nonInvoiceId}
+     * @allow (create) request.auth.uid != null && request.resource.data.operatorId == request.auth.uid
+     * @allow (get, list) true
+     * @allow (update, delete) request.auth.uid != null && resource.data.operatorId == request.auth.uid
+     * @deny (create) request.auth.uid == null
+     * @deny (update, delete) request.auth.uid == null || resource.data.operatorId != request.auth.uid
+     * @principle Enforces operator-ownership for non-invoice writes.
+     */
+    match /nonInvoices/{nonInvoiceId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.operatorId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isExistingOwner(resource.data.operatorId);
+    }
+
+    /**
+     * @description Allows management of operator data. Only the operator can manage their own record.
+     * @path /operators/{operatorId}
+     * @allow (create) request.auth.uid == request.resource.data.id
+     * @allow (get, list) false
+     * @allow (update, delete) request.auth.uid == resource.data.id
+     * @deny (create) request.auth.uid != request.resource.data.id
+     * @deny (get, list) true
+     * @deny (update, delete) request.auth.uid != resource.data.id
+     * @principle Enforces operator-ownership for operator data writes.
+     */
+    match /operators/{operatorId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == operatorId;
+      allow update, delete: if isSignedIn() && isExistingOwner(operatorId);
+    }
+
+    /**
+     * @description Allows management of user data for admin users. Only the user can manage their own record.
+     * @path /users/{userId}
+     * @allow (create) request.auth.uid == userId
+     * @allow (get, list) false
+     * @allow (update, delete) request.auth.uid == userId
+     * @deny (create) request.auth.uid != userId
+     * @deny (get, list) true
+     * @deny (update, delete) request.auth.uid != userId
+     * @principle Enforces user-ownership for user data writes.
+     */
+    match /users/{userId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update, delete: if isSignedIn() && isExistingOwner(userId);
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+  }
+}

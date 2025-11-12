@@ -1,0 +1,256 @@
+{
+  "entities": {
+    "Invoice": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invoice",
+      "type": "object",
+      "description": "Represents an invoice record in the EPOS system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the invoice."
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Invoice number (optional)."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the invoice (UK time).",
+          "format": "date-time"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "jobDescription": {
+          "type": "string",
+          "description": "Description of the job (optional)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount in pounds."
+        },
+        "vat": {
+          "type": "boolean",
+          "description": "Indicates if VAT is applied."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total amount including VAT."
+        },
+        "paymentTerms": {
+          "type": "string",
+          "description": "Payment terms (Bank Transfer, Card Payment, Cash)."
+        },
+        "reference": {
+          "type": "string",
+          "description": "Reference information (optional)."
+        },
+        "operatorId": {
+          "type": "string",
+          "description": "Reference to Operator. (Relationship: Operator 1:N Invoice)"
+        },
+        "adminChecked": {
+          "type": "boolean",
+          "description": "Indicates if the invoice has been checked by the admin."
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "clientName",
+        "amount",
+        "vat",
+        "totalAmount",
+        "paymentTerms",
+        "operatorId",
+        "adminChecked"
+      ]
+    },
+    "NonInvoice": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NonInvoice",
+      "type": "object",
+      "description": "Represents a non-invoice record in the EPOS system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the non-invoice entry."
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Invoice number (optional)."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the transaction (UK time).",
+          "format": "date-time"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "jobDescription": {
+          "type": "string",
+          "description": "Description of the job (optional)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount in pounds."
+        },
+        "vat": {
+          "type": "boolean",
+          "description": "Indicates if VAT is applied."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total amount including VAT."
+        },
+        "paymentTerms": {
+          "type": "string",
+          "description": "Payment terms (Bank Transfer, Card Payment, Cash)."
+        },
+        "reference": {
+          "type": "string",
+          "description": "Reference information (optional)."
+        },
+        "operatorId": {
+          "type": "string",
+          "description": "Reference to Operator. (Relationship: Operator 1:N NonInvoice)"
+        },
+        "adminChecked": {
+          "type": "boolean",
+          "description": "Indicates if the non-invoice entry has been checked by the admin."
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "clientName",
+        "amount",
+        "vat",
+        "totalAmount",
+        "paymentTerms",
+        "operatorId",
+        "adminChecked"
+      ]
+    },
+    "Operator": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Operator",
+      "type": "object",
+      "description": "Represents an operator who enters data into the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the operator."
+        },
+        "username": {
+          "type": "string",
+          "description": "Username of the operator (PTMGH, PTASAD, PTM, PTITAdmin)."
+        }
+      },
+      "required": [
+        "id",
+        "username"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user who can sign in to the system (for admin purposes).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/invoices/{invoiceId}",
+        "definition": {
+          "entityName": "Invoice",
+          "schema": {
+            "$ref": "#/backend/entities/Invoice"
+          },
+          "description": "Stores invoice data. Includes 'operatorId' for authorization independence, allowing rules to check the creating operator without additional reads.",
+          "params": [
+            {
+              "name": "invoiceId",
+              "description": "Unique identifier for the invoice."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/nonInvoices/{nonInvoiceId}",
+        "definition": {
+          "entityName": "NonInvoice",
+          "schema": {
+            "$ref": "#/backend/entities/NonInvoice"
+          },
+          "description": "Stores non-invoice data. Includes 'operatorId' for authorization independence, allowing rules to check the creating operator without additional reads.",
+          "params": [
+            {
+              "name": "nonInvoiceId",
+              "description": "Unique identifier for the non-invoice entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/operators/{operatorId}",
+        "definition": {
+          "entityName": "Operator",
+          "schema": {
+            "$ref": "#/backend/entities/Operator"
+          },
+          "description": "Stores operator data. Used for operator authentication and data entry tracking.",
+          "params": [
+            {
+              "name": "operatorId",
+              "description": "Unique identifier for the operator."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user data for admin access. Path based authorization.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the EPOS system for Print Today, focusing on Invoices, Non-Invoices and Operators while adhering to the principles of Authorization Independence, Structural Segregation, and Access Modeling. A separate collection is used for admin users for authentication purposes.\n\n1.  **Authorization Independence:** The `operatorId` is present in both `invoices` and `nonInvoices` collections. This ensures that each document is self-contained and authorization can be determined without needing to fetch related Operator documents.\n2.  **Structural Segregation:** Invoices and Non-Invoices are stored in separate collections (`/invoices` and `/nonInvoices`) to facilitate distinct security rules if needed in the future.\n3.  **Access Modeling:** Path-based ownership is used for Operators (`/operators/{operatorId}`) to manage operator data. The `operatorId` on invoice/non-invoice documents ties them back to their respective operator.\n4.  **Admin Verification:** Admin check is included directly in the invoices and non-invoices documents.\n5.  **QAPs (Rules are not Filters):** List operations are supported as the structure does not rely on complex `get()` calls or filters in security rules. Each collection is homogeneous, meaning documents within a collection share the same access control requirements, enabling straightforward and secure list operations."
+  }
+}
