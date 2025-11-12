@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { initiateEmailSignIn } from '@/firebase';
+import { initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
 import { useAuth } from '@/firebase/provider';
 import { Logo } from '@/components/logo';
 
@@ -25,6 +25,7 @@ type LoginFormValues = z.infer<typeof LoginSchema>;
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -41,12 +42,21 @@ export default function LoginPage() {
   const onSubmit = (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      initiateEmailSignIn(auth, data.email, data.password);
-      toast({
-        title: 'Success',
-        description: "You've been signed in.",
-      });
-      router.push('/dashboard');
+      if (isSignUp) {
+        initiateEmailSignUp(auth, data.email, data.password);
+        toast({
+            title: 'Sign Up Successful',
+            description: "Please sign in with your new credentials.",
+        });
+        setIsSignUp(false);
+      } else {
+        initiateEmailSignIn(auth, data.email, data.password);
+        toast({
+          title: 'Success',
+          description: "You've been signed in.",
+        });
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -66,8 +76,8 @@ export default function LoginPage() {
             <div className="mb-4 flex justify-center">
                 <Logo />
             </div>
-            <CardTitle>Welcome Back!</CardTitle>
-            <CardDescription>Sign in to access the EPOS system.</CardDescription>
+            <CardTitle>{isSignUp ? 'Create an Account' : 'Welcome Back!'}</CardTitle>
+            <CardDescription>{isSignUp ? 'Enter your details to create a new account.' : 'Sign in to access the EPOS system.'}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -83,31 +93,35 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
+              <div className="relative flex items-center">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="********"
                   {...register('password')}
                   disabled={isLoading}
+                  className="pr-10"
                 />
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-1 h-7 w-7 text-muted-foreground"
                     onClick={() => setShowPassword(!showPassword)}
                 >
-                    {showPassword ? <EyeOff /> : <Eye />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
               {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
+              {isSignUp ? 'Sign Up' : 'Sign In'}
+            </Button>
+            <Button type="button" variant="link" onClick={() => setIsSignUp(!isSignUp)} disabled={isLoading}>
+              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
             </Button>
           </CardFooter>
         </form>

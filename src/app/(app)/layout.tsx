@@ -15,7 +15,7 @@ import {
 import { Logo } from '@/components/logo';
 import { Nav } from '@/components/nav';
 import { useUser } from '@/firebase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuth, signOut } from 'firebase/auth';
 
@@ -60,18 +60,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarFooter className="p-4 flex flex-col gap-2">
             <Button variant="outline" size="sm" onClick={handleSignOut} className="w-full group-data-[collapsible=icon]:hidden">Sign Out</Button>
              <Button variant="outline" size="icon" onClick={handleSignOut} className="hidden w-full group-data-[collapsible=icon]:block">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                <LogOut />
              </Button>
             <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">&copy; {new Date().getFullYear()} Print Today</p>
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-          <header className="flex h-14 items-center gap-4 border-b bg-card px-6">
+          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 sm:px-6">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1">
-              <h1 className="text-lg font-semibold">Print Today EPOS</h1>
+              <h1 className="text-lg font-semibold hidden sm:block">Print Today EPOS</h1>
             </div>
-             <div className="flex items-center gap-2">
+             <div className="flex items-center gap-2 ml-auto">
                 <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
             </div>
           </header>
@@ -79,7 +79,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {children}
           </main>
           <footer className="text-center p-4 text-xs text-muted-foreground border-t">
-            Developed by{' '}
+             Developed by{' '}
             <a
               href="mailto:info@remotizedit.com"
               className="font-medium text-primary hover:underline"

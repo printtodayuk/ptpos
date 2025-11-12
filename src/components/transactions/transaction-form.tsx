@@ -40,8 +40,6 @@ type FormValues = Omit<Transaction, 'id' | 'createdAt'>;
 export function TransactionForm({ type }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const [amount, setAmount] = useState<number>(0);
-  const [vatApplied, setVatApplied] = useState<boolean>(false);
   const [totalAmount, setTotalAmount] = useState<number>(0);
 
   const form = useForm<FormValues>({
@@ -69,8 +67,6 @@ export function TransactionForm({ type }: TransactionFormProps) {
   useEffect(() => {
     const currentAmount = isNaN(watchedAmount) ? 0 : watchedAmount;
     const newTotal = watchedVatApplied ? currentAmount * 1.2 : currentAmount;
-    setAmount(currentAmount);
-    setVatApplied(watchedVatApplied);
     setTotalAmount(newTotal);
     form.setValue('totalAmount', newTotal);
   }, [watchedAmount, watchedVatApplied, form]);
@@ -83,9 +79,21 @@ export function TransactionForm({ type }: TransactionFormProps) {
           title: 'Success',
           description: result.message,
         });
-        form.reset();
-        form.setValue('date', new Date());
-        form.setValue('type', type);
+        form.reset({
+            type: type,
+            date: new Date(),
+            clientName: '',
+            jobDescription: '',
+            amount: 0,
+            vatApplied: false,
+            totalAmount: 0,
+            paymentMethod: 'Bank Transfer',
+            operator: 'PTMGH',
+            invoiceNumber: '',
+            reference: '',
+            adminChecked: false,
+            checkedBy: null,
+        });
       } else {
         toast({
           variant: 'destructive',
@@ -103,9 +111,9 @@ export function TransactionForm({ type }: TransactionFormProps) {
           <CardTitle className="capitalize">{type}</CardTitle>
           <CardDescription>Enter the details for the new transaction.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-1">
             <Label htmlFor="operator">Operator Name</Label>
             <Controller
               control={form.control}
@@ -126,7 +134,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
             {form.formState.errors.operator && <p className="text-sm text-destructive">{form.formState.errors.operator.message}</p>}
           </div>
           
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-1">
             <Label htmlFor="date">Date</Label>
              <Controller
               control={form.control}
@@ -160,53 +168,56 @@ export function TransactionForm({ type }: TransactionFormProps) {
             {form.formState.errors.date && <p className="text-sm text-destructive">{form.formState.errors.date.message}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-2">
             <Label htmlFor="clientName">Client Name</Label>
             <Input id="clientName" {...form.register('clientName')} />
             {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
           </div>
           
           {type === 'invoicing' && (
-            <div className="space-y-2">
+            <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
-              <div className="flex items-center gap-2">
-                <Input id="invoiceNumber" {...form.register('invoiceNumber')} />
-              </div>
+              <Input id="invoiceNumber" {...form.register('invoiceNumber')} />
             </div>
           )}
 
-          <div className="space-y-2 lg:col-span-2">
-            <Label htmlFor="jobDescription">Job Description (Optional)</Label>
-            <Textarea id="jobDescription" {...form.register('jobDescription')} />
+          <div className={cn("lg:col-span-2", type === 'invoicing' ? "lg:col-start-3" : "")}>
+            <div className="space-y-2">
+              <Label htmlFor="jobDescription">Job Description (Optional)</Label>
+              <Textarea id="jobDescription" {...form.register('jobDescription')} />
+            </div>
           </div>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:col-span-4">
+            <div className="space-y-2">
+                <Label htmlFor="amount">Amount (£)</Label>
+                <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} />
+                {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount (£)</Label>
-            <Input id="amount" type="number" step="0.01" {...form.register('amount')} />
-            {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
-          </div>
-
-          <div className="space-y-2 flex flex-row items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="vatApplied">Apply VAT (20%)</Label>
-              </div>
-              <Controller
-                control={form.control}
-                name="vatApplied"
-                render={({ field }) => (
-                    <Switch
-                        id="vatApplied"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+            <div className="space-y-2 flex flex-row items-center justify-between rounded-lg border p-3 px-4">
+                <div className="space-y-0.5">
+                    <Label htmlFor="vatApplied">Apply VAT (20%)</Label>
+                </div>
+                <Controller
+                    control={form.control}
+                    name="vatApplied"
+                    render={({ field }) => (
+                        <Switch
+                            id="vatApplied"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                    )}
                     />
-                )}
-                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Total Amount</Label>
+                <Input value={`£${totalAmount.toFixed(2)}`} readOnly className="font-bold text-lg h-auto bg-muted" />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Total Amount</Label>
-            <Input value={`£${totalAmount.toFixed(2)}`} readOnly className="font-bold text-lg h-auto bg-muted" />
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="paymentMethod">Payment Method</Label>
@@ -228,7 +239,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-3">
             <Label htmlFor="reference">Reference (Optional)</Label>
             <Input id="reference" {...form.register('reference')} />
           </div>
