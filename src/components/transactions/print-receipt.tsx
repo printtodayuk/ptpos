@@ -65,6 +65,17 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
           <span>£{transaction.totalAmount.toFixed(2)}</span>
         </div>
       </div>
+      <hr className="border-solid border-black my-2" />
+       <div className="space-y-1">
+        <div className="flex justify-between">
+          <span>Paid Amount:</span>
+          <span>£{transaction.paidAmount.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between font-bold">
+          <span>Due Amount:</span>
+          <span>£{transaction.dueAmount.toFixed(2)}</span>
+        </div>
+      </div>
       <hr className="border-dashed border-black my-2" />
       <div className="space-y-1">
         <div className="flex justify-between">

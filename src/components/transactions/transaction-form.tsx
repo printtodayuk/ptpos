@@ -48,6 +48,8 @@ const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<For
     amount: 0,
     vatApplied: false,
     totalAmount: 0,
+    paidAmount: 0,
+    dueAmount: 0,
     paymentMethod: 'Bank Transfer',
     operator: 'PTMGH',
     invoiceNumber: '',
@@ -61,6 +63,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [totalAmount, setTotalAmount] = useState<number>(0);
+  const [dueAmount, setDueAmount] = useState<number>(0);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -68,11 +71,12 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
     defaultValues: getFreshDefaultValues(type),
   });
-
+  
   useEffect(() => {
     // Set date only on client to avoid hydration mismatch
-    if (form.getValues('date') === undefined) {
-        form.setValue('date', new Date());
+    const currentFormDate = form.getValues('date');
+    if (!currentFormDate) {
+      form.setValue('date', new Date());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -94,13 +98,20 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
+  const watchedPaidAmount = form.watch('paidAmount');
 
   useEffect(() => {
     const currentAmount = isNaN(watchedAmount) ? 0 : watchedAmount;
     const newTotal = watchedVatApplied ? currentAmount * 1.2 : currentAmount;
     setTotalAmount(newTotal);
     form.setValue('totalAmount', newTotal);
-  }, [watchedAmount, watchedVatApplied, form]);
+
+    const currentPaidAmount = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
+    const newDue = newTotal - currentPaidAmount;
+    setDueAmount(newDue);
+    form.setValue('dueAmount', newDue);
+
+  }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form]);
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
@@ -225,7 +236,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               </div>
             </div>
             
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:col-span-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 lg:col-span-4">
               <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
                   <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} />
@@ -251,8 +262,17 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
               <div className="space-y-2">
                   <Label>Total Amount</Label>
-                  <Input value={`£${totalAmount.toFixed(2)}`} readOnly className="font-bold text-lg h-auto bg-muted" />
+                  <Input value={`£${totalAmount.toFixed(2)}`} readOnly className="font-bold bg-muted" />
               </div>
+              <div className="space-y-2">
+                  <Label htmlFor="paidAmount">Paid Amount (£)</Label>
+                  <Input id="paidAmount" type="number" step="0.01" {...form.register('paidAmount', {valueAsNumber: true})} />
+                  {form.formState.errors.paidAmount && <p className="text-sm text-destructive">{form.formState.errors.paidAmount.message}</p>}
+              </div>
+                <div className="space-y-2">
+                    <Label>Due Amount</Label>
+                    <Input value={`£${dueAmount.toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                </div>
             </div>
 
 

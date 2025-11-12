@@ -18,6 +18,8 @@ export const TransactionSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   vatApplied: z.boolean(),
   totalAmount: z.number(),
+  paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative'),
+  dueAmount: z.number(),
   paymentMethod: z.enum(paymentMethods),
   reference: z.string().optional().nullable(),
   operator: z.enum(operators),

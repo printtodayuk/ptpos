@@ -47,6 +47,14 @@
           "type": "number",
           "description": "Total amount including VAT."
         },
+        "paidAmount": {
+            "type": "number",
+            "description": "The amount paid by the client."
+        },
+        "dueAmount": {
+            "type": "number",
+            "description": "The remaining amount due from the client."
+        },
         "paymentMethod": {
           "type": "string",
           "description": "Payment terms (Bank Transfer, Card Payment, Cash)."
@@ -77,6 +85,8 @@
         "amount",
         "vatApplied",
         "totalAmount",
+        "paidAmount",
+        "dueAmount",
         "paymentMethod",
         "operator",
         "adminChecked"

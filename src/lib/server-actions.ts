@@ -300,12 +300,14 @@ export async function getReportData({
 }
 
 export async function searchTransactions(
-  searchTerm: string
+  searchTerm: string,
+  type: 'invoicing' | 'non-invoicing'
 ): Promise<Transaction[]> {
   if (!searchTerm) {
     // Return last 50 transactions if search term is empty
     const q = query(
       collection(db, 'transactions'),
+       where('type', '==', type),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -346,6 +348,8 @@ export async function searchTransactions(
     const searchAmount = parseFloat(lowercasedTerm);
 
     return transactions.filter((t) => {
+      if (t.type !== type) return false;
+      
       const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
       const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
       const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
