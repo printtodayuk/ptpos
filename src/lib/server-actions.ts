@@ -14,7 +14,8 @@ import {
   updateDoc,
   doc,
   runTransaction,
-  or,
+  deleteDoc,
+  where,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -343,13 +344,13 @@ export async function searchTransactions(
     });
 
     const lowercasedTerm = searchTerm.toLowerCase();
-    const searchAmount = parseFloat(lowercasedTerm);
+    const searchAmount = !isNaN(parseFloat(searchTerm)) ? parseFloat(searchTerm) : null;
 
     return transactions.filter((t) => {
       const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
       const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
       const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-      const amountMatch = !isNaN(searchAmount) && t.totalAmount === searchAmount;
+      const amountMatch = searchAmount !== null && t.totalAmount === searchAmount;
 
       return tidMatch || clientMatch || jobMatch || amountMatch;
     });
@@ -357,4 +358,24 @@ export async function searchTransactions(
     console.error('Error searching transactions: ', e);
     return [];
   }
+}
+
+export async function deleteTransaction(id: string) {
+    if (!id) {
+        return { success: false, message: 'Transaction ID is required.' };
+    }
+    try {
+        await deleteDoc(doc(db, 'transactions', id));
+        revalidatePath('/admin');
+        revalidatePath('/reporting');
+        revalidatePath('/dashboard');
+        revalidatePath('/invoicing');
+        revalidatePath('/non-invoicing');
+        return { success: true, message: 'Transaction deleted successfully.' };
+    } catch (error) {
+        console.error('Error deleting transaction:', error);
+        const errorMessage =
+            error instanceof Error ? error.message : 'An unexpected error occurred.';
+        return { success: false, message: errorMessage };
+    }
 }

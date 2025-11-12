@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
-import { MoreHorizontal, Printer, CheckCircle, Edit } from 'lucide-react';
+import { MoreHorizontal, Printer, CheckCircle, Edit, Trash2, Loader2, Ban } from 'lucide-react';
 
 import {
   Table,
@@ -19,40 +19,61 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import type { Transaction } from '@/lib/types';
 import { PrintReceipt } from './print-receipt';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { markTransactionAsChecked } from '@/lib/server-actions';
 
 type TransactionsTableProps = {
   transactions: Transaction[];
   onEdit?: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
+  onTransactionChecked?: () => void;
+  showAdminControls?: boolean;
 };
 
-export function TransactionsTable({ transactions, onEdit }: TransactionsTableProps) {
+export function TransactionsTable({ transactions, onEdit, onDelete, onTransactionChecked, showAdminControls = false }: TransactionsTableProps) {
   const [transactionToPrint, setTransactionToPrint] = useState<Transaction | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    const handleAfterPrint = () => {
-      setTransactionToPrint(null);
-    };
-
     if (transactionToPrint) {
-      window.addEventListener('afterprint', handleAfterPrint);
-      // A brief delay helps ensure the content is rendered before printing.
-      setTimeout(() => window.print(), 100);
+        window.print();
     }
-
-    return () => {
-      window.removeEventListener('afterprint', handleAfterPrint);
-    };
   }, [transactionToPrint]);
+  
+  const handlePrint = (tx: Transaction) => {
+    setTransactionToPrint(tx);
+    // The useEffect will trigger the print dialog. We reset after a short delay.
+    setTimeout(() => setTransactionToPrint(null), 100);
+  };
+
+
+  const handleCheck = (id: string) => {
+    startTransition(async () => {
+      const result = await markTransactionAsChecked(id);
+      if (result.success) {
+        toast({ title: 'Success', description: result.message });
+        onTransactionChecked?.();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: result.message,
+        });
+      }
+    });
+  };
 
   if (transactions.length === 0) {
     return (
@@ -75,6 +96,7 @@ export function TransactionsTable({ transactions, onEdit }: TransactionsTablePro
           <TableHeader>
             <TableRow>
               <TableHead>TID</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="hidden md:table-cell">Payment</TableHead>
@@ -92,8 +114,9 @@ export function TransactionsTable({ transactions, onEdit }: TransactionsTablePro
                 <TableCell>
                   <Badge variant="secondary">{tx.transactionId}</Badge>
                 </TableCell>
+                <TableCell><Badge variant={tx.type === 'invoicing' ? 'default' : 'secondary'}>{tx.type}</Badge></TableCell>
                 <TableCell className="font-medium">
-                  {format(tx.date, 'dd/MM/yyyy')}
+                  {format(new Date(tx.date), 'dd/MM/yyyy')}
                 </TableCell>
                 <TableCell>{tx.clientName}</TableCell>
                 <TableCell className="hidden md:table-cell">
@@ -123,9 +146,23 @@ export function TransactionsTable({ transactions, onEdit }: TransactionsTablePro
                           <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onSelect={() => setTransactionToPrint(tx)}>
+                      <DropdownMenuItem onSelect={() => handlePrint(tx)}>
                         <Printer className="mr-2 h-4 w-4" /> Print Receipt
                       </DropdownMenuItem>
+                      {showAdminControls && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => handleCheck(tx.id!)} disabled={isPending || tx.adminChecked}>
+                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : tx.adminChecked ? <Ban className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                            Mark as Checked
+                          </DropdownMenuItem>
+                          {onDelete && (
+                            <DropdownMenuItem onSelect={() => onDelete(tx)} className="text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
