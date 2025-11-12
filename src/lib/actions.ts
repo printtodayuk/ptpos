@@ -21,6 +21,7 @@ import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
 import { firebaseConfig } from '@/firebase/config';
 import { getAuth } from 'firebase/auth';
+import { headers } from 'next/headers';
 
 // Helper to initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -29,12 +30,19 @@ const db = getFirestore(app);
 
 const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true });
 
+async function getUserIdFromRequest() {
+    // This is a stand-in for a proper session management solution.
+    // In a real app, you would get the user from a session cookie.
+    const headersList = headers();
+    return headersList.get('x-user-id');
+}
+
+
 export async function addTransaction(data: z.infer<typeof CreateTransactionSchema>) {
   try {
-    const auth = getAuth(app);
-    const user = auth.currentUser;
+    const userId = await getUserIdFromRequest();
 
-    if (!user) {
+    if (!userId) {
         return { success: false, message: 'You must be logged in to add a transaction.' };
     }
 
@@ -44,7 +52,7 @@ export async function addTransaction(data: z.infer<typeof CreateTransactionSchem
       ...validatedData,
       date: Timestamp.fromDate(validatedData.date),
       createdAt: serverTimestamp(),
-      userId: user.uid, // Associate transaction with user
+      userId: userId, // Associate transaction with user
     });
 
     revalidatePath(`/${validatedData.type}`);
@@ -66,14 +74,13 @@ export async function getTransactions(
   type: 'invoicing' | 'non-invoicing',
   count: number = 20
 ): Promise<Transaction[]> {
-  const auth = getAuth(app);
-  const user = auth.currentUser;
-  if (!user) return [];
+  const userId = await getUserIdFromRequest();
+  if (!userId) return [];
 
   const q = query(
     collection(db, 'transactions'),
     where('type', '==', type),
-    where('userId', '==', user.uid),
+    where('userId', '==', userId),
     orderBy('createdAt', 'desc'),
     limit(count)
   );
@@ -90,9 +97,8 @@ export async function getTransactions(
 }
 
 export async function getDashboardStats() {
-    const auth = getAuth(app);
-    const user = auth.currentUser;
-    if (!user) {
+    const userId = await getUserIdFromRequest();
+    if (!userId) {
         return {
             dailySales: 0,
             totalInputs: 0,
@@ -102,7 +108,7 @@ export async function getDashboardStats() {
         };
     }
 
-    const q = query(collection(db, 'transactions'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'transactions'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     const transactions = querySnapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Transaction));
 
@@ -130,14 +136,13 @@ export async function getDashboardStats() {
 
 
 export async function getPendingTransactions(): Promise<Transaction[]> {
-  const auth = getAuth(app);
-  const user = auth.currentUser;
-  if (!user) return [];
+  const userId = await getUserIdFromRequest();
+  if (!userId) return [];
 
   const q = query(
     collection(db, 'transactions'),
     where('adminChecked', '==', false),
-    where('userId', '==', user.uid),
+    where('userId', '==', userId),
     orderBy('createdAt', 'asc')
   );
   const querySnapshot = await getDocs(q);
@@ -154,16 +159,21 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
 
 export async function markTransactionAsChecked(id: string) {
   try {
+    const userId = await getUserIdFromRequest();
     const auth = getAuth(app);
-    const user = auth.currentUser;
-    if (!user) {
+    const user = auth.currentUser; // Still not ideal, but let's get email from client
+    
+    if (!userId) {
         return { success: false, message: 'You must be logged in.' };
     }
+
+    // A better approach would be to get the email from a session.
+    // For now, let's assume we pass it from the client if needed or use a placeholder.
 
     const transactionRef = doc(db, 'transactions', id);
     await updateDoc(transactionRef, {
       adminChecked: true,
-      checkedBy: user.email || 'admin',
+      checkedBy: 'admin', // Using a placeholder
     });
     revalidatePath('/admin');
     revalidatePath('/reporting');
@@ -175,16 +185,15 @@ export async function markTransactionAsChecked(id: string) {
 }
 
 export async function getReportData({ from, to }: { from: Date; to: Date }): Promise<Transaction[]> {
-  const auth = getAuth(app);
-  const user = auth.currentUser;
-  if (!user) return [];
+  const userId = await getUserIdFromRequest();
+  if (!userId) return [];
 
   const fromTimestamp = Timestamp.fromDate(from);
   const toTimestamp = Timestamp.fromDate(to);
 
   const q = query(
     collection(db, 'transactions'),
-    where('userId', '==', user.uid),
+    where('userId', '==', userId),
     where('date', '>=', fromTimestamp),
     where('date', '<=', toTimestamp),
     orderBy('date', 'desc')

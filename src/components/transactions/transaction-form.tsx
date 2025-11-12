@@ -30,6 +30,7 @@ import { addTransaction } from '@/lib/actions';
 import { TransactionSchema, operators, paymentMethods, type Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
+import { useUser } from '@/firebase';
 
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
@@ -40,6 +41,7 @@ type FormValues = Omit<Transaction, 'id' | 'createdAt'>;
 export function TransactionForm({ type }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const { user } = useUser();
   const [totalAmount, setTotalAmount] = useState<number>(0);
 
   const form = useForm<FormValues>({
@@ -73,7 +75,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
-      const result = await addTransaction(data);
+      const result = await addTransaction({ ...data, userId: user?.uid });
       if (result.success) {
         toast({
           title: 'Success',
@@ -182,7 +184,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
           )}
 
           <div className={cn("lg:col-span-2", type === 'invoicing' ? "lg:col-start-3" : "")}>
-            <div className="space-y-2">
+            <div className="spacey-y-2">
               <Label htmlFor="jobDescription">Job Description (Optional)</Label>
               <Textarea id="jobDescription" {...form.register('jobDescription')} />
             </div>
