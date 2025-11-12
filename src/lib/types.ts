@@ -12,7 +12,7 @@ export const TransactionSchema = z.object({
   transactionId: z.string(),
   type: z.enum(['invoicing', 'non-invoicing']),
   invoiceNumber: z.string().optional().nullable(),
-  date: z.date(),
+  date: z.date({ required_error: 'Please select a date.' }),
   clientName: z.string().min(1, 'Client name is required'),
   jobDescription: z.string().optional().nullable(),
   amount: z.coerce.number().positive('Amount must be positive'),

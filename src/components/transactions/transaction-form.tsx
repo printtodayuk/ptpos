@@ -40,9 +40,9 @@ type TransactionFormProps = {
 
 type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'transactionId'>;
 
-const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): FormValues => ({
+const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<FormValues> => ({
     type: type,
-    date: new Date(),
+    date: undefined,
     clientName: '',
     jobDescription: '',
     amount: 0,
@@ -70,6 +70,14 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   });
 
   useEffect(() => {
+    // Set date only on client to avoid hydration mismatch
+    if (form.getValues('date') === undefined) {
+        form.setValue('date', new Date());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (transactionToEdit) {
       setIsEditMode(true);
       form.reset({
@@ -79,6 +87,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     } else {
       setIsEditMode(false);
       form.reset(getFreshDefaultValues(type));
+      form.setValue('date', new Date());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactionToEdit, type]);
@@ -106,6 +115,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             setLastTransaction(result.transaction);
         }
         form.reset(getFreshDefaultValues(type));
+        form.setValue('date', new Date());
         setIsEditMode(false);
         onTransactionAdded?.();
       } else {
@@ -125,8 +135,9 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
   const cancelEdit = () => {
     setIsEditMode(false);
-    setTransactionToEdit(null); // Clear the transaction being edited
+    // setTransactionToEdit(null); // This is handled by the parent component now
     form.reset(getFreshDefaultValues(type));
+    form.setValue('date', new Date());
     onTransactionAdded?.(); // To signal a refresh if needed
   }
 
