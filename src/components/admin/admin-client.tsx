@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { markTransactionAsChecked } from '@/lib/actions';
+import { markTransactionAsChecked } from '@/lib/server-actions';
 import type { Transaction } from '@/lib/types';
 import { Card } from '../ui/card';
 

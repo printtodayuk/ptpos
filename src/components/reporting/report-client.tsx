@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getReportData } from '@/lib/actions';
+import { getReportData } from '@/lib/server-actions';
 import type { Transaction } from '@/lib/types';
 import { cn, exportToCsv } from '@/lib/utils';
 import { Badge } from '../ui/badge';

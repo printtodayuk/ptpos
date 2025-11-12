@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getPendingTransactions } from '@/lib/actions';
+import { getPendingTransactions } from '@/lib/server-actions';
 import { AdminClient } from '@/components/admin/admin-client';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUser } from '@/firebase';

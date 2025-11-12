@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getDashboardStats } from "@/lib/actions";
+import { getDashboardStats } from "@/lib/server-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PoundSterling, Hash, Landmark, CreditCard, HandCoins } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
