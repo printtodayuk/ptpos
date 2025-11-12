@@ -128,14 +128,8 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     });
   };
 
-  const handleEditFromDialog = (transaction: Transaction) => {
-    setLastTransaction(null); // Close the dialog
-    // The useEffect will handle setting the edit mode and form values
-  }
-
   const cancelEdit = () => {
     setIsEditMode(false);
-    // setTransactionToEdit(null); // This is handled by the parent component now
     form.reset(getFreshDefaultValues(type));
     form.setValue('date', new Date());
     onTransactionAdded?.(); // To signal a refresh if needed
@@ -147,11 +141,6 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
         transaction={lastTransaction}
         isOpen={!!lastTransaction && !isEditMode}
         onClose={() => setLastTransaction(null)}
-        onEdit={() => {
-            if(lastTransaction) {
-                handleEditFromDialog(lastTransaction)
-            }
-        }}
       />
       <Card>
         <form onSubmit={form.handleSubmit(onSubmit)}>
