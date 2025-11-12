@@ -72,13 +72,16 @@ export async function addTransaction(
     const newDocSnap = await getDoc(docRef);
     const newDocData = newDocSnap.data();
 
-    newTransaction = {
-      ...(newDocData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
-      id: docRef.id,
-      transactionId: newTransactionId,
-      date: (newDocData?.date as Timestamp).toDate(),
-      createdAt: (newDocData?.createdAt as Timestamp)?.toDate() || new Date(), 
-    };
+    if (newDocData) {
+      newTransaction = {
+        ...(newDocData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
+        id: docRef.id,
+        transactionId: newTransactionId,
+        date: (newDocData.date as Timestamp).toDate(),
+        createdAt: (newDocData.createdAt as Timestamp)?.toDate() || new Date(), 
+      };
+    }
+
 
     revalidatePath(`/${validatedData.data.type}`);
     revalidatePath('/dashboard');
@@ -121,12 +124,15 @@ export async function updateTransaction(
     const updatedDocSnap = await getDoc(transactionRef);
     const updatedData = updatedDocSnap.data();
 
-    const transaction = {
-        ...(updatedData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
-        id: updatedDocSnap.id,
-        date: (updatedData?.date as Timestamp).toDate(),
-        createdAt: (updatedData?.createdAt as Timestamp)?.toDate() || new Date(), 
-    };
+    let transaction: Transaction | null = null;
+    if (updatedData) {
+        transaction = {
+            ...(updatedData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
+            id: updatedDocSnap.id,
+            date: (updatedData.date as Timestamp).toDate(),
+            createdAt: (updatedData.createdAt as Timestamp)?.toDate() || new Date(), 
+        };
+    }
 
 
     revalidatePath(`/${validatedData.data.type}`);
@@ -294,14 +300,12 @@ export async function getReportData({
 }
 
 export async function searchTransactions(
-  type: 'invoicing' | 'non-invoicing',
   searchTerm: string
 ): Promise<Transaction[]> {
   if (!searchTerm) {
     // Return last 50 transactions if search term is empty
     const q = query(
       collection(db, 'transactions'),
-      where('type', '==', type),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -317,16 +321,14 @@ export async function searchTransactions(
     });
   }
   
-  // As Firestore doesn't support native full-text search,
-  // we fetch recent records and filter them. For a more robust solution,
-  // a dedicated search service like Algolia or Elasticsearch would be needed.
-  // This implementation simulates a search over the last 1000 records for performance.
   try {
+     // This is not efficient for large datasets. For a production app,
+    // a dedicated search service like Algolia or Elasticsearch is recommended.
+    // We will query for recent transactions and then filter in code.
     const q = query(
       collection(db, 'transactions'),
-      where('type', '==', type),
       orderBy('createdAt', 'desc'),
-      limit(1000) // Search within the last 1000 transactions
+      limit(1000) // Limiting to the last 1000 entries for performance
     );
 
     const querySnapshot = await getDocs(q);
@@ -347,8 +349,8 @@ export async function searchTransactions(
       const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
       const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
       const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-      // Check if amount matches if the search term is a valid number
       const amountMatch = !isNaN(searchAmount) && t.totalAmount === searchAmount;
+
       return tidMatch || clientMatch || jobMatch || amountMatch;
     });
   } catch (e) {

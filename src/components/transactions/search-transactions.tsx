@@ -25,8 +25,9 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
   const performSearch = useCallback(
     (term: string) => {
       startSearchTransition(async () => {
-        const data = await searchTransactions(type, term);
-        setResults(data);
+        const allResults = await searchTransactions(term);
+        // Filter by type on the client side
+        setResults(allResults.filter(t => t.type === type));
       });
     },
     [type]
