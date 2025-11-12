@@ -33,11 +33,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
+  onTransactionAdded?: () => void;
 };
 
 type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'userId'>;
 
-export function TransactionForm({ type }: TransactionFormProps) {
+export function TransactionForm({ type, onTransactionAdded }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [totalAmount, setTotalAmount] = useState<number>(0);
@@ -94,6 +95,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
             adminChecked: false,
             checkedBy: null,
         });
+        onTransactionAdded?.();
       } else {
         toast({
           variant: 'destructive',
