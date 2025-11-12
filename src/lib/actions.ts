@@ -12,19 +12,13 @@ import {
   Timestamp,
   updateDoc,
   where,
-  getFirestore,
 } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
-import { getFirebaseAdminApp } from '@/lib/firebase-admin';
+import { getDb } from '@/lib/firebase-admin';
 
-// Helper to get a shared Firestore instance on the server.
-function getDb() {
-  const app = getFirebaseAdminApp();
-  return getFirestore(app);
-}
 
 const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true });
 

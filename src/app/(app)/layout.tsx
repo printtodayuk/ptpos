@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -29,12 +29,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const auth = useAuth();
-  
+  const [year, setYear] = useState<number | null>(null);
+
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
   
   if (isUserLoading || !user) {
     return (
@@ -64,7 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
              <Button variant="outline" size="icon" onClick={() => handleSignOut(auth, router)} className="hidden w-full group-data-[collapsible=icon]:block">
                 <LogOut />
              </Button>
-            <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">&copy; {new Date().getFullYear()} Print Today</p>
+            {year && <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">&copy; {year} Print Today</p>}
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>

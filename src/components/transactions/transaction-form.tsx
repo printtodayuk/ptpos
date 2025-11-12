@@ -122,7 +122,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
     });
   };
 
-  if (isUserLoading) {
+  if (isUserLoading || !user) {
     return (
         <Card>
             <CardHeader>
@@ -280,7 +280,7 @@ export function TransactionForm({ type }: TransactionFormProps) {
 
         </CardContent>
         <CardFooter>
-          <Button type="submit" disabled={isPending} className="ml-auto">
+          <Button type="submit" disabled={isPending || !user} className="ml-auto">
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Add Transaction
           </Button>
