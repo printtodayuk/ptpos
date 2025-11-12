@@ -40,10 +40,10 @@ export function Nav() {
               className={cn(pathname === item.href && 'bg-primary/10 text-primary')}
               tooltip={item.label}
             >
-              <React.Fragment>
+              <div>
                 <item.icon />
                 <span>{item.label}</span>
-              </React.Fragment>
+              </div>
             </SidebarMenuButton>
           </Link>
         </SidebarMenuItem>
