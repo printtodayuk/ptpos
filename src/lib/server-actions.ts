@@ -24,8 +24,8 @@ import { db } from '@/lib/firebase';
 
 const CreateTransactionSchema = TransactionSchema.omit({
   id: true,
-  createdAt: true,
   transactionId: true,
+  createdAt: true,
 });
 
 const UpdateTransactionSchema = CreateTransactionSchema.omit({
@@ -293,41 +293,26 @@ export async function getReportData({
   }
 }
 
-export async function searchTransactions(searchTerm: string, type: 'invoicing' | 'non-invoicing'): Promise<Transaction[]> {
-    if (!searchTerm) {
-        return getTransactions(type, 20);
-    }
-
+export async function searchTransactions(type: 'invoicing' | 'non-invoicing'): Promise<Transaction[]> {
+    // This action now only fetches the last 50 transactions for client-side filtering.
     try {
-        // This is a simplified client-side search. A more robust solution for large datasets
-        // would involve a dedicated search service like Algolia or Elasticsearch.
         const q = query(
             collection(db, "transactions"),
             where('type', '==', type),
-            orderBy('createdAt', 'desc')
+            orderBy('createdAt', 'desc'),
+            limit(50)
         );
 
         const querySnapshot = await getDocs(q);
-        const allTransactions = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        } as Transaction));
-        
-        const lowercasedTerm = searchTerm.toLowerCase();
-
-        const filtered = allTransactions.filter(t => {
-            return (
-                t.transactionId?.toLowerCase().includes(lowercasedTerm) ||
-                t.clientName?.toLowerCase().includes(lowercasedTerm) ||
-                t.jobDescription?.toLowerCase().includes(lowercasedTerm)
-            );
+        return querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                id: doc.id,
+                date: (data.date as Timestamp).toDate(),
+                createdAt: (data.createdAt as Timestamp)?.toDate(),
+            } as Transaction;
         });
-
-        return filtered.map(t => ({
-            ...t,
-            date: (t.date as unknown as Timestamp).toDate(),
-            createdAt: (t.createdAt as unknown as Timestamp)?.toDate(),
-        }));
 
     } catch (e) {
         console.error("Error searching transactions: ", e);

@@ -1,10 +1,9 @@
 'use client';
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { searchTransactions } from '@/lib/server-actions';
 import { TransactionsTable } from '@/components/transactions/transactions-table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Loader2, Search } from 'lucide-react';
 import type { Transaction } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -17,45 +16,47 @@ type SearchTransactionsProps = {
 
 export function SearchTransactions({ type, onTransactionUpdated }: SearchTransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [results, setResults] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
 
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedSearchTerm = useDebounce(searchTerm, 200);
 
-  const performSearch = (term: string) => {
+  const fetchInitialData = () => {
     startSearchTransition(async () => {
-      const data = await searchTransactions(term, type);
-      setResults(data);
-      if(isInitialLoad) setIsInitialLoad(false);
+      const data = await searchTransactions(type);
+      setAllTransactions(data);
     });
   };
 
   useEffect(() => {
-    // Fetch initial recent transactions on load
-    performSearch('');
+    fetchInitialData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [type]);
 
-  useEffect(() => {
-    if (!isInitialLoad) {
-      performSearch(debouncedSearchTerm);
+  const filteredResults = useMemo(() => {
+    if (!debouncedSearchTerm) {
+      return allTransactions;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchTerm]);
+    const lowercasedTerm = debouncedSearchTerm.toLowerCase();
+    return allTransactions.filter(t => {
+        const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
+        const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
+        const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
+        return tidMatch || clientMatch || jobMatch;
+    });
+  }, [debouncedSearchTerm, allTransactions]);
 
 
   const handleEdit = (transaction: Transaction) => {
     setTransactionToEdit(transaction);
-    // Scroll to the top to make the form visible
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   const handleUpdate = () => {
     setTransactionToEdit(null); // Clear the edit state
-    onTransactionUpdated(); // Refresh search results
-    performSearch(searchTerm); // Re-run search
+    onTransactionUpdated(); // Notify parent to re-render (and thus re-fetch)
+    fetchInitialData(); // Re-fetch all data
   }
 
   return (
@@ -71,8 +72,8 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
       )}
       <Card>
         <CardHeader>
-          <CardTitle>Search Transactions</CardTitle>
-          <CardDescription>Search by TID, client name, or job description.</CardDescription>
+          <CardTitle>Search Recent Transactions</CardTitle>
+          <CardDescription>Search the last 50 transactions by TID, client name, or job description.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 mb-4">
@@ -85,12 +86,12 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
               className="w-full"
             />
           </div>
-          {isSearching ? (
+          {isSearching && allTransactions.length === 0 ? (
             <div className="flex justify-center items-center p-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <TransactionsTable transactions={results} onEdit={handleEdit} />
+            <TransactionsTable transactions={filteredResults} onEdit={handleEdit} />
           )}
         </CardContent>
       </Card>
