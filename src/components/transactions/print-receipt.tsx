@@ -96,7 +96,8 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
       <hr className="border-dashed border-black my-2" />
       <div className="text-center mt-2">
         <p className="text-xs">Thank you for your business!</p>
-        <p className="text-[10px] pt-1">www.printtoday.co.uk</p>
+        <p className="text-[10px] pt-1">Powered by RemotizedIT</p>
+        <p className="text-[10px]">info@remoteizedit.com</p>
       </div>
     </div>
   );
