@@ -68,18 +68,17 @@
     display: none;
   }
   @media print {
+    body {
+      background-color: white;
+    }
     .print-hide {
       display: none !important;
     }
-    body > *:not(.print-only) {
+    #app-container {
       display: none !important;
     }
     .print-only {
       display: block !important;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
     }
   }
 }
