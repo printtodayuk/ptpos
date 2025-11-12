@@ -48,12 +48,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               href="mailto:info@remotizedit.com"
               className="font-medium text-primary hover:underline"
             >
-              Fazle Rifat Anonto
-            </a>{' '}
-            for{' '}
-            <span className="font-medium">
-              RemotizedIT
-            </span>
+              Fazle Rifat Anonto, RemotizedIT
+            </a>
             .
           </footer>
         </SidebarInset>

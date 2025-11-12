@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Loader2, WandSparkles } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { enGB } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,6 @@ import { addTransaction } from '@/lib/actions';
 import { TransactionSchema, operators, paymentMethods, type Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
-import { generateInvoiceNumber as genInvNumAI } from '@/ai/flows/generate-invoice-number';
 
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
@@ -94,20 +93,6 @@ export function TransactionForm({ type }: TransactionFormProps) {
           description: result.message,
         });
       }
-    });
-  };
-
-  const handleGenerateInvoiceNumber = () => {
-    startTransition(async () => {
-        try {
-            const { invoiceNumber } = await genInvNumAI({});
-            if(invoiceNumber) {
-                form.setValue('invoiceNumber', invoiceNumber);
-                toast({ title: 'Invoice number generated' });
-            }
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not generate invoice number.' });
-        }
     });
   };
 
@@ -186,10 +171,6 @@ export function TransactionForm({ type }: TransactionFormProps) {
               <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
               <div className="flex items-center gap-2">
                 <Input id="invoiceNumber" {...form.register('invoiceNumber')} />
-                 <Button type="button" variant="outline" size="icon" onClick={handleGenerateInvoiceNumber} disabled={isPending}>
-                    <WandSparkles className="h-4 w-4"/>
-                    <span className="sr-only">Generate Invoice Number</span>
-                 </Button>
               </div>
             </div>
           )}
