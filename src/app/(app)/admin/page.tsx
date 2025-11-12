@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { PinLock } from '@/components/admin/pin-lock';
 
 
 export default function AdminPage() {
@@ -84,7 +85,7 @@ export default function AdminPage() {
   }
 
   return (
-    <>
+    <PinLock>
       <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -152,6 +153,6 @@ export default function AdminPage() {
             </CardContent>
           </Card>
       </div>
-    </>
+    </PinLock>
   );
 }
