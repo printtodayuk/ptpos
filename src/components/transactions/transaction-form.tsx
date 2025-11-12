@@ -223,17 +223,15 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             </div>
             
             {type === 'invoicing' && (
-              <div className="space-y-2 lg:col-span-2">
+              <div className="space-y-2 lg:col-span-1">
                 <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
                 <Input id="invoiceNumber" {...form.register('invoiceNumber')} />
               </div>
             )}
 
-            <div className={cn("lg:col-span-2", type === 'invoicing' ? "lg:col-start-3" : "")}>
-              <div className="space-y-2">
-                <Label htmlFor="jobDescription">Job Description (Optional)</Label>
-                <Textarea id="jobDescription" {...form.register('jobDescription')} />
-              </div>
+            <div className={cn("space-y-2", type === 'invoicing' ? 'lg:col-span-3' : 'lg:col-span-4')}>
+              <Label htmlFor="jobDescription">Job Description (Optional)</Label>
+              <Textarea id="jobDescription" {...form.register('jobDescription')} />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 lg:col-span-4">
