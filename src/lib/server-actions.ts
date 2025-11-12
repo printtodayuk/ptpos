@@ -28,7 +28,10 @@ const CreateTransactionSchema = TransactionSchema.omit({
   transactionId: true,
 });
 
-const UpdateTransactionSchema = CreateTransactionSchema;
+const UpdateTransactionSchema = CreateTransactionSchema.omit({
+    adminChecked: true,
+    checkedBy: true,
+});
 
 
 export async function addTransaction(
@@ -62,6 +65,8 @@ export async function addTransaction(
       transactionId: newTransactionId,
       date: Timestamp.fromDate(validatedData.data.date),
       createdAt: serverTimestamp(),
+      adminChecked: false, // Ensure this is false on creation
+      checkedBy: null,
     });
 
     const newDocSnap = await getDoc(docRef);
