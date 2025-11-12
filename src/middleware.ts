@@ -12,7 +12,7 @@ async function getUserIdFromSession(session: string | undefined) {
         const decodedIdToken = await adminAuth.verifySessionCookie(session, true);
         return decodedIdToken.uid;
     } catch (error) {
-        console.error('Error verifying session cookie:', error);
+        // Session cookie is invalid or expired.
         return null;
     }
 }
@@ -25,19 +25,24 @@ export async function middleware(request: NextRequest) {
     if (userId) {
         requestHeaders.set('x-user-id', userId);
     }
+    if (session) {
+        requestHeaders.set('x-session-cookie', session);
+    }
 
     const pathname = request.nextUrl.pathname;
 
-    if (!userId && !pathname.startsWith('/login') && !pathname.startsWith('/api')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
+    // Redirect unauthenticated users from protected pages to the login page
+    if (!userId && !pathname.startsWith('/login') && !pathname.startsWith('/_next') && !pathname.startsWith('/api')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
     }
 
+    // Redirect authenticated users from the login page to the dashboard
     if (userId && pathname.startsWith('/login')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
     }
 
     return NextResponse.next({
@@ -48,5 +53,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|favicon.ico).*)'],
+  matcher: ['/((?!api/auth|_next/static|favicon.ico).*)'],
 };

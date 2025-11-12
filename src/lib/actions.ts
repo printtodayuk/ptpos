@@ -36,7 +36,7 @@ export async function addTransaction(
   }
 
   try {
-    const { firestore } = await getAuthenticatedAppForUser(userId);
+    const { firestore } = await getAuthenticatedAppForUser();
     
     await addDoc(collection(firestore, 'transactions'), {
       ...validatedData.data,
@@ -66,100 +66,119 @@ export async function getTransactions(
   type: 'invoicing' | 'non-invoicing',
   count: number = 20
 ): Promise<Transaction[]> {
-  const userId = await getUserIdFromHeaders();
-  if (!userId) return [];
+  try {
+    const { firestore } = await getAuthenticatedAppForUser();
+    const userId = (await getAuthenticatedAppForUser()).auth.currentUser?.uid;
+    if (!userId) return [];
 
-  const { firestore } = await getAuthenticatedAppForUser(userId);
-
-  const q = query(
-    collection(firestore, 'transactions'),
-    where('type', '==', type),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc'),
-    limit(count)
-  );
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      date: (data.date as Timestamp).toDate(),
-      createdAt: data.createdAt as Timestamp,
-    } as Transaction;
-  });
+    const q = query(
+      collection(firestore, 'transactions'),
+      where('type', '==', type),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(count)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: data.createdAt as Timestamp,
+      } as Transaction;
+    });
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
 }
 
 export async function getDashboardStats() {
-    const userId = await getUserIdFromHeaders();
-    if (!userId) {
-        return {
-            dailySales: 0,
-            totalInputs: 0,
-            cashAmount: 0,
-            bankAmount: 0,
-            cardAmount: 0,
-        };
+    try {
+      const { firestore } = await getAuthenticatedAppForUser();
+      const userId = (await getAuthenticatedAppForUser()).auth.currentUser?.uid;
+      if (!userId) {
+          return {
+              dailySales: 0,
+              totalInputs: 0,
+              cashAmount: 0,
+              bankAmount: 0,
+              cardAmount: 0,
+          };
+      }
+      
+
+      const q = query(collection(firestore, 'transactions'), where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      const transactions = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+          return {
+              ...data,
+              id: doc.id,
+              date: (data.date as Timestamp).toDate(),
+          } as Transaction
+      });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const dailySales = transactions
+          .filter(t => t.date >= today)
+          .reduce((sum, t) => sum + t.totalAmount, 0);
+
+      const totalInputs = transactions.length;
+      
+      const cashAmount = transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + t.totalAmount, 0);
+      const bankAmount = transactions.filter(t => t.paymentMethod === 'Bank Transfer').reduce((sum, t) => sum + t.totalAmount, 0);
+      const cardAmount = transactions.filter(t => t.paymentMethod === 'Card Payment').reduce((sum, t) => sum + t.totalAmount, 0);
+
+      return {
+          dailySales,
+          totalInputs,
+          cashAmount,
+          bankAmount,
+          cardAmount,
+      };
+    } catch (e) {
+      console.error(e);
+      return {
+        dailySales: 0,
+        totalInputs: 0,
+        cashAmount: 0,
+        bankAmount: 0,
+        cardAmount: 0,
+      };
     }
-    
-    const { firestore } = await getAuthenticatedAppForUser(userId);
-
-    const q = query(collection(firestore, 'transactions'), where('userId', '==', userId));
-    const querySnapshot = await getDocs(q);
-    const transactions = querySnapshot.docs.map(doc => {
-       const data = doc.data();
-        return {
-            ...data,
-            id: doc.id,
-            date: (data.date as Timestamp).toDate(),
-        } as Transaction
-    });
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const dailySales = transactions
-        .filter(t => t.date >= today)
-        .reduce((sum, t) => sum + t.totalAmount, 0);
-
-    const totalInputs = transactions.length;
-    
-    const cashAmount = transactions.filter(t => t.paymentMethod === 'Cash').reduce((sum, t) => sum + t.totalAmount, 0);
-    const bankAmount = transactions.filter(t => t.paymentMethod === 'Bank Transfer').reduce((sum, t) => sum + t.totalAmount, 0);
-    const cardAmount = transactions.filter(t => t.paymentMethod === 'Card Payment').reduce((sum, t) => sum + t.totalAmount, 0);
-
-    return {
-        dailySales,
-        totalInputs,
-        cashAmount,
-        bankAmount,
-        cardAmount,
-    };
 }
 
 
 export async function getPendingTransactions(): Promise<Transaction[]> {
-  const userId = await getUserIdFromHeaders();
-  if (!userId) return [];
+  try {
+    const { firestore } = await getAuthenticatedAppForUser();
+    const userId = (await getAuthenticatedAppForUser()).auth.currentUser?.uid;
+    if (!userId) return [];
 
-  const { firestore } = await getAuthenticatedAppForUser(userId);
-
-  const q = query(
-    collection(firestore, 'transactions'),
-    where('adminChecked', '==', false),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'asc')
-  );
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      date: (data.date as Timestamp).toDate(),
-      createdAt: data.createdAt as Timestamp,
-    } as Transaction;
-  });
+    const q = query(
+      collection(firestore, 'transactions'),
+      where('adminChecked', '==', false),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'asc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: data.createdAt as Timestamp,
+      } as Transaction;
+    });
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
 }
 
 export async function markTransactionAsChecked(id: string) {
@@ -170,7 +189,7 @@ export async function markTransactionAsChecked(id: string) {
         return { success: false, message: 'You must be logged in.' };
     }
 
-    const { firestore } = await getAuthenticatedAppForUser(userId);
+    const { firestore } = await getAuthenticatedAppForUser();
 
     const transactionRef = doc(firestore, 'transactions', id);
     await updateDoc(transactionRef, {
@@ -187,29 +206,33 @@ export async function markTransactionAsChecked(id: string) {
 }
 
 export async function getReportData({ from, to }: { from: Date; to: Date }): Promise<Transaction[]> {
-  const userId = await getUserIdFromHeaders();
-  if (!userId) return [];
-  
-  const { firestore } = await getAuthenticatedAppForUser(userId);
+  try {
+    const { firestore } = await getAuthenticatedAppForUser();
+    const userId = (await getAuthenticatedAppForUser()).auth.currentUser?.uid;
+    if (!userId) return [];
+    
+    const fromTimestamp = Timestamp.fromDate(from);
+    const toTimestamp = Timestamp.fromDate(to);
 
-  const fromTimestamp = Timestamp.fromDate(from);
-  const toTimestamp = Timestamp.fromDate(to);
-
-  const q = query(
-    collection(firestore, 'transactions'),
-    where('userId', '==', userId),
-    where('date', '>=', fromTimestamp),
-    where('date', '<=', toTimestamp),
-    orderBy('date', 'desc')
-  );
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      date: (data.date as Timestamp).toDate(),
-      createdAt: data.createdAt as Timestamp,
-    } as Transaction;
-  });
+    const q = query(
+      collection(firestore, 'transactions'),
+      where('userId', '==', userId),
+      where('date', '>=', fromTimestamp),
+      where('date', '<=', toTimestamp),
+      orderBy('date', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: data.createdAt as Timestamp,
+      } as Transaction;
+    });
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
 }
