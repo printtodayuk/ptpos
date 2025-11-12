@@ -76,7 +76,7 @@ export async function getTransactions(
         ...data,
         id: doc.id,
         date: (data.date as Timestamp).toDate(),
-        createdAt: data.createdAt as Timestamp,
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
   } catch (e) {
@@ -102,7 +102,7 @@ export async function getDashboardStats() {
     today.setHours(0, 0, 0, 0);
 
     const dailySales = transactions
-      .filter((t) => t.date >= today)
+      .filter((t) => new Date(t.date) >= today)
       .reduce((sum, t) => sum + t.totalAmount, 0);
 
     const totalInputs = transactions.length;
@@ -150,7 +150,7 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
         ...data,
         id: doc.id,
         date: (data.date as Timestamp).toDate(),
-        createdAt: data.createdAt as Timestamp,
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
   } catch (e) {
@@ -199,7 +199,7 @@ export async function getReportData({
         ...data,
         id: doc.id,
         date: (data.date as Timestamp).toDate(),
-        createdAt: data.createdAt as Timestamp,
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
   } catch (e) {

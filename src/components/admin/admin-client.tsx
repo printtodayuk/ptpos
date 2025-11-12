@@ -20,9 +20,10 @@ import { Card } from '../ui/card';
 
 type AdminClientProps = {
   pendingTransactions: Transaction[];
+  onTransactionChecked: () => void;
 };
 
-export function AdminClient({ pendingTransactions }: AdminClientProps) {
+export function AdminClient({ pendingTransactions, onTransactionChecked }: AdminClientProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -31,6 +32,7 @@ export function AdminClient({ pendingTransactions }: AdminClientProps) {
       const result = await markTransactionAsChecked(id);
       if (result.success) {
         toast({ title: 'Success', description: result.message });
+        onTransactionChecked();
       } else {
         toast({
           variant: 'destructive',
@@ -67,17 +69,17 @@ export function AdminClient({ pendingTransactions }: AdminClientProps) {
           <TableBody>
             {pendingTransactions.map((tx) => (
               <TableRow key={tx.id}>
-                <TableCell>{format(tx.date, 'dd/MM/yyyy')}</TableCell>
+                <TableCell>{format(new Date(tx.date), 'dd/MM/yyyy')}</TableCell>
                 <TableCell>{tx.clientName}</TableCell>
                 <TableCell><Badge variant={tx.type === 'invoicing' ? 'default' : 'secondary'}>{tx.type}</Badge></TableCell>
                 <TableCell className="text-right">£{tx.totalAmount.toFixed(2)}</TableCell>
                 <TableCell className="text-center">
-                  <form action={() => handleCheck(tx.id!)}>
-                    <Button size="sm" variant="outline" disabled={isPending}>
+                  
+                    <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleCheck(tx.id!)}>
                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4" />}
                         Mark as Checked
                     </Button>
-                  </form>
+                  
                 </TableCell>
               </TableRow>
             ))}
