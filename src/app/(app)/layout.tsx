@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -11,8 +14,34 @@ import {
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
 import { Nav } from '@/components/nav';
+import { useUser } from '@/firebase';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { getAuth, signOut } from 'firebase/auth';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  const handleSignOut = () => {
+    const auth = getAuth();
+    signOut(auth);
+  };
+  
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
@@ -28,8 +57,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarContent>
             <Nav />
           </SidebarContent>
-          <SidebarFooter className="p-4 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-            <p>&copy; {new Date().getFullYear()} Print Today</p>
+          <SidebarFooter className="p-4 flex flex-col gap-2">
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="w-full group-data-[collapsible=icon]:hidden">Sign Out</Button>
+             <Button variant="outline" size="icon" onClick={handleSignOut} className="hidden w-full group-data-[collapsible=icon]:block">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+             </Button>
+            <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">&copy; {new Date().getFullYear()} Print Today</p>
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
@@ -37,6 +70,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1">
               <h1 className="text-lg font-semibold">Print Today EPOS</h1>
+            </div>
+             <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground hidden sm:inline">{user.email}</span>
             </div>
           </header>
           <main className="flex-1 flex flex-col p-4 md:p-6 bg-background/50">

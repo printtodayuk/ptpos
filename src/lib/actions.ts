@@ -15,9 +15,16 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
+import { getFirestore } from 'firebase/firestore';
+import { getApp, getApps, initializeApp } from 'firebase/app';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
+import { firebaseConfig } from '@/firebase/config';
+
+// Helper to initialize Firebase Admin SDK
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+
 
 const CreateTransactionSchema = TransactionSchema.omit({ id: true, createdAt: true });
 
