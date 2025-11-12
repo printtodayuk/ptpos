@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { MoreHorizontal, Printer, CheckCircle, Edit, Trash2, Loader2, Ban } from 'lucide-react';
 
@@ -22,11 +21,11 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import type { Transaction } from '@/lib/types';
-import { PrintReceipt } from './print-receipt';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { markTransactionAsChecked } from '@/lib/server-actions';
+import { ReceiptDialog } from './receipt-dialog';
 
 type TransactionsTableProps = {
   transactions: Transaction[];
@@ -37,28 +36,10 @@ type TransactionsTableProps = {
 };
 
 export function TransactionsTable({ transactions, onEdit, onDelete, onTransactionChecked, showAdminControls = false }: TransactionsTableProps) {
-  const [transactionToPrint, setTransactionToPrint] = useState<Transaction | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const [transactionToView, setTransactionToView] = useState<Transaction | null>(null);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (transactionToPrint) {
-        window.print();
-    }
-  }, [transactionToPrint]);
   
-  const handlePrint = (tx: Transaction) => {
-    setTransactionToPrint(tx);
-    // The useEffect will trigger the print dialog. We reset after a short delay.
-    setTimeout(() => setTransactionToPrint(null), 100);
-  };
-
-
   const handleCheck = (id: string) => {
     startTransition(async () => {
       const result = await markTransactionAsChecked(id);
@@ -85,12 +66,11 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
 
   return (
     <>
-      {isMounted && transactionToPrint && createPortal(
-        <div className="print-only">
-          <PrintReceipt transaction={transactionToPrint} />
-        </div>,
-        document.body
-      )}
+      <ReceiptDialog 
+        transaction={transactionToView}
+        isOpen={!!transactionToView}
+        onClose={() => setTransactionToView(null)}
+      />
       <div className="rounded-lg border-t">
         <Table>
           <TableHeader>
@@ -141,14 +121,14 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => setTransactionToView(tx)}>
+                        <Printer className="mr-2 h-4 w-4" /> View Receipt
+                      </DropdownMenuItem>
                       {onEdit && (
                         <DropdownMenuItem onSelect={() => onEdit(tx)}>
                           <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onSelect={() => handlePrint(tx)}>
-                        <Printer className="mr-2 h-4 w-4" /> Print Receipt
-                      </DropdownMenuItem>
                       {showAdminControls && (
                         <>
                           <DropdownMenuSeparator />
