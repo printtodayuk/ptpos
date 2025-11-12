@@ -8,11 +8,15 @@ type PrintReceiptProps = {
 export function PrintReceipt({ transaction }: PrintReceiptProps) {
   if (!transaction) return null;
 
+  // These styles are optimized for a standard 80mm thermal receipt printer.
   return (
-    <div className="font-mono text-xs text-black bg-white p-2 w-[280px]">
+    <div 
+      id="receipt-to-print" 
+      className="font-mono text-xs text-black bg-white p-2 w-[280px]"
+    >
       <div className="text-center mb-2">
-        <h1 className="text-lg font-bold">Print Today</h1>
-        <p>Payment Receipt</p>
+        <h1 className="text-base font-bold">Print Today</h1>
+        <p className="text-xs">Payment Receipt</p>
       </div>
       <hr className="border-dashed border-black my-2" />
       <div className="space-y-1">
@@ -22,7 +26,7 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
         </div>
         <div className="flex justify-between">
           <span>Date:</span>
-          <span>{format(transaction.date, 'dd/MM/yyyy HH:mm')}</span>
+          <span>{format(new Date(transaction.date), 'dd/MM/yy HH:mm')}</span>
         </div>
         {transaction.invoiceNumber && (
           <div className="flex justify-between">
@@ -32,7 +36,7 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
         )}
         <div className="flex justify-between">
           <span>Client:</span>
-          <span>{transaction.clientName}</span>
+          <span className="text-right">{transaction.clientName}</span>
         </div>
       </div>
       <hr className="border-dashed border-black my-2" />
@@ -56,7 +60,7 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
             <span>£{(transaction.totalAmount - transaction.amount).toFixed(2)}</span>
           </div>
         )}
-        <div className="flex justify-between font-bold text-sm">
+        <div className="flex justify-between font-bold text-sm mt-1">
           <span>Total:</span>
           <span>£{transaction.totalAmount.toFixed(2)}</span>
         </div>
@@ -70,7 +74,7 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
         {transaction.reference && (
             <div className="flex justify-between">
                 <span>Ref:</span>
-                <span>{transaction.reference}</span>
+                <span className="text-right">{transaction.reference}</span>
             </div>
         )}
          <div className="flex justify-between">
@@ -80,7 +84,8 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
       </div>
       <hr className="border-dashed border-black my-2" />
       <div className="text-center mt-2">
-        <p>Thank you for your business!</p>
+        <p className="text-xs">Thank you for your business!</p>
+        <p className="text-[10px] pt-1">www.printtoday.co.uk</p>
       </div>
     </div>
   );

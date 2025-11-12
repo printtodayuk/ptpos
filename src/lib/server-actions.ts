@@ -13,6 +13,7 @@ import {
   doc,
   where,
   runTransaction,
+  DocumentReference,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -40,26 +41,43 @@ export async function addTransaction(
 
   try {
     const counterRef = doc(db, 'counters', 'transactions');
+    
+    let newTransaction: Transaction | null = null;
+    
     const newTransactionId = await runTransaction(db, async (transaction) => {
       const counterDoc = await transaction.get(counterRef);
       const newCount = (counterDoc.data()?.count || 0) + 1;
       transaction.set(counterRef, { count: newCount }, { merge: true });
       return `TID${String(newCount).padStart(4, '0')}`;
     });
-
-    await addDoc(collection(db, 'transactions'), {
+    
+    const docRef = await addDoc(collection(db, 'transactions'), {
       ...validatedData.data,
       transactionId: newTransactionId,
       date: Timestamp.fromDate(validatedData.data.date),
       createdAt: serverTimestamp(),
     });
 
+    // We can't get the full object back from addDoc directly with serverTimestamp
+    // So we construct it manually for the return value
+    newTransaction = {
+      ...validatedData.data,
+      id: docRef.id,
+      transactionId: newTransactionId,
+      // We can't know the exact server timestamp, but client date is close enough for the immediate response
+      createdAt: new Date(), 
+    };
+
     revalidatePath(`/${validatedData.data.type}`);
     revalidatePath('/dashboard');
     revalidatePath('/reporting');
     revalidatePath('/admin');
 
-    return { success: true, message: 'Transaction added successfully.' };
+    return { 
+      success: true, 
+      message: 'Transaction added successfully.',
+      transaction: newTransaction
+    };
   } catch (error) {
     console.error('Error adding transaction:', error);
     const errorMessage =
