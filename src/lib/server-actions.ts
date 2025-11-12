@@ -12,17 +12,17 @@ import {
   updateDoc,
   doc,
   where,
-} from 'firebase-admin/firestore';
+} from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
-import { getDb } from '@/lib/firebase-admin';
+import { db } from '@/lib/firebase';
 
 const CreateTransactionSchema = TransactionSchema.omit({
   id: true,
   createdAt: true,
-  userId: true, // Remove userId from validation
+  userId: true, 
 });
 
 export async function addTransaction(
@@ -38,9 +38,7 @@ export async function addTransaction(
   }
 
   try {
-    const firestore = getDb();
-
-    await addDoc(collection(firestore, 'transactions'), {
+    await addDoc(collection(db, 'transactions'), {
       ...validatedData.data,
       date: Timestamp.fromDate(validatedData.data.date),
       createdAt: serverTimestamp(),
@@ -65,10 +63,8 @@ export async function getTransactions(
   count: number = 20
 ): Promise<Transaction[]> {
   try {
-    const firestore = getDb();
-    
     const q = query(
-      collection(firestore, 'transactions'),
+      collection(db, 'transactions'),
       where('type', '==', type),
       orderBy('createdAt', 'desc'),
       limit(count)
@@ -91,9 +87,7 @@ export async function getTransactions(
 
 export async function getDashboardStats() {
   try {
-    const firestore = getDb();
-    
-    const q = query(collection(firestore, 'transactions'));
+    const q = query(collection(db, 'transactions'));
     const querySnapshot = await getDocs(q);
     const transactions = querySnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -144,10 +138,8 @@ export async function getDashboardStats() {
 
 export async function getPendingTransactions(): Promise<Transaction[]> {
   try {
-    const firestore = getDb();
-    
     const q = query(
-      collection(firestore, 'transactions'),
+      collection(db, 'transactions'),
       where('adminChecked', '==', false),
       orderBy('createdAt', 'asc')
     );
@@ -169,9 +161,7 @@ export async function getPendingTransactions(): Promise<Transaction[]> {
 
 export async function markTransactionAsChecked(id: string) {
   try {
-    const firestore = getDb();
-
-    const transactionRef = doc(firestore, 'transactions', id);
+    const transactionRef = doc(db, 'transactions', id);
     await updateDoc(transactionRef, {
       adminChecked: true,
       checkedBy: 'admin', // Using a placeholder
@@ -193,13 +183,11 @@ export async function getReportData({
   to: Date;
 }): Promise<Transaction[]> {
   try {
-    const firestore = getDb();
-    
     const fromTimestamp = Timestamp.fromDate(from);
     const toTimestamp = Timestamp.fromDate(to);
 
     const q = query(
-      collection(firestore, 'transactions'),
+      collection(db, 'transactions'),
       where('date', '>=', fromTimestamp),
       where('date', '<=', toTimestamp),
       orderBy('date', 'desc')
