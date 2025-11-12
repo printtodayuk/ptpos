@@ -79,6 +79,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
               <TableHead>Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
+              <TableHead className="hidden md:table-cell">Reference</TableHead>
               <TableHead className="hidden md:table-cell">Payment</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="hidden lg:table-cell">Operator</TableHead>
@@ -99,6 +100,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
                   {format(new Date(tx.date), 'dd/MM/yyyy')}
                 </TableCell>
                 <TableCell>{tx.clientName}</TableCell>
+                <TableCell className="hidden md:table-cell">{tx.reference}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   <Badge variant="outline">{tx.paymentMethod}</Badge>
                 </TableCell>
