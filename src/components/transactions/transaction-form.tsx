@@ -223,25 +223,25 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             </div>
             
             {type === 'invoicing' && (
-              <div className="space-y-2 lg:col-span-1">
+              <div className="space-y-2 col-span-1 md:col-span-1 lg:col-span-1">
                 <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
                 <Input id="invoiceNumber" {...form.register('invoiceNumber')} />
               </div>
             )}
 
-            <div className={cn("space-y-2", type === 'invoicing' ? 'lg:col-span-3' : 'lg:col-span-4')}>
+            <div className={cn("space-y-2", type === 'invoicing' ? 'col-span-1 md:col-span-2 lg:col-span-3' : 'col-span-1 md:col-span-2 lg:col-span-4')}>
               <Label htmlFor="jobDescription">Job Description (Optional)</Label>
               <Textarea id="jobDescription" {...form.register('jobDescription')} />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 lg:col-span-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:col-span-4">
               <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
                   <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} />
                   {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
               </div>
 
-              <div className="space-y-2 flex flex-row items-center justify-between rounded-lg border p-3 px-4">
+              <div className="space-y-2 flex flex-row items-center justify-between rounded-lg border p-3 px-4 sm:col-span-2 md:col-span-1">
                   <div className="space-y-0.5">
                       <Label htmlFor="vatApplied">Apply VAT (20%)</Label>
                   </div>
@@ -274,7 +274,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             </div>
 
 
-            <div className="space-y-2">
+            <div className="space-y-2 lg:col-span-1">
               <Label htmlFor="paymentMethod">Payment Method</Label>
               <Controller
                 control={form.control}
@@ -294,7 +294,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               />
             </div>
 
-            <div className="space-y-2 lg:col-span-3">
+            <div className="space-y-2 md:col-span-2 lg:col-span-3">
               <Label htmlFor="reference">Reference (Optional)</Label>
               <Input id="reference" {...form.register('reference')} />
             </div>

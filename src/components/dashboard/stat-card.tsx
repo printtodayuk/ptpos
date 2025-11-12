@@ -8,9 +8,10 @@ type StatCardProps = {
   icon: LucideIcon;
   description?: string;
   loading?: boolean;
+  isCurrency?: boolean;
 };
 
-export function StatCard({ title, value, icon: Icon, description, loading }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, description, loading, isCurrency = true }: StatCardProps) {
   if (loading) {
     return (
       <Card>
@@ -24,13 +25,18 @@ export function StatCard({ title, value, icon: Icon, description, loading }: Sta
           <div className="text-2xl font-bold">
             <Skeleton className="h-8 w-32" />
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
+          {description && <p className="text-xs text-muted-foreground mt-1">
             <Skeleton className="h-3 w-40" />
-          </p>
+          </p>}
         </CardContent>
       </Card>
     )
   }
+  
+  const formattedValue = isCurrency && typeof value === 'number' 
+    ? `£${value.toFixed(2)}` 
+    : value;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -38,7 +44,7 @@ export function StatCard({ title, value, icon: Icon, description, loading }: Sta
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{typeof value === 'number' ? `£${value.toFixed(2)}` : value}</div>
+        <div className="text-2xl font-bold">{formattedValue}</div>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>

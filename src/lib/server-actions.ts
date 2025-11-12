@@ -22,6 +22,7 @@ import { z } from 'zod';
 import type { Transaction } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
+import { startOfDay, endOfDay } from 'date-fns';
 
 const CreateTransactionSchema = TransactionSchema.omit({
   id: true,
@@ -179,54 +180,73 @@ export async function getTransactions(
 
 export async function getDashboardStats() {
   try {
-    const q = query(collection(db, 'transactions'));
-    const querySnapshot = await getDocs(q);
-    const transactions = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        ...data,
-        id: doc.id,
-        date: (data.date as Timestamp).toDate(),
-      } as Transaction;
-    });
+    const todayStart = startOfDay(new Date());
+    const todayEnd = endOfDay(new Date());
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const allTransactionsQuery = query(collection(db, 'transactions'));
+    const dailyTransactionsQuery = query(
+      collection(db, 'transactions'),
+      where('date', '>=', Timestamp.fromDate(todayStart)),
+      where('date', '<=', Timestamp.fromDate(todayEnd))
+    );
 
-    const dailySales = transactions
-      .filter((t) => new Date(t.date) >= today)
+    const [allTransactionsSnapshot, dailyTransactionsSnapshot] = await Promise.all([
+      getDocs(allTransactionsQuery),
+      getDocs(dailyTransactionsQuery)
+    ]);
+
+    const allTransactions = allTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
+    const dailyTransactions = dailyTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
+
+    // Calculate daily stats
+    const dailyCash = dailyTransactions
+      .filter(t => t.paymentMethod === 'Cash')
+      .reduce((sum, t) => sum + t.totalAmount, 0);
+    const dailyBank = dailyTransactions
+      .filter(t => t.paymentMethod === 'Bank Transfer')
+      .reduce((sum, t) => sum + t.totalAmount, 0);
+    const dailyCard = dailyTransactions
+      .filter(t => t.paymentMethod === 'Card Payment')
       .reduce((sum, t) => sum + t.totalAmount, 0);
 
-    const totalInputs = transactions.length;
-
-    const cashAmount = transactions
+    // Calculate all-time stats
+    const totalInputs = allTransactions.length;
+    const cashAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Cash')
       .reduce((sum, t) => sum + t.totalAmount, 0);
-    const bankAmount = transactions
+    const bankAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Bank Transfer')
       .reduce((sum, t) => sum + t.totalAmount, 0);
-    const cardAmount = transactions
+    const cardAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Card Payment')
       .reduce((sum, t) => sum + t.totalAmount, 0);
+    const totalSales = allTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
 
     return {
-      dailySales,
+      totalSales,
       totalInputs,
       cashAmount,
       bankAmount,
       cardAmount,
+      dailyCash,
+      dailyBank,
+      dailyCard,
     };
   } catch (e) {
     console.error(e);
     return {
-      dailySales: 0,
+      totalSales: 0,
       totalInputs: 0,
       cashAmount: 0,
       bankAmount: 0,
       cardAmount: 0,
+      dailyCash: 0,
+      dailyBank: 0,
+      dailyCard: 0,
     };
   }
 }
+
 
 export async function getPendingTransactions(): Promise<Transaction[]> {
   try {
