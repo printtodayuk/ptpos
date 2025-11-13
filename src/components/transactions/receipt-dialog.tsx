@@ -10,8 +10,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { PrintReceipt } from './print-receipt';
 import type { Transaction } from '@/lib/types';
-import { Printer } from 'lucide-react';
-import React from 'react';
+import { Printer, Download, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 type ReceiptDialogProps = {
   transaction: Transaction | null;
@@ -21,6 +23,7 @@ type ReceiptDialogProps = {
 
 export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogProps) {
   const receiptRef = React.useRef<HTMLDivElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handlePrint = () => {
     if (!receiptRef.current) return;
@@ -92,6 +95,34 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
       document.body.removeChild(iframe);
     }, 1000);
   };
+  
+  const handleSavePdf = async () => {
+    if (!receiptRef.current || !transaction) return;
+    setIsSaving(true);
+
+    const canvas = await html2canvas(receiptRef.current, {
+      scale: 3, // Increase resolution
+      backgroundColor: '#ffffff',
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    
+    // A standard 80mm thermal paper receipt is about 80mm wide.
+    // The height will be dynamic.
+    const pdfWidth = 80; 
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [pdfWidth, pdfHeight]
+    });
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`Receipt-${transaction.transactionId}.pdf`);
+
+    setIsSaving(false);
+  };
 
   if (!transaction) {
     return null;
@@ -104,14 +135,30 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
           <DialogTitle>Transaction Added</DialogTitle>
         </DialogHeader>
         <div className="flex items-center justify-center py-4">
-          <div className="p-4 border rounded-lg bg-gray-50" ref={receiptRef}>
-            <PrintReceipt transaction={transaction} />
+          <div className="p-4 border rounded-lg bg-gray-50">
+            <div ref={receiptRef}>
+              <PrintReceipt transaction={transaction} />
+            </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button type="button" onClick={handlePrint} className="w-full">
+        <DialogFooter className="sm:flex-row sm:justify-center gap-2">
+          <Button type="button" onClick={handlePrint} className="flex-1">
             <Printer className="mr-2 h-4 w-4" />
             Print Receipt
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleSavePdf}
+            disabled={isSaving}
+            className="flex-1"
+          >
+            {isSaving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Save as PDF
           </Button>
         </DialogFooter>
       </DialogContent>
