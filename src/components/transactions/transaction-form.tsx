@@ -145,6 +145,8 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     form.setValue('date', new Date());
     onTransactionAdded?.(); // To signal a refresh if needed
   }
+  
+  const formTitle = type === 'invoicing' ? 'Xero' : 'PT Till';
 
   return (
     <>
@@ -156,7 +158,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
       <Card>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
-            <CardTitle className="capitalize">{isEditMode ? `Editing TID: ${transactionToEdit?.transactionId}` : `${type}`}</CardTitle>
+            <CardTitle className="capitalize">{isEditMode ? `Editing TID: ${transactionToEdit?.transactionId}` : formTitle}</CardTitle>
             <CardDescription>{isEditMode ? 'Update the transaction details below.' : 'Enter the details for the new transaction.'}</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

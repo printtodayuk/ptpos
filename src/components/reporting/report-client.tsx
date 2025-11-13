@@ -146,8 +146,8 @@ export function ReportClient() {
           {!isPending && hasData && (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="m-4">
-                <TabsTrigger value="invoicing">Invoicing ({invoicingTransactions.length})</TabsTrigger>
-                <TabsTrigger value="non-invoicing">Non-Invoicing ({nonInvoicingTransactions.length})</TabsTrigger>
+                <TabsTrigger value="invoicing">Xero ({invoicingTransactions.length})</TabsTrigger>
+                <TabsTrigger value="non-invoicing">PT Till ({nonInvoicingTransactions.length})</TabsTrigger>
               </TabsList>
               <TabsContent value="invoicing" className="m-0 p-0">
                   <TransactionsTable transactions={invoicingTransactions} />

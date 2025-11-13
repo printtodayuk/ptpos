@@ -21,8 +21,8 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/invoicing', icon: FileText, label: 'Invoicing' },
-  { href: '/non-invoicing', icon: File, label: 'Non-Invoicing' },
+  { href: '/invoicing', icon: FileText, label: 'Xero' },
+  { href: '/non-invoicing', icon: File, label: 'PT Till' },
   { href: '/reporting', icon: BarChart4, label: 'Reporting' },
   { href: '/admin', icon: UserCheck, label: 'Admin' },
 ];
