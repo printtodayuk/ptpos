@@ -32,12 +32,17 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
     
     // Create an iframe
     const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
     document.body.appendChild(iframe);
     
     const iframeDoc = iframe.contentWindow?.document;
     if (iframeDoc) {
       iframeDoc.open();
+      // Inject necessary styles for printing
+      // This includes Tailwind-like classes used in PrintReceipt
       iframeDoc.write(`
         <html>
           <head>
@@ -53,10 +58,13 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
                   -webkit-print-color-adjust: exact;
                 }
               }
+              body {
+                font-family: monospace;
+              }
               .font-mono { font-family: monospace; }
-              .text-xs { font-size: 0.75rem; }
-              .text-sm { font-size: 0.875rem; }
-              .text-base { font-size: 1rem; }
+              .text-xs { font-size: 0.75rem; line-height: 1rem; }
+              .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+              .text-base { font-size: 1rem; line-height: 1.5rem; }
               .text-black { color: #000; }
               .bg-white { background-color: #fff; }
               .p-2 { padding: 0.5rem; }
@@ -77,7 +85,9 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
               .mt-1 { margin-top: 0.25rem; }
               .mt-2 { margin-top: 0.5rem; }
               .pt-1 { padding-top: 0.25rem; }
-              .text-[10px] { font-size: 10px; }
+              .text-\\[10px\\] { font-size: 10px; }
+              img { max-width: 100%; height: auto; }
+              .mx-auto { margin-left: auto; margin-right: auto; }
             </style>
           </head>
           <body>
@@ -101,11 +111,12 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
     setIsSaving(true);
 
     const canvas = await html2canvas(receiptRef.current, {
-      scale: 3, // Increase resolution
+      scale: 2, // A lower scale is fine for PDF
       backgroundColor: '#ffffff',
+      useCORS: true, // Important for external images
     });
 
-    const imgData = canvas.toDataURL('image/png');
+    const imgData = canvas.toDataURL('image/jpeg', 0.7); // Use JPEG with quality 0.7
     
     // A standard 80mm thermal paper receipt is about 80mm wide.
     // The height will be dynamic.
@@ -118,7 +129,7 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
       format: [pdfWidth, pdfHeight]
     });
     
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
     pdf.save(`Receipt-${transaction.transactionId}.pdf`);
 
     setIsSaving(false);
@@ -132,7 +143,7 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Transaction Added</DialogTitle>
+          <DialogTitle>Transaction Receipt</DialogTitle>
         </DialogHeader>
         <div className="flex items-center justify-center py-4">
           <div className="p-4 border rounded-lg bg-gray-50">

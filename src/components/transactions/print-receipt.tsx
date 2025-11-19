@@ -1,5 +1,6 @@
 import type { Transaction } from '@/lib/types';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 type PrintReceiptProps = {
   transaction: Transaction;
@@ -15,8 +16,15 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
       className="font-mono text-xs text-black bg-white p-2 w-[280px]"
     >
       <div className="text-center mb-2">
-        <h1 className="text-base font-bold">Print Today</h1>
-        <p className="text-xs">Payment Receipt</p>
+        <Image 
+          src="https://ssl.prcdn.com/uk/branddemand/T1Q/Logo%20for%20Signature.png?1700078679"
+          alt="Print Today Logo"
+          width={150}
+          height={50}
+          className="mx-auto"
+        />
+        <p className="text-xs">75 Green Street, London E7 8JF</p>
+        <p className="text-xs pt-1">Payment Receipt</p>
       </div>
       <hr className="border-dashed border-black my-2" />
       <div className="space-y-1">
@@ -96,8 +104,8 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
       <hr className="border-dashed border-black my-2" />
       <div className="text-center mt-2">
         <p className="text-xs">Thank you for your business!</p>
-        <p className="text-[10px] pt-1">Powered by RemotizedIT</p>
-        <p className="text-[10px]">info@remoteizedit.com</p>
+        <p className="text-[10px] pt-1">Powered by Today AI</p>
+        <p className="text-[10px]">Developed by Faz, RemotizedIT</p>
       </div>
     </div>
   );
