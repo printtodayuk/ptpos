@@ -78,6 +78,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
               <TableHead>TID</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
+              <TableHead className="hidden md:table-cell">Invoice #</TableHead>
               <TableHead className="hidden xl:table-cell">Job Description</TableHead>
               <TableHead className="hidden lg:table-cell">Reference</TableHead>
               <TableHead className="hidden md:table-cell">Payment</TableHead>
@@ -101,6 +102,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
                   {format(new Date(tx.date), 'dd/MM/yy')}
                 </TableCell>
                 <TableCell>{tx.clientName}</TableCell>
+                <TableCell className="hidden md:table-cell">{tx.invoiceNumber}</TableCell>
                 <TableCell className="hidden xl:table-cell truncate max-w-xs">{tx.jobDescription}</TableCell>
                 <TableCell className="hidden lg:table-cell">{tx.reference}</TableCell>
                 <TableCell className="hidden md:table-cell">
