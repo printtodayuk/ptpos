@@ -326,43 +326,29 @@ export async function searchTransactions(
   searchTerm: string,
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
-  
-  const queryConstraints: QueryConstraint[] = [];
-
-  if (paymentMethod) {
-    queryConstraints.push(where('paymentMethod', '==', paymentMethod));
-  }
-  
-  // Always order by creation date
-  queryConstraints.push(orderBy('createdAt', 'desc'));
-
-
-  if (!searchTerm) {
-    // Return last 50 transactions if search term is empty, honoring filters
-    queryConstraints.push(limit(50));
-    const q = query(collection(db, 'transactions'), ...queryConstraints);
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        ...data,
-        id: doc.id,
-        date: (data.date as Timestamp).toDate(),
-        createdAt: (data.createdAt as Timestamp)?.toDate(),
-      } as Transaction;
-    });
-  }
-  
   try {
-    // This is not efficient for large datasets. For a production app,
-    // a dedicated search service like Algolia or Elasticsearch is recommended.
-    // We will query with the filter and then filter by search term in code.
-    queryConstraints.push(limit(1000)); // Limiting for performance
+    const queryConstraints: QueryConstraint[] = [];
+
+    if (paymentMethod) {
+      queryConstraints.push(where('paymentMethod', '==', paymentMethod));
+    }
+  
+    // This is the main change: We always order by createdAt to use the default index.
+    // Firestore can efficiently filter by one field and order by another if the order-by is on a timestamp.
+    // If we added more `where` clauses on different fields, we would need a composite index.
+    queryConstraints.push(orderBy('createdAt', 'desc'));
+    
+    // Limit the results for performance, especially for broad queries.
+    if (!searchTerm) {
+      queryConstraints.push(limit(50));
+    } else {
+      queryConstraints.push(limit(1000)); // Fetch more to filter in-memory
+    }
     
     const q = query(collection(db, 'transactions'), ...queryConstraints);
-
     const querySnapshot = await getDocs(q);
-    const transactions = querySnapshot.docs.map((doc) => {
+
+    let transactions = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,
@@ -372,20 +358,23 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    const lowercasedTerm = searchTerm.toLowerCase();
+    if (searchTerm) {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      transactions = transactions.filter((t) => {
+        const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
+        const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
+        const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
+        return tidMatch || clientMatch || jobMatch;
+      });
+    }
 
-    return transactions.filter((t) => {
-      const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
-      const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
-      const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-
-      return tidMatch || clientMatch || jobMatch;
-    });
+    return transactions;
   } catch (e) {
     console.error('Error searching transactions: ', e);
     return [];
   }
 }
+
 
 export async function deleteTransaction(id: string) {
     if (!id) {
