@@ -327,25 +327,9 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const queryConstraints: QueryConstraint[] = [];
-
-    if (paymentMethod) {
-      queryConstraints.push(where('paymentMethod', '==', paymentMethod));
-    }
-  
-    // This is the main change: We always order by createdAt to use the default index.
-    // Firestore can efficiently filter by one field and order by another if the order-by is on a timestamp.
-    // If we added more `where` clauses on different fields, we would need a composite index.
-    queryConstraints.push(orderBy('createdAt', 'desc'));
-    
-    // Limit the results for performance, especially for broad queries.
-    if (!searchTerm) {
-      queryConstraints.push(limit(50));
-    } else {
-      queryConstraints.push(limit(1000)); // Fetch more to filter in-memory
-    }
-    
-    const q = query(collection(db, 'transactions'), ...queryConstraints);
+    // We always query and sort by the same field to use Firestore's built-in indexes.
+    // All filtering will happen in-memory after the fetch.
+    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(1000));
     const querySnapshot = await getDocs(q);
 
     let transactions = querySnapshot.docs.map((doc) => {
@@ -358,6 +342,12 @@ export async function searchTransactions(
       } as Transaction;
     });
 
+    // 1. Filter by Payment Method if provided
+    if (paymentMethod) {
+      transactions = transactions.filter(t => t.paymentMethod === paymentMethod);
+    }
+    
+    // 2. Filter by search term if provided
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
       transactions = transactions.filter((t) => {
@@ -368,7 +358,8 @@ export async function searchTransactions(
       });
     }
 
-    return transactions;
+    return transactions.slice(0, searchTerm || paymentMethod ? 1000 : 50);
+
   } catch (e) {
     console.error('Error searching transactions: ', e);
     return [];
@@ -446,3 +437,5 @@ export async function bulkMarkAsChecked(ids: string[]) {
         return { success: false, message: 'An error occurred during bulk update.' };
     }
 }
+
+    
