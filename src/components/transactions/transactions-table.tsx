@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { Transaction } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
@@ -33,13 +34,34 @@ type TransactionsTableProps = {
   onDelete?: (transaction: Transaction) => void;
   onTransactionChecked?: () => void;
   showAdminControls?: boolean;
+  selectable?: boolean;
+  onSelectionChange?: (selectedIds: string[]) => void;
 };
 
-export function TransactionsTable({ transactions, onEdit, onDelete, onTransactionChecked, showAdminControls = false }: TransactionsTableProps) {
+export function TransactionsTable({ 
+  transactions, 
+  onEdit, 
+  onDelete, 
+  onTransactionChecked, 
+  showAdminControls = false,
+  selectable = false,
+  onSelectionChange 
+}: TransactionsTableProps) {
   const [transactionToView, setTransactionToView] = useState<Transaction | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    onSelectionChange?.(selectedRows);
+  }, [selectedRows, onSelectionChange]);
   
+  useEffect(() => {
+    // Clear selection when transactions change
+    setSelectedRows([]);
+  }, [transactions]);
+
+
   const handleCheck = (id: string) => {
     startTransition(async () => {
       const result = await markTransactionAsChecked(id);
@@ -56,6 +78,20 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
     });
   };
 
+  const handleSelectRow = (id: string) => {
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+  
+  const handleSelectAll = () => {
+    if (selectedRows.length === transactions.length) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(transactions.map(t => t.id!));
+    }
+  };
+
   if (transactions.length === 0) {
     return (
       <div className="text-center text-muted-foreground p-10">
@@ -63,6 +99,8 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
       </div>
     );
   }
+
+  const isAllSelected = selectedRows.length === transactions.length && transactions.length > 0;
 
   return (
     <>
@@ -75,7 +113,17 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
         <Table>
           <TableHeader>
             <TableRow>
+              {selectable && (
+                 <TableHead padding="checkbox">
+                    <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all"
+                    />
+                </TableHead>
+              )}
               <TableHead>TID</TableHead>
+              {showAdminControls && <TableHead>Type</TableHead>}
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="hidden md:table-cell">Invoice #</TableHead>
@@ -94,10 +142,26 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
           </TableHeader>
           <TableBody>
             {transactions.map((tx) => (
-              <TableRow key={tx.id}>
+              <TableRow key={tx.id} data-state={selectedRows.includes(tx.id!) ? "selected" : ""}>
+                 {selectable && (
+                    <TableCell padding="checkbox">
+                        <Checkbox
+                            checked={selectedRows.includes(tx.id!)}
+                            onCheckedChange={() => handleSelectRow(tx.id!)}
+                            aria-label="Select row"
+                        />
+                    </TableCell>
+                )}
                 <TableCell>
                   <Badge variant="secondary">{tx.transactionId}</Badge>
                 </TableCell>
+                {showAdminControls && (
+                  <TableCell>
+                    <Badge variant={tx.type === 'invoicing' ? 'default' : 'secondary'}>
+                      {tx.type === 'invoicing' ? 'Xero' : 'PT Till'}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">
                   {format(new Date(tx.date), 'dd/MM/yy')}
                 </TableCell>

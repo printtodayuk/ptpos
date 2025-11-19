@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback, useTransition } from 'react';
-import { searchTransactions, deleteTransaction } from '@/lib/server-actions';
+import { searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search } from 'lucide-react';
-import type { Transaction } from '@/lib/types';
+import { Loader2, Search, Trash2, CheckCircle } from 'lucide-react';
+import type { Transaction, PaymentMethod } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { TransactionsTable } from '@/components/transactions/transactions-table';
 import { TransactionForm } from '@/components/transactions/transaction-form';
 import {
@@ -21,6 +22,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -29,42 +36,46 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { PinLock } from '@/components/admin/pin-lock';
 
-
 export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'all'>('all');
   const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [isBulkActionPending, startBulkActionTransition] = useTransition();
+  const [bulkAction, setBulkAction] = useState<'delete' | 'check' | null>(null);
+
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback(
-    (term: string) => {
-      startSearchTransition(async () => {
-        const allResults = await searchTransactions(term);
-        setResults(allResults);
-      });
-    },
-    []
-  );
+  const performSearch = useCallback(() => {
+    startSearchTransition(async () => {
+      const allResults = await searchTransactions(
+        debouncedSearchTerm,
+        paymentMethodFilter === 'all' ? undefined : paymentMethodFilter
+      );
+      setResults(allResults);
+      setSelectedTransactions([]); // Clear selection on new search
+    });
+  }, [debouncedSearchTerm, paymentMethodFilter]);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm);
-  }, [debouncedSearchTerm, performSearch]);
+    performSearch();
+  }, [debouncedSearchTerm, paymentMethodFilter, performSearch]);
 
   const handleEdit = (transaction: Transaction) => {
     setTransactionToEdit(transaction);
     setIsEditDialogOpen(true);
   };
-  
+
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
   };
-  
+
   const confirmDelete = async () => {
     if (!transactionToDelete) return;
 
@@ -74,37 +85,74 @@ export default function AdminPage() {
 
     if (result.success) {
       toast({ title: 'Success', description: 'Transaction deleted successfully.' });
-      setResults(results.filter(t => t.id !== transactionToDelete.id));
+      performSearch();
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
     setTransactionToDelete(null);
   };
 
-
   const handleUpdate = () => {
     setIsEditDialogOpen(false);
     setTransactionToEdit(null);
-    performSearch(debouncedSearchTerm);
+    performSearch();
   };
 
   const onTransactionChecked = () => {
-    performSearch(debouncedSearchTerm);
-  }
+    performSearch();
+  };
+
+  const handleSelectionChange = (ids: string[]) => {
+    setSelectedTransactions(ids);
+  };
+  
+  const handleBulkDelete = () => {
+    if (selectedTransactions.length === 0) return;
+    setBulkAction('delete');
+  };
+
+  const handleBulkCheck = () => {
+    if (selectedTransactions.length === 0) return;
+    setBulkAction('check');
+  };
+
+  const confirmBulkAction = () => {
+    if (!bulkAction) return;
+
+    startBulkActionTransition(async () => {
+        let result;
+        if (bulkAction === 'delete') {
+            result = await bulkDeleteTransactions(selectedTransactions);
+        } else if (bulkAction === 'check') {
+            result = await bulkMarkAsChecked(selectedTransactions);
+        }
+
+        if (result?.success) {
+            toast({ title: 'Success', description: result.message });
+            performSearch();
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result?.message || 'An error occurred.' });
+        }
+        setBulkAction(null);
+        setSelectedTransactions([]);
+    });
+  };
+
+  const paymentFilters: (PaymentMethod | 'all')[] = ['all', 'Bank Transfer', 'Card Payment', 'Cash'];
 
   return (
     <PinLock>
-       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Edit Transaction</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-             <TransactionForm
-                type={transactionToEdit?.type || 'invoicing'}
-                onTransactionAdded={handleUpdate}
-                transactionToEdit={transactionToEdit}
-              />
+            <TransactionForm
+              type={transactionToEdit?.type || 'invoicing'}
+              onTransactionAdded={handleUpdate}
+              transactionToEdit={transactionToEdit}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -127,46 +175,107 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <AlertDialog open={!!bulkAction} onOpenChange={() => setBulkAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Bulk Action</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to {bulkAction} {selectedTransactions.length} selected transaction(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkAction} disabled={isBulkActionPending}>
+              {isBulkActionPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="flex flex-col gap-6">
-          <CardHeader className="p-0">
-              <CardTitle>Admin Control Panel</CardTitle>
-              <CardDescription>Search, view, edit, and verify all transactions.</CardDescription>
+        <CardHeader className="p-0">
+          <CardTitle>Admin Control Panel</CardTitle>
+          <CardDescription>Search, view, edit, and verify all transactions.</CardDescription>
+        </CardHeader>
+
+        <Card>
+          <CardHeader>
+             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div>
+                    <CardTitle>Search & Filter Transactions</CardTitle>
+                    <CardDescription className="mt-1">
+                        Search by ID, client, or description. Leave blank to see all.
+                    </CardDescription>
+                </div>
+                 {selectedTransactions.length > 0 && (
+                    <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline">
+                        Bulk Actions ({selectedTransactions.length})
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={handleBulkCheck} className="text-green-600 focus:text-green-700">
+                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Checked
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleBulkDelete} className="text-destructive focus:text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Selected
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+            </div>
           </CardHeader>
-           
-          <Card>
-            <CardHeader>
-              <CardTitle>Search All Transactions</CardTitle>
-              <CardDescription>
-                Search by TID, client name, job description, or amount. Leave blank to see recent entries.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 mb-4">
-                <Search className="h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="e.g. TID0002, John Doe, Flyer Design, 24.50..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="e.g. TID0002, John Doe, Flyer Design..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10"
+                  />
+                </div>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Filter by payment:</span>
+                {paymentFilters.map(method => (
+                  <Button
+                    key={method}
+                    variant={paymentMethodFilter === method ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPaymentMethodFilter(method)}
+                  >
+                    {method === 'all' ? 'All' : method.split(' ')[0]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4">
               {isSearching ? (
                 <div className="flex justify-center items-center p-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <TransactionsTable 
-                  transactions={results} 
-                  onEdit={handleEdit} 
+                <TransactionsTable
+                  transactions={results}
+                  onEdit={handleEdit}
                   onDelete={handleDeleteRequest}
                   onTransactionChecked={onTransactionChecked}
                   showAdminControls={true}
+                  selectable={true}
+                  onSelectionChange={handleSelectionChange}
                 />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </PinLock>
   );

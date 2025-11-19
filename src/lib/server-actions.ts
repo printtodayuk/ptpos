@@ -16,10 +16,12 @@ import {
   runTransaction,
   deleteDoc,
   where,
+  writeBatch,
+  QueryConstraint
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, PaymentMethod } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { startOfDay, endOfDay } from 'date-fns';
@@ -321,15 +323,24 @@ export async function getReportData({
 }
 
 export async function searchTransactions(
-  searchTerm: string
+  searchTerm: string,
+  paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
+  
+  const queryConstraints: QueryConstraint[] = [];
+
+  if (paymentMethod) {
+    queryConstraints.push(where('paymentMethod', '==', paymentMethod));
+  }
+  
+  // Always order by creation date
+  queryConstraints.push(orderBy('createdAt', 'desc'));
+
+
   if (!searchTerm) {
-    // Return last 50 transactions if search term is empty
-    const q = query(
-      collection(db, 'transactions'),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
+    // Return last 50 transactions if search term is empty, honoring filters
+    queryConstraints.push(limit(50));
+    const q = query(collection(db, 'transactions'), ...queryConstraints);
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -345,12 +356,10 @@ export async function searchTransactions(
   try {
     // This is not efficient for large datasets. For a production app,
     // a dedicated search service like Algolia or Elasticsearch is recommended.
-    // We will query for recent transactions and then filter in code.
-    const q = query(
-      collection(db, 'transactions'),
-      orderBy('createdAt', 'desc'),
-      limit(1000) // Limiting to the last 1000 entries for performance
-    );
+    // We will query with the filter and then filter by search term in code.
+    queryConstraints.push(limit(1000)); // Limiting for performance
+    
+    const q = query(collection(db, 'transactions'), ...queryConstraints);
 
     const querySnapshot = await getDocs(q);
     const transactions = querySnapshot.docs.map((doc) => {
@@ -364,15 +373,13 @@ export async function searchTransactions(
     });
 
     const lowercasedTerm = searchTerm.toLowerCase();
-    const searchAmount = !isNaN(parseFloat(searchTerm)) ? parseFloat(searchTerm) : null;
 
     return transactions.filter((t) => {
       const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
       const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
       const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-      const amountMatch = searchAmount !== null && t.totalAmount === searchAmount;
 
-      return tidMatch || clientMatch || jobMatch || amountMatch;
+      return tidMatch || clientMatch || jobMatch;
     });
   } catch (e) {
     console.error('Error searching transactions: ', e);
@@ -397,5 +404,56 @@ export async function deleteTransaction(id: string) {
         const errorMessage =
             error instanceof Error ? error.message : 'An unexpected error occurred.';
         return { success: false, message: errorMessage };
+    }
+}
+
+
+export async function bulkDeleteTransactions(ids: string[]) {
+    if (!ids || ids.length === 0) {
+        return { success: false, message: 'No transaction IDs provided.' };
+    }
+    try {
+        const batch = writeBatch(db);
+        ids.forEach(id => {
+            const docRef = doc(db, 'transactions', id);
+            batch.delete(docRef);
+        });
+        await batch.commit();
+
+        revalidatePath('/admin');
+        revalidatePath('/reporting');
+        revalidatePath('/dashboard');
+        revalidatePath('/invoicing');
+        revalidatePath('/non-invoicing');
+
+        return { success: true, message: `${ids.length} transaction(s) deleted successfully.` };
+    } catch (error) {
+        console.error('Error bulk deleting transactions:', error);
+        return { success: false, message: 'An error occurred during bulk deletion.' };
+    }
+}
+
+export async function bulkMarkAsChecked(ids: string[]) {
+    if (!ids || ids.length === 0) {
+        return { success: false, message: 'No transaction IDs provided.' };
+    }
+    try {
+        const batch = writeBatch(db);
+        ids.forEach(id => {
+            const docRef = doc(db, 'transactions', id);
+            batch.update(docRef, {
+                adminChecked: true,
+                checkedBy: 'admin (bulk)',
+            });
+        });
+        await batch.commit();
+
+        revalidatePath('/admin');
+        revalidatePath('/reporting');
+
+        return { success: true, message: `${ids.length} transaction(s) marked as checked.` };
+    } catch (error) {
+        console.error('Error bulk marking transactions:', error);
+        return { success: false, message: 'An error occurred during bulk update.' };
     }
 }
