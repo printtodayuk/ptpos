@@ -20,6 +20,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PinLock } from '@/components/admin/pin-lock';
 
@@ -31,6 +37,7 @@ export default function AdminPage() {
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -51,7 +58,7 @@ export default function AdminPage() {
 
   const handleEdit = (transaction: Transaction) => {
     setTransactionToEdit(transaction);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsEditDialogOpen(true);
   };
   
   const handleDeleteRequest = (transaction: Transaction) => {
@@ -76,8 +83,9 @@ export default function AdminPage() {
 
 
   const handleUpdate = () => {
-    setTransactionToEdit(null); // Clear the edit state
-    performSearch(debouncedSearchTerm); // Re-run search to get fresh data
+    setIsEditDialogOpen(false);
+    setTransactionToEdit(null);
+    performSearch(debouncedSearchTerm);
   };
 
   const onTransactionChecked = () => {
@@ -86,6 +94,21 @@ export default function AdminPage() {
 
   return (
     <PinLock>
+       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+             <TransactionForm
+                type={transactionToEdit?.type || 'invoicing'}
+                onTransactionAdded={handleUpdate}
+                transactionToEdit={transactionToEdit}
+              />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -110,15 +133,7 @@ export default function AdminPage() {
               <CardTitle>Admin Control Panel</CardTitle>
               <CardDescription>Search, view, edit, and verify all transactions.</CardDescription>
           </CardHeader>
-           {transactionToEdit && (
-            <div className="mb-6">
-              <TransactionForm
-                type={transactionToEdit.type}
-                onTransactionAdded={handleUpdate}
-                transactionToEdit={transactionToEdit}
-              />
-            </div>
-          )}
+           
           <Card>
             <CardHeader>
               <CardTitle>Search All Transactions</CardTitle>

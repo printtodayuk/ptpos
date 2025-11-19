@@ -9,6 +9,12 @@ import { Loader2, Search } from 'lucide-react';
 import type { Transaction } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { TransactionForm } from './transaction-form';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type SearchTransactionsProps = {
   type: 'invoicing' | 'non-invoicing';
@@ -20,6 +26,7 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
   const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -27,7 +34,6 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
     (term: string) => {
       startSearchTransition(async () => {
         const allResults = await searchTransactions(term);
-        // Filter by type on the client side
         setResults(allResults.filter(t => t.type === type));
       });
     },
@@ -40,26 +46,33 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
 
   const handleEdit = (transaction: Transaction) => {
     setTransactionToEdit(transaction);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsEditDialogOpen(true);
   };
 
   const handleUpdate = () => {
-    setTransactionToEdit(null); // Clear the edit state
-    onTransactionUpdated(); // Notify parent to re-render
-    performSearch(debouncedSearchTerm); // Re-run search to get fresh data
+    setIsEditDialogOpen(false);
+    setTransactionToEdit(null);
+    onTransactionUpdated();
+    performSearch(debouncedSearchTerm);
   };
 
   return (
     <>
-      {transactionToEdit && (
-        <div className="mb-6">
-          <TransactionForm
-            type={type}
-            onTransactionAdded={handleUpdate}
-            transactionToEdit={transactionToEdit}
-          />
-        </div>
-      )}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+             <TransactionForm
+                type={type}
+                onTransactionAdded={handleUpdate}
+                transactionToEdit={transactionToEdit}
+              />
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       <Card>
         <CardHeader>
           <CardTitle>Search Transactions</CardTitle>

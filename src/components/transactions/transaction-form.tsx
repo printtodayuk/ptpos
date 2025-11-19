@@ -27,7 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addTransaction, updateTransaction } from '@/lib/server-actions';
-import { TransactionSchema, operators, paymentMethods, type Transaction } from '@/lib/types';
+import { TransactionSchema, operators, paymentMethods, type Transaction, Operator } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { ReceiptDialog } from './receipt-dialog';
@@ -40,9 +40,12 @@ type TransactionFormProps = {
 
 type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'transactionId'>;
 
+// Use a static state for the last operator
+let lastOperator: Operator = 'PTMGH';
+
 const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<FormValues> => ({
     type: type,
-    date: undefined,
+    date: new Date(),
     clientName: '',
     jobDescription: '',
     amount: 0,
@@ -51,7 +54,7 @@ const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<For
     paidAmount: 0,
     dueAmount: 0,
     paymentMethod: 'Bank Transfer',
-    operator: 'PTMGH',
+    operator: lastOperator, // Use the persisted operator
     invoiceNumber: '',
     reference: '',
     adminChecked: false,
@@ -71,34 +74,26 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
     defaultValues: getFreshDefaultValues(type),
   });
-  
-  useEffect(() => {
-    // Set date only on client to avoid hydration mismatch
-    const currentFormDate = form.getValues('date');
-    if (!currentFormDate) {
-      form.setValue('date', new Date());
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (transactionToEdit) {
       setIsEditMode(true);
-      form.reset({
+      const valuesToReset = {
         ...transactionToEdit,
         date: new Date(transactionToEdit.date),
-      });
+      };
+      form.reset(valuesToReset);
     } else {
       setIsEditMode(false);
       form.reset(getFreshDefaultValues(type));
-      form.setValue('date', new Date());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactionToEdit, type]);
+  }, [transactionToEdit, type, form.reset]);
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
   const watchedPaidAmount = form.watch('paidAmount');
+  const watchedOperator = form.watch('operator');
 
   useEffect(() => {
     const currentAmount = isNaN(watchedAmount) ? 0 : watchedAmount;
@@ -112,6 +107,10 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     form.setValue('dueAmount', newDue);
 
   }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form]);
+  
+  useEffect(() => {
+      lastOperator = watchedOperator;
+  }, [watchedOperator]);
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
@@ -126,7 +125,6 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             setLastTransaction(result.transaction);
         }
         form.reset(getFreshDefaultValues(type));
-        form.setValue('date', new Date());
         setIsEditMode(false);
         onTransactionAdded?.();
       } else {
@@ -141,12 +139,11 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
   const cancelEdit = () => {
     setIsEditMode(false);
-    form.reset(getFreshDefaultValues(type));
-    form.setValue('date', new Date());
-    onTransactionAdded?.(); // To signal a refresh if needed
+    onTransactionAdded?.(); 
   }
   
   const formTitle = type === 'invoicing' ? 'Xero' : 'PT Till';
+  const Wrapper = isEditMode ? 'div' : Card;
 
   return (
     <>
@@ -155,13 +152,15 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
         isOpen={!!lastTransaction && !isEditMode}
         onClose={() => setLastTransaction(null)}
       />
-      <Card>
+      <Wrapper className={!isEditMode ? 'w-full' : ''}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardHeader>
-            <CardTitle className="capitalize">{isEditMode ? `Editing TID: ${transactionToEdit?.transactionId}` : formTitle}</CardTitle>
-            <CardDescription>{isEditMode ? 'Update the transaction details below.' : 'Enter the details for the new transaction.'}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {!isEditMode && (
+            <CardHeader>
+              <CardTitle className="capitalize">{formTitle}</CardTitle>
+              <CardDescription>Enter the details for the new transaction.</CardDescription>
+            </CardHeader>
+          )}
+          <CardContent className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6", isEditMode && "p-0 pt-4")}>
             
             <div className="space-y-2 lg:col-span-1">
               <Label htmlFor="operator">Operator Name</Label>
@@ -302,7 +301,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             </div>
 
           </CardContent>
-          <CardFooter className="justify-end gap-2">
+          <CardFooter className={cn("justify-end gap-2", isEditMode && "pt-6")}>
             {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -310,7 +309,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             </Button>
           </CardFooter>
         </form>
-      </Card>
+      </Wrapper>
     </>
   );
 }

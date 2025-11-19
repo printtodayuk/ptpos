@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 
 export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin'] as const;
-export type Operator = typeof operators[number];
+export type Operator = (typeof operators)[number];
 
 export const paymentMethods = ['Bank Transfer', 'Card Payment', 'Cash'] as const;
 export type PaymentMethod = typeof paymentMethods[number];
