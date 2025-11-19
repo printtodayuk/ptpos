@@ -75,6 +75,10 @@ export function ReportClient() {
   }
 
   const hasData = invoicingTransactions.length > 0 || nonInvoicingTransactions.length > 0;
+  
+  const onTransactionChecked = () => {
+    handleSearch();
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -150,10 +154,18 @@ export function ReportClient() {
                 <TabsTrigger value="non-invoicing">PT Till ({nonInvoicingTransactions.length})</TabsTrigger>
               </TabsList>
               <TabsContent value="invoicing" className="m-0 p-0">
-                  <TransactionsTable transactions={invoicingTransactions} />
+                  <TransactionsTable 
+                    transactions={invoicingTransactions}
+                    showAdminControls={true}
+                    onTransactionChecked={onTransactionChecked}
+                  />
               </TabsContent>
               <TabsContent value="non-invoicing" className="m-0 p-0">
-                  <TransactionsTable transactions={nonInvoicingTransactions} />
+                  <TransactionsTable 
+                    transactions={nonInvoicingTransactions}
+                    showAdminControls={true}
+                    onTransactionChecked={onTransactionChecked}
+                   />
               </TabsContent>
             </Tabs>
           )}
