@@ -76,14 +76,16 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
           <TableHeader>
             <TableRow>
               <TableHead>TID</TableHead>
-              <TableHead>Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
-              <TableHead className="hidden md:table-cell">Reference</TableHead>
+              <TableHead className="hidden xl:table-cell">Job Description</TableHead>
+              <TableHead className="hidden lg:table-cell">Reference</TableHead>
               <TableHead className="hidden md:table-cell">Payment</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="hidden lg:table-cell">Operator</TableHead>
-              <TableHead className="hidden lg:table-cell text-center">Admin Checked</TableHead>
+              {showAdminControls && (
+                <TableHead className="hidden lg:table-cell text-center">Admin Checked</TableHead>
+              )}
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -95,12 +97,12 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
                 <TableCell>
                   <Badge variant="secondary">{tx.transactionId}</Badge>
                 </TableCell>
-                <TableCell><Badge variant={tx.type === 'invoicing' ? 'default' : 'secondary'}>{tx.type}</Badge></TableCell>
                 <TableCell className="font-medium">
-                  {format(new Date(tx.date), 'dd/MM/yyyy')}
+                  {format(new Date(tx.date), 'dd/MM/yy')}
                 </TableCell>
                 <TableCell>{tx.clientName}</TableCell>
-                <TableCell className="hidden md:table-cell">{tx.reference}</TableCell>
+                <TableCell className="hidden xl:table-cell truncate max-w-xs">{tx.jobDescription}</TableCell>
+                <TableCell className="hidden lg:table-cell">{tx.reference}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   <Badge variant="outline">{tx.paymentMethod}</Badge>
                 </TableCell>
@@ -108,12 +110,14 @@ export function TransactionsTable({ transactions, onEdit, onDelete, onTransactio
                   £{tx.totalAmount.toFixed(2)}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">{tx.operator}</TableCell>
-                <TableCell className="hidden lg:table-cell text-center">
-                    <Badge variant={tx.adminChecked ? 'default' : 'destructive'} className={cn(tx.adminChecked && 'bg-green-600 hover:bg-green-600/80')}>
-                        <CheckCircle className="mr-1 h-3 w-3"/>
-                        {tx.adminChecked ? 'Yes' : 'No'}
-                    </Badge>
-                </TableCell>
+                {showAdminControls && (
+                  <TableCell className="hidden lg:table-cell text-center">
+                      <Badge variant={tx.adminChecked ? 'default' : 'destructive'} className={cn(tx.adminChecked && 'bg-green-600 hover:bg-green-600/80')}>
+                          {tx.adminChecked ? <CheckCircle className="mr-1 h-3 w-3"/> : <Ban className="mr-1 h-3 w-3"/>}
+                          {tx.adminChecked ? 'Yes' : 'No'}
+                      </Badge>
+                  </TableCell>
+                )}
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
