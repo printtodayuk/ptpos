@@ -132,9 +132,7 @@ export function TransactionsTable({
               <TableHead className="hidden md:table-cell">Payment</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="hidden lg:table-cell">Operator</TableHead>
-              {showAdminControls && (
-                <TableHead className="hidden lg:table-cell text-center">Admin Checked</TableHead>
-              )}
+              <TableHead className="hidden lg:table-cell text-center">Admin Checked</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -176,14 +174,12 @@ export function TransactionsTable({
                   £{tx.totalAmount.toFixed(2)}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">{tx.operator}</TableCell>
-                {showAdminControls && (
-                  <TableCell className="hidden lg:table-cell text-center">
+                 <TableCell className="hidden lg:table-cell text-center">
                       <Badge variant={tx.adminChecked ? 'default' : 'destructive'} className={cn(tx.adminChecked && 'bg-green-600 hover:bg-green-600/80')}>
                           {tx.adminChecked ? <CheckCircle className="mr-1 h-3 w-3"/> : <Ban className="mr-1 h-3 w-3"/>}
                           {tx.adminChecked ? 'Yes' : 'No'}
                       </Badge>
                   </TableCell>
-                )}
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
