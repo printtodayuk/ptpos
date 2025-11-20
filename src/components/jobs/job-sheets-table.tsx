@@ -1,3 +1,4 @@
+
 'use client';
 
 import { format } from 'date-fns';
@@ -51,6 +52,7 @@ export function JobSheetsTable({
             <TableHead>Date</TableHead>
             <TableHead>Client</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
+            <TableHead className="hidden lg:table-cell">IR Number</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead>
@@ -69,6 +71,7 @@ export function JobSheetsTable({
               </TableCell>
               <TableCell>{js.clientName}</TableCell>
               <TableCell className="hidden md:table-cell">{js.operator}</TableCell>
+              <TableCell className="hidden lg:table-cell">{js.irNumber}</TableCell>
               <TableCell className="text-right">
                 £{js.totalAmount.toFixed(2)}
               </TableCell>

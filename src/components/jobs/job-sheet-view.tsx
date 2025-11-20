@@ -1,3 +1,4 @@
+
 import type { JobSheet } from '@/lib/types';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -36,12 +37,15 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
       </div>
 
       {/* Job Info */}
-       <div className="grid grid-cols-3 gap-4 mt-4 text-xs">
+       <div className="grid grid-cols-2 gap-4 mt-4 text-xs">
         <div className="border border-black p-2">
-            <strong>Job No:</strong> {jobSheet.jobId}
+            <strong>Job No:</strong> <span className="font-bold">{jobSheet.jobId}</span>
         </div>
         <div className="border border-black p-2">
             <strong>Date:</strong> {format(new Date(jobSheet.date), 'dd/MM/yyyy')}
+        </div>
+        <div className="border border-black p-2">
+            <strong>IR No:</strong> {jobSheet.irNumber}
         </div>
         <div className="border border-black p-2">
             <strong>Operator:</strong> {jobSheet.operator}
