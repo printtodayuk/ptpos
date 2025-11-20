@@ -8,6 +8,7 @@ import {
   File,
   BarChart4,
   UserCheck,
+  ClipboardList,
 } from 'lucide-react';
 import React from 'react';
 
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/job-sheet', icon: ClipboardList, label: 'Job Sheet' },
   { href: '/invoicing', icon: FileText, label: 'Xero' },
   { href: '/non-invoicing', icon: File, label: 'PT Till' },
   { href: '/reporting', icon: BarChart4, label: 'Reporting' },

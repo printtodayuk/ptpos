@@ -104,6 +104,88 @@
         }
       },
       "required": ["count"]
+    },
+    "JobSheet": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Job Sheet",
+      "type": "object",
+      "description": "Represents a job sheet with multiple job items.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the job sheet document."
+        },
+        "jobId": {
+          "type": "string",
+          "description": "Auto-incrementing job ID (e.g., JID0001)."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date of the job sheet creation."
+        },
+        "operator": {
+          "type": "string",
+          "description": "Username of the operator who created the job sheet."
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "clientDetails": {
+            "type": "string",
+            "description": "Additional details about the client (address, phone, etc.)."
+        },
+        "jobItems": {
+          "type": "array",
+          "description": "A list of individual jobs in the sheet.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            },
+            "required": ["description", "quantity", "price"]
+          }
+        },
+        "subTotal": {
+          "type": "number",
+          "description": "The sum of all job item prices."
+        },
+        "vatApplied": {
+          "type": "boolean",
+          "description": "Indicates if VAT is applied to the subtotal."
+        },
+        "vatAmount": {
+            "type": "number",
+            "description": "The calculated VAT amount."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount including VAT."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Hold", "Invoice", "Cancel"],
+          "description": "The current status of the job sheet."
+        },
+        "specialNote": {
+          "type": "string",
+          "description": "Any special notes for the job."
+        },
+        "irNumber": {
+          "type": "string",
+          "description": "The IR number associated with the job."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        }
+      },
+      "required": [
+        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatApplied", "vatAmount", "totalAmount", "status"
+      ]
     }
   },
   "auth": {
@@ -138,12 +220,28 @@
           "params": [
             {
               "name": "counterId",
-              "description": "The name of the counter (e.g., 'transactions')."
+              "description": "The name of the counter (e.g., 'transactions', 'jobSheets')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/jobSheets/{jobSheetId}",
+        "definition": {
+          "entityName": "JobSheet",
+          "schema": {
+            "$ref": "#/backend/entities/JobSheet"
+          },
+          "description": "Stores all job sheet data.",
+          "params": [
+            {
+              "name": "jobSheetId",
+              "description": "Unique identifier for the job sheet document."
             }
           ]
         }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions in a reliable way."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information."
   }
 }

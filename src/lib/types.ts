@@ -29,3 +29,32 @@ export const TransactionSchema = z.object({
 });
 
 export type Transaction = z.infer<typeof TransactionSchema>;
+
+export const jobSheetStatus = ['Hold', 'Invoice', 'Cancel'] as const;
+export type JobSheetStatus = (typeof jobSheetStatus)[number];
+
+const JobItemSchema = z.object({
+  description: z.string().min(1, 'Description is required.'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1.'),
+  price: z.coerce.number().min(0, 'Price cannot be negative.'),
+});
+
+export const JobSheetSchema = z.object({
+  id: z.string().optional(),
+  jobId: z.string(),
+  date: z.date({ required_error: 'Please select a date.' }),
+  operator: z.enum(operators),
+  clientName: z.string().min(1, 'Client name is required.'),
+  clientDetails: z.string().optional().nullable(),
+  jobItems: z.array(JobItemSchema).min(1, 'At least one job item is required.'),
+  subTotal: z.number(),
+  vatApplied: z.boolean(),
+  vatAmount: z.number(),
+  totalAmount: z.number(),
+  status: z.enum(jobSheetStatus),
+  specialNote: z.string().optional().nullable(),
+  irNumber: z.string().optional().nullable(),
+  createdAt: z.any().optional(),
+});
+
+export type JobSheet = z.infer<typeof JobSheetSchema>;

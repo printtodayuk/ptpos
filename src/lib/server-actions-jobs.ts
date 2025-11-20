@@ -1,0 +1,159 @@
+'use server';
+
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  Timestamp,
+  getDocs,
+  getDoc,
+  limit,
+  orderBy,
+  query,
+  updateDoc,
+  doc,
+  runTransaction,
+  deleteDoc,
+} from 'firebase/firestore';
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import type { JobSheet } from '@/lib/types';
+import { JobSheetSchema } from '@/lib/types';
+import { db } from '@/lib/firebase';
+
+const CreateJobSheetSchema = JobSheetSchema.omit({
+  id: true,
+  jobId: true,
+  createdAt: true,
+});
+
+export async function addJobSheet(
+  data: z.infer<typeof CreateJobSheetSchema>
+) {
+  const validatedData = CreateJobSheetSchema.safeParse(data);
+  if (!validatedData.success) {
+    return {
+      success: false,
+      message: validatedData.error.flatten().fieldErrors.jobItems?.[0] || 'Validation failed.',
+      errors: validatedData.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const counterRef = doc(db, 'counters', 'jobSheets');
+    
+    const newJobId = await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      const currentCount = counterDoc.exists() ? counterDoc.data()?.count : 0;
+      const newCount = (currentCount || 0) + 1;
+      transaction.set(counterRef, { count: newCount }, { merge: true });
+      return `JID${String(newCount).padStart(4, '0')}`;
+    });
+    
+    const docRef = await addDoc(collection(db, 'jobSheets'), {
+      ...validatedData.data,
+      jobId: newJobId,
+      date: Timestamp.fromDate(validatedData.data.date),
+      createdAt: serverTimestamp(),
+    });
+
+    const newDocSnap = await getDoc(docRef);
+    const newDocData = newDocSnap.data();
+
+    let newJobSheet: JobSheet | null = null;
+    if (newDocData) {
+      newJobSheet = {
+        ...(newDocData as Omit<JobSheet, 'id' | 'date' | 'createdAt'>),
+        id: docRef.id,
+        jobId: newJobId,
+        date: (newDocData.date as Timestamp).toDate(),
+        createdAt: (newDocData.createdAt as Timestamp)?.toDate() || new Date(), 
+      };
+    }
+
+    revalidatePath('/job-sheet');
+    return { success: true, message: 'Job sheet added successfully.', jobSheet: newJobSheet };
+  } catch (error) {
+    console.error('Error adding job sheet:', error);
+    return { success: false, message: error instanceof Error ? error.message : 'An unexpected error occurred.' };
+  }
+}
+
+export async function updateJobSheet(
+  id: string,
+  data: z.infer<typeof CreateJobSheetSchema>
+) {
+  const validatedData = CreateJobSheetSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
+  }
+  
+  try {
+    const jobSheetRef = doc(db, 'jobSheets', id);
+    await updateDoc(jobSheetRef, {
+        ...validatedData.data,
+        date: Timestamp.fromDate(validatedData.data.date),
+    });
+    
+    revalidatePath('/job-sheet');
+    const updatedDoc = await getDoc(jobSheetRef);
+    const updatedData = updatedDoc.data();
+     let jobSheet: JobSheet | null = null;
+    if (updatedData) {
+        jobSheet = {
+            ...(updatedData as Omit<JobSheet, 'id' | 'date' | 'createdAt'>),
+            id: updatedDoc.id,
+            date: (updatedData.date as Timestamp).toDate(),
+            createdAt: (updatedData.createdAt as Timestamp)?.toDate() || new Date(),
+        };
+    }
+    return { success: true, message: 'Job sheet updated successfully.', jobSheet };
+  } catch (error) {
+    console.error('Error updating job sheet:', error);
+    return { success: false, message: error instanceof Error ? error.message : 'An unexpected error occurred.' };
+  }
+}
+
+export async function searchJobSheets(searchTerm: string): Promise<JobSheet[]> {
+  try {
+    const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'), limit(100));
+    const querySnapshot = await getDocs(q);
+
+    let jobSheets = querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
+      } as JobSheet;
+    });
+
+    if (searchTerm) {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      jobSheets = jobSheets.filter((js) => {
+        return (
+          js.jobId?.toLowerCase().includes(lowercasedTerm) ||
+          js.clientName?.toLowerCase().includes(lowercasedTerm) ||
+          js.jobItems.some(item => item.description?.toLowerCase().includes(lowercasedTerm))
+        );
+      });
+    }
+
+    return jobSheets.slice(0, 50);
+  } catch (e) {
+    console.error('Error searching job sheets: ', e);
+    return [];
+  }
+}
+
+export async function deleteJobSheet(id: string) {
+    if (!id) return { success: false, message: 'Job Sheet ID is required.' };
+    try {
+        await deleteDoc(doc(db, 'jobSheets', id));
+        revalidatePath('/job-sheet');
+        return { success: true, message: 'Job sheet deleted successfully.' };
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : 'An unexpected error occurred.' };
+    }
+}
