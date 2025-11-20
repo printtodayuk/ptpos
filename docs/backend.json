@@ -144,18 +144,15 @@
             "properties": {
               "description": { "type": "string" },
               "quantity": { "type": "number" },
-              "price": { "type": "number" }
+              "price": { "type": "number" },
+              "vatApplied": { "type": "boolean" }
             },
-            "required": ["description", "quantity", "price"]
+            "required": ["description", "quantity", "price", "vatApplied"]
           }
         },
         "subTotal": {
           "type": "number",
           "description": "The sum of all job item prices."
-        },
-        "vatApplied": {
-          "type": "boolean",
-          "description": "Indicates if VAT is applied to the subtotal."
         },
         "vatAmount": {
             "type": "number",
@@ -184,7 +181,7 @@
         }
       },
       "required": [
-        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatApplied", "vatAmount", "totalAmount", "status"
+        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "status"
       ]
     }
   },

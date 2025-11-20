@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addJobSheet, updateJobSheet } from '@/lib/server-actions-jobs';
@@ -36,9 +36,8 @@ const getFreshDefaultValues = (): Partial<FormValues> => ({
   operator: lastOperator,
   clientName: '',
   clientDetails: '',
-  jobItems: [{ description: '', quantity: 1, price: 0 }],
+  jobItems: [{ description: '', quantity: 1, price: 0, vatApplied: false }],
   subTotal: 0,
-  vatApplied: false,
   vatAmount: 0,
   totalAmount: 0,
   status: 'Hold',
@@ -76,18 +75,22 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   }, [jobSheetToEdit, form.reset]);
 
   const watchedItems = form.watch('jobItems');
-  const watchedVatApplied = form.watch('vatApplied');
   const watchedOperator = form.watch('operator');
 
   useEffect(() => {
     const subTotal = watchedItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-    const vatAmount = watchedVatApplied ? subTotal * 0.2 : 0;
+    const vatAmount = watchedItems.reduce((acc, item) => {
+        if (item.vatApplied) {
+            return acc + (item.quantity * item.price * 0.2);
+        }
+        return acc;
+    }, 0);
     const totalAmount = subTotal + vatAmount;
 
     form.setValue('subTotal', subTotal);
     form.setValue('vatAmount', vatAmount);
     form.setValue('totalAmount', totalAmount);
-  }, [watchedItems, watchedVatApplied, form]);
+  }, [watchedItems, form]);
 
   useEffect(() => {
     lastOperator = watchedOperator;
@@ -182,21 +185,37 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
             {/* Row 3: Dynamic Job Items */}
             <div className="space-y-4 md:col-span-4">
               <Label>Job Items</Label>
+              <div className="grid grid-cols-12 gap-2 items-center border-b pb-2">
+                  <div className="col-span-6 sm:col-span-6"><Label className="text-xs">Description</Label></div>
+                  <div className="col-span-2 sm:col-span-2"><Label className="text-xs">Quantity</Label></div>
+                  <div className="col-span-2 sm:col-span-2"><Label className="text-xs">Price (£)</Label></div>
+                  <div className="col-span-1 sm:col-span-1 text-center"><Label className="text-xs">VAT</Label></div>
+                  <div className="col-span-1 sm:col-span-1"></div>
+              </div>
               {fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
-                  <div className="col-span-12 sm:col-span-7 space-y-1">
-                     <Label htmlFor={`jobItems.${index}.description`} className="text-xs">Description</Label>
-                     <Textarea id={`jobItems.${index}.description`} {...form.register(`jobItems.${index}.description`)} placeholder="Job description" />
+                  <div className="col-span-12 sm:col-span-6">
+                     <Textarea {...form.register(`jobItems.${index}.description`)} placeholder="Job description" className="h-10"/>
                   </div>
-                   <div className="col-span-4 sm:col-span-2 space-y-1">
-                     <Label htmlFor={`jobItems.${index}.quantity`} className="text-xs">Quantity</Label>
-                     <Input id={`jobItems.${index}.quantity`} type="number" {...form.register(`jobItems.${index}.quantity`, { valueAsNumber: true })} placeholder="Qty" />
+                   <div className="col-span-3 sm:col-span-2">
+                     <Input type="number" {...form.register(`jobItems.${index}.quantity`, { valueAsNumber: true })} placeholder="Qty" />
                   </div>
-                   <div className="col-span-4 sm:col-span-2 space-y-1">
-                     <Label htmlFor={`jobItems.${index}.price`} className="text-xs">Price (£)</Label>
-                     <Input id={`jobItems.${index}.price`} type="number" step="0.01" {...form.register(`jobItems.${index}.price`, { valueAsNumber: true })} placeholder="Price" />
+                   <div className="col-span-4 sm:col-span-2">
+                     <Input type="number" step="0.01" {...form.register(`jobItems.${index}.price`, { valueAsNumber: true })} placeholder="Price" />
                   </div>
-                  <div className="col-span-4 sm:col-span-1 flex items-end h-full">
+                  <div className="col-span-1 sm:col-span-1 flex items-center justify-center h-full">
+                     <Controller
+                        control={form.control}
+                        name={`jobItems.${index}.vatApplied`}
+                        render={({ field: { value, onChange } }) => (
+                           <Checkbox
+                              checked={value}
+                              onCheckedChange={onChange}
+                            />
+                        )}
+                     />
+                  </div>
+                  <div className="col-span-4 sm:col-span-1 flex items-start h-full">
                     <Button type="button" variant="destructive" size="icon" onClick={() => fields.length > 1 && remove(index)} disabled={fields.length <= 1}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -204,20 +223,16 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 </div>
               ))}
                {form.formState.errors.jobItems && <p className="text-sm text-destructive">{form.formState.errors.jobItems.message || form.formState.errors.jobItems.root?.message}</p>}
-              <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0 })}>
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0, vatApplied: false })}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Item
               </Button>
             </div>
             
             {/* Row 4: Totals */}
-            <div className="md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4 items-center rounded-lg border p-4">
+            <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center rounded-lg border p-4">
                 <div className="space-y-2">
                     <Label>Sub-Total</Label>
                     <Input value={`£${form.getValues('subTotal').toFixed(2)}`} readOnly className="font-bold bg-muted" />
-                </div>
-                <div className="space-y-2 flex flex-row items-center justify-between rounded-lg border p-3">
-                    <Label htmlFor="vatApplied">Apply VAT (20%)</Label>
-                    <Controller control={form.control} name="vatApplied" render={({ field }) => ( <Switch id="vatApplied" checked={field.value} onCheckedChange={field.onChange} /> )} />
                 </div>
                  <div className="space-y-2">
                     <Label>VAT Amount</Label>

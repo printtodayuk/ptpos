@@ -1,3 +1,4 @@
+'use client';
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 
@@ -37,6 +38,7 @@ const JobItemSchema = z.object({
   description: z.string().min(1, 'Description is required.'),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1.'),
   price: z.coerce.number().min(0, 'Price cannot be negative.'),
+  vatApplied: z.boolean().default(false),
 });
 
 export const JobSheetSchema = z.object({
@@ -48,12 +50,11 @@ export const JobSheetSchema = z.object({
   clientDetails: z.string().optional().nullable(),
   jobItems: z.array(JobItemSchema).min(1, 'At least one job item is required.'),
   subTotal: z.number(),
-  vatApplied: z.boolean(),
   vatAmount: z.number(),
   totalAmount: z.number(),
   status: z.enum(jobSheetStatus),
   specialNote: z.string().optional().nullable(),
-  irNumber: z.string().optional().nullable(),
+irNumber: z.string().optional().nullable(),
   createdAt: z.any().optional(),
 });
 
