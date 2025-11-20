@@ -30,9 +30,9 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
         </div>
         <div className="w-1/3 text-right text-xs">
             <p>75 Green Street, London E7 8JF</p>
-            <p>020 8472 2255</p>
-            <p>info@printtoday.co.uk</p>
-            <p>www.printtoday.co.uk</p>
+            <p>07969559746</p>
+            <p>info@printtodayuk.com</p>
+            <p>www.printtodayuk.com</p>
         </div>
       </div>
 
