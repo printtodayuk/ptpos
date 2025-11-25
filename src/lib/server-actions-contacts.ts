@@ -60,8 +60,7 @@ export async function getContacts(): Promise<Contact[]> {
       return {
         ...data,
         id: doc.id,
-        // Convert to serializable format (ISO string)
-        createdAt: createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : null,
+        createdAt: createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : new Date().toISOString(),
       } as Contact;
     });
   } catch (e) {
