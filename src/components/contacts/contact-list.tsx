@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -29,11 +30,11 @@ export function ContactList() {
     ].filter(Boolean).join(', ');
 
     const textToCopy = [
-      `Name: ${contact.name}`,
-      `Phone: ${contact.phone}`,
-      `Email: ${contact.email}`,
-      `Address: ${addressParts || 'N/A'}`,
-    ].join('\n');
+      contact.name,
+      contact.phone,
+      contact.email,
+      addressParts || '',
+    ].filter(Boolean).join('\n');
 
     navigator.clipboard.writeText(textToCopy);
     setCopiedId(contact.id!);
