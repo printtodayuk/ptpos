@@ -104,7 +104,7 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
               transactions={results}
               onEdit={handleEdit}
               onTransactionChecked={onTransactionChecked}
-              showAdminControls={true}
+              showAdminControls={false}
             />
           )}
         </CardContent>
