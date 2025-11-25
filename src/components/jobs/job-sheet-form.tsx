@@ -78,19 +78,26 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   const watchedOperator = form.watch('operator');
 
   useEffect(() => {
-    const subTotal = watchedItems.reduce((acc, item) => acc + (item.price || 0), 0);
-    const vatAmount = watchedItems.reduce((acc, item) => {
-        if (item.vatApplied) {
-            return acc + ((item.price || 0) * 0.2);
-        }
-        return acc;
-    }, 0);
-    const totalAmount = subTotal + vatAmount;
+    const subscription = form.watch((values, { name, type }) => {
+      if (name && (name.startsWith('jobItems') || type === 'change')) {
+        const items = values.jobItems || [];
+        const subTotal = items.reduce((acc, item) => acc + (item?.price || 0), 0);
+        const vatAmount = items.reduce((acc, item) => {
+            if (item?.vatApplied) {
+                return acc + ((item?.price || 0) * 0.2);
+            }
+            return acc;
+        }, 0);
+        const totalAmount = subTotal + vatAmount;
 
-    form.setValue('subTotal', subTotal, { shouldValidate: true });
-    form.setValue('vatAmount', vatAmount, { shouldValidate: true });
-    form.setValue('totalAmount', totalAmount, { shouldValidate: true });
-  }, [watchedItems, form]);
+        // Use setValue with shouldValidate: true to trigger validation and UI update
+        form.setValue('subTotal', subTotal, { shouldValidate: true });
+        form.setValue('vatAmount', vatAmount, { shouldValidate: true });
+        form.setValue('totalAmount', totalAmount, { shouldValidate: true });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   useEffect(() => {
     lastOperator = watchedOperator;
