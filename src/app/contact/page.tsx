@@ -2,13 +2,15 @@ import { ContactForm } from '@/components/contacts/contact-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Logo } from '@/components/logo';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 export default function ContactPage() {
   return (
     <div className="min-h-screen bg-secondary/20 flex flex-col items-center justify-center p-4">
-        <Link href="/" className="mb-8">
+        <div className="mb-8">
             <Logo />
-        </Link>
+        </div>
         <Card className="w-full max-w-2xl">
             <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -18,6 +20,14 @@ export default function ContactPage() {
                 <ContactForm />
             </CardContent>
         </Card>
+        <div className="mt-8 text-center">
+            <Button variant="ghost" asChild>
+                <a href="https://www.printtodayuk.com">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Website
+                </a>
+            </Button>
+        </div>
         <footer className="text-center p-4 mt-8 text-xs text-muted-foreground">
              Developed by{' '}
             <a
