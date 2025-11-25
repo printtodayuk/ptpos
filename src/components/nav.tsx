@@ -9,6 +9,7 @@ import {
   BarChart4,
   UserCheck,
   ClipboardList,
+  Contact,
 } from 'lucide-react';
 import React from 'react';
 
@@ -25,6 +26,7 @@ const navItems = [
   { href: '/job-sheet', icon: ClipboardList, label: 'Job Sheet' },
   { href: '/invoicing', icon: FileText, label: 'Xero' },
   { href: '/non-invoicing', icon: File, label: 'PT Till' },
+  { href: '/contact-list', icon: Contact, label: 'Contact List' },
   { href: '/reporting', icon: BarChart4, label: 'Reporting' },
   { href: '/admin', icon: UserCheck, label: 'Admin' },
 ];

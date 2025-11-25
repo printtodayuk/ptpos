@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 
@@ -54,8 +53,22 @@ export const JobSheetSchema = z.object({
   totalAmount: z.number(),
   status: z.enum(jobSheetStatus),
   specialNote: z.string().optional().nullable(),
-irNumber: z.string().optional().nullable(),
+  irNumber: z.string().optional().nullable(),
   createdAt: z.any().optional(),
 });
 
 export type JobSheet = z.infer<typeof JobSheetSchema>;
+
+export const ContactSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Name is required.'),
+  street: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
+  phone: z.string().min(1, 'Phone number is required.'),
+  email: z.string().email('Invalid email address.'),
+  createdAt: z.any().optional(),
+});
+
+export type Contact = z.infer<typeof ContactSchema>;

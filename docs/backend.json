@@ -1,5 +1,22 @@
 {
   "entities": {
+    "Contact": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Contact",
+      "type": "object",
+      "description": "Represents a customer's contact information.",
+      "properties": {
+        "name": { "type": "string", "description": "Customer's full name." },
+        "street": { "type": "string", "description": "Street address." },
+        "city": { "type": "string", "description": "City." },
+        "state": { "type": "string", "description": "State or province." },
+        "zip": { "type": "string", "description": "ZIP or postal code." },
+        "phone": { "type": "string", "description": "Phone number." },
+        "email": { "type": "string", "format": "email", "description": "Email address." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "email", "createdAt"]
+    },
     "Transaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Transaction",
@@ -237,8 +254,24 @@
             }
           ]
         }
+      },
+      {
+        "path": "/contacts/{contactId}",
+        "definition": {
+          "entityName": "Contact",
+          "schema": {
+            "$ref": "#/backend/entities/Contact"
+          },
+          "description": "Stores customer contact information.",
+          "params": [
+            {
+              "name": "contactId",
+              "description": "Unique identifier for the contact document."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information. A 'contacts' collection stores customer-submitted contact details."
   }
 }
