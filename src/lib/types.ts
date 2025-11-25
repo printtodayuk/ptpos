@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { Timestamp } from 'firebase/firestore';
 
 export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin'] as const;
 export type Operator = (typeof operators)[number];
@@ -12,7 +11,7 @@ export const TransactionSchema = z.object({
   transactionId: z.string(),
   type: z.enum(['invoicing', 'non-invoicing']),
   invoiceNumber: z.string().optional().nullable(),
-  date: z.date({ required_error: 'Please select a date.' }),
+  date: z.union([z.date(), z.string()]),
   clientName: z.string().min(1, 'Client name is required'),
   jobDescription: z.string().optional().nullable(),
   amount: z.coerce.number().positive('Amount must be positive'),
@@ -28,7 +27,10 @@ export const TransactionSchema = z.object({
   createdAt: z.any().optional(),
 });
 
-export type Transaction = z.infer<typeof TransactionSchema>;
+export type Transaction = Omit<z.infer<typeof TransactionSchema>, 'date'> & {
+  date: Date | string;
+};
+
 
 export const jobSheetStatus = ['Hold', 'Invoice', 'Cancel'] as const;
 export type JobSheetStatus = (typeof jobSheetStatus)[number];
@@ -43,7 +45,7 @@ const JobItemSchema = z.object({
 export const JobSheetSchema = z.object({
   id: z.string().optional(),
   jobId: z.string(),
-  date: z.date({ required_error: 'Please select a date.' }),
+  date: z.union([z.date(), z.string()]),
   operator: z.enum(operators),
   clientName: z.string().min(1, 'Client name is required.'),
   clientDetails: z.string().optional().nullable(),
@@ -57,7 +59,9 @@ export const JobSheetSchema = z.object({
   createdAt: z.any().optional(),
 });
 
-export type JobSheet = z.infer<typeof JobSheetSchema>;
+export type JobSheet = Omit<z.infer<typeof JobSheetSchema>, 'date'> & {
+    date: Date | string;
+};
 
 export const ContactSchema = z.object({
   id: z.string().optional(),

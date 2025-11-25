@@ -7,6 +7,7 @@ import {
   getDocs,
   orderBy,
   query,
+  Timestamp,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -55,10 +56,12 @@ export async function getContacts(): Promise<Contact[]> {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map((doc) => {
       const data = doc.data();
+      const createdAtTimestamp = data.createdAt as Timestamp;
       return {
         ...data,
         id: doc.id,
-        createdAt: data.createdAt?.toDate(),
+        // Convert to serializable format (ISO string)
+        createdAt: createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : null,
       } as Contact;
     });
   } catch (e) {

@@ -72,7 +72,7 @@ export function ContactList() {
             </p>
             {contact.createdAt && (
                 <p className="text-xs text-muted-foreground pt-2">
-                    Submitted on: {format(new Date(contact.createdAt.seconds * 1000), 'PPP p')}
+                    Submitted on: {format(new Date(contact.createdAt), 'PPP p')}
                 </p>
             )}
           </CardContent>
