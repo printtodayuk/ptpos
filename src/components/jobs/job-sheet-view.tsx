@@ -66,7 +66,7 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
             <tr className="bg-gray-200">
               <th className="border border-black p-2 text-left w-[60%]">DESCRIPTION</th>
               <th className="border border-black p-2 text-right">QTY</th>
-              <th className="border border-black p-2 text-right">UNIT PRICE</th>
+              <th className="border border-black p-2 text-right">PRICE</th>
               <th className="border border-black p-2 text-right">AMOUNT</th>
             </tr>
           </thead>
@@ -76,7 +76,7 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
                 <td className="border border-black p-2 align-top">{item.description}</td>
                 <td className="border border-black p-2 text-right align-top">{item.quantity}</td>
                 <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
-                <td className="border border-black p-2 text-right align-top">£{(item.quantity * item.price).toFixed(2)}</td>
+                <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
               </tr>
             ))}
              {/* Add empty rows to fill space */}

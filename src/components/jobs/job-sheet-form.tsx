@@ -72,16 +72,16 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
       setIsEditMode(false);
       form.reset(getFreshDefaultValues());
     }
-  }, [jobSheetToEdit, form.reset]);
+  }, [jobSheetToEdit, form]);
 
   const watchedItems = form.watch('jobItems');
   const watchedOperator = form.watch('operator');
 
   useEffect(() => {
-    const subTotal = watchedItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+    const subTotal = watchedItems.reduce((acc, item) => acc + (item.price || 0), 0);
     const vatAmount = watchedItems.reduce((acc, item) => {
         if (item.vatApplied) {
-            return acc + (item.quantity * item.price * 0.2);
+            return acc + ((item.price || 0) * 0.2);
         }
         return acc;
     }, 0);
