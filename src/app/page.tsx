@@ -2,8 +2,11 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Globe } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { redirect } from 'next/navigation';
 
 export default function HomePage() {
+  redirect('/dashboard');
+  
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="mb-12">
