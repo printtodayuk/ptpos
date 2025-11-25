@@ -87,9 +87,9 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     }, 0);
     const totalAmount = subTotal + vatAmount;
 
-    form.setValue('subTotal', subTotal);
-    form.setValue('vatAmount', vatAmount);
-    form.setValue('totalAmount', totalAmount);
+    form.setValue('subTotal', subTotal, { shouldValidate: true });
+    form.setValue('vatAmount', vatAmount, { shouldValidate: true });
+    form.setValue('totalAmount', totalAmount, { shouldValidate: true });
   }, [watchedItems, form]);
 
   useEffect(() => {
