@@ -122,7 +122,8 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
       {/* Footer */}
       <div className="mt-4 text-center text-xs">
         <p>Thank you for your business!</p>
-         <p className="text-[10px] pt-1">Powered by RemotizedIT | info@remoteizedit.com</p>
+        <p className="text-[10px] pt-1">Powered by Today AI</p>
+        <p className="text-[10px]">Developed by Faz | RemotizedIT</p>
       </div>
 
     </div>
