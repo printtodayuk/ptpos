@@ -37,7 +37,8 @@ export function JobSheetsTable({
   const getStatusVariant = (status: JobSheet['status']) => {
     switch(status) {
         case 'Hold': return 'secondary';
-        case 'Invoice': return 'default';
+        case 'Studio': return 'default';
+        case 'Production': return 'outline';
         case 'Cancel': return 'destructive';
         default: return 'outline';
     }
@@ -76,7 +77,10 @@ export function JobSheetsTable({
                 £{js.totalAmount.toFixed(2)}
               </TableCell>
               <TableCell className="text-center">
-                 <Badge variant={getStatusVariant(js.status)}>
+                 <Badge 
+                    variant={getStatusVariant(js.status)}
+                    className={cn(js.status === 'Studio' && 'bg-blue-500 text-white', js.status === 'Production' && 'bg-orange-500 text-white')}
+                  >
                     {js.status}
                 </Badge>
               </TableCell>

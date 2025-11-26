@@ -32,7 +32,7 @@ export type Transaction = Omit<z.infer<typeof TransactionSchema>, 'date'> & {
 };
 
 
-export const jobSheetStatus = ['Hold', 'Invoice', 'Cancel'] as const;
+export const jobSheetStatus = ['Hold', 'Studio', 'Production', 'Cancel'] as const;
 export type JobSheetStatus = (typeof jobSheetStatus)[number];
 
 const JobItemSchema = z.object({

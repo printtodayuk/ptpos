@@ -139,10 +139,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     onJobSheetAdded?.(); 
   };
   
-  const Wrapper = isEditMode ? 'div' : Card;
-  const cardProps = isEditMode ? {} : { className: 'w-full' };
-
-
   return (
     <>
       <JobSheetViewDialog 
@@ -150,145 +146,145 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
         isOpen={!!lastJobSheet && !isEditMode}
         onClose={() => setLastJobSheet(null)}
       />
-      <Wrapper {...cardProps}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          {!isEditMode && (
-            <CardHeader>
-              <CardTitle>Create Job Sheet</CardTitle>
-              <CardDescription>Fill in the details to create a new job sheet.</CardDescription>
-            </CardHeader>
-          )}
-           <CardContent className={cn(isEditMode && "p-1")}>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {/* Row 1: Operator, Date, Client Name */}
-              <div className="space-y-2">
-                <Label htmlFor="operator">Operator</Label>
-                <Controller name="operator" control={form.control} render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
-                  </Select>
-                )} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Controller name="date" control={form.control} render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !field.value && 'text-muted-foreground')}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
-                  </Popover>
-                )} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="clientName">Client Name</Label>
-                <Input id="clientName" {...form.register('clientName')} />
-                {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
-              </div>
-
-              {/* Row 2: Client Details */}
-              <div className="space-y-2 md:col-span-4">
-                <Label htmlFor="clientDetails">Client Details (Address, Phone, etc.)</Label>
-                <Textarea id="clientDetails" {...form.register('clientDetails')} />
-              </div>
-
-              {/* Row 3: Dynamic Job Items */}
-              <div className="space-y-4 md:col-span-4">
-                <Label>Job Items</Label>
-                <div className="grid grid-cols-12 gap-2 items-center border-b pb-2">
-                    <div className="col-span-6 sm:col-span-6"><Label className="text-xs">Description</Label></div>
-                    <div className="col-span-2 sm:col-span-2"><Label className="text-xs">Quantity</Label></div>
-                    <div className="col-span-2 sm:col-span-2"><Label className="text-xs">Price (£)</Label></div>
-                    <div className="col-span-1 sm:col-span-1 text-center"><Label className="text-xs">VAT</Label></div>
-                    <div className="col-span-1 sm:col-span-1"></div>
+        <Card className="w-full">
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+            {!isEditMode && (
+                <CardHeader>
+                <CardTitle>Create Job Sheet</CardTitle>
+                <CardDescription>Fill in the details to create a new job sheet.</CardDescription>
+                </CardHeader>
+            )}
+            <CardContent className={cn(isEditMode && "p-6")}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Row 1: Operator, Date, Client Name */}
+                <div className="space-y-2">
+                    <Label htmlFor="operator">Operator</Label>
+                    <Controller name="operator" control={form.control} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
+                    </Select>
+                    )} />
                 </div>
-                {fields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
-                    <div className="col-span-12 sm:col-span-6">
-                      <Textarea {...form.register(`jobItems.${index}.description`)} placeholder="Job description" className="h-10"/>
+                <div className="space-y-2">
+                    <Label htmlFor="date">Date</Label>
+                    <Controller name="date" control={form.control} render={({ field }) => (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !field.value && 'text-muted-foreground')}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                    </Popover>
+                    )} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="clientName">Client Name</Label>
+                    <Input id="clientName" {...form.register('clientName')} />
+                    {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
+                </div>
+
+                {/* Row 2: Client Details */}
+                <div className="space-y-2 md:col-span-4">
+                    <Label htmlFor="clientDetails">Client Details (Address, Phone, etc.)</Label>
+                    <Textarea id="clientDetails" {...form.register('clientDetails')} />
+                </div>
+
+                {/* Row 3: Dynamic Job Items */}
+                <div className="space-y-4 md:col-span-4">
+                    <Label>Job Items</Label>
+                    <div className="grid grid-cols-12 gap-2 items-center border-b pb-2">
+                        <div className="col-span-6 sm:col-span-6"><Label className="text-xs">Description</Label></div>
+                        <div className="col-span-2 sm:col-span-2"><Label className="text-xs">Quantity</Label></div>
+                        <div className="col-span-2 sm:col-span-2"><Label className="text-xs">Price (£)</Label></div>
+                        <div className="col-span-1 sm:col-span-1 text-center"><Label className="text-xs">VAT</Label></div>
+                        <div className="col-span-1 sm:col-span-1"></div>
                     </div>
-                    <div className="col-span-3 sm:col-span-2">
-                      <Input type="number" {...form.register(`jobItems.${index}.quantity`, { valueAsNumber: true })} placeholder="Qty" />
+                    {fields.map((field, index) => (
+                    <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
+                        <div className="col-span-12 sm:col-span-6">
+                        <Textarea {...form.register(`jobItems.${index}.description`)} placeholder="Job description" className="h-10"/>
+                        </div>
+                        <div className="col-span-3 sm:col-span-2">
+                        <Input type="number" {...form.register(`jobItems.${index}.quantity`, { valueAsNumber: true })} placeholder="Qty" />
+                        </div>
+                        <div className="col-span-4 sm:col-span-2">
+                        <Input type="number" step="0.01" {...form.register(`jobItems.${index}.price`, { valueAsNumber: true })} placeholder="Price" />
+                        </div>
+                        <div className="col-span-1 sm:col-span-1 flex items-center justify-center h-full">
+                        <Controller
+                            control={form.control}
+                            name={`jobItems.${index}.vatApplied`}
+                            render={({ field: { value, onChange } }) => (
+                                <Checkbox
+                                    checked={value}
+                                    onCheckedChange={onChange}
+                                />
+                            )}
+                        />
+                        </div>
+                        <div className="col-span-4 sm:col-span-1 flex items-start h-full">
+                        <Button type="button" variant="destructive" size="icon" onClick={() => fields.length > 1 && remove(index)} disabled={fields.length <= 1}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        </div>
                     </div>
-                    <div className="col-span-4 sm:col-span-2">
-                      <Input type="number" step="0.01" {...form.register(`jobItems.${index}.price`, { valueAsNumber: true })} placeholder="Price" />
+                    ))}
+                    {form.formState.errors.jobItems && <p className="text-sm text-destructive">{form.formState.errors.jobItems.message || form.formState.errors.jobItems.root?.message}</p>}
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0, vatApplied: false })}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                    </Button>
+                </div>
+                
+                {/* Row 4: Totals */}
+                <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center rounded-lg border p-4">
+                    <div className="space-y-2">
+                        <Label>Sub-Total</Label>
+                        <Input value={`£${form.getValues('subTotal').toFixed(2)}`} readOnly className="font-bold bg-muted" />
                     </div>
-                    <div className="col-span-1 sm:col-span-1 flex items-center justify-center h-full">
-                      <Controller
-                          control={form.control}
-                          name={`jobItems.${index}.vatApplied`}
-                          render={({ field: { value, onChange } }) => (
-                            <Checkbox
-                                checked={value}
-                                onCheckedChange={onChange}
-                              />
-                          )}
-                      />
+                    <div className="space-y-2">
+                        <Label>VAT Amount</Label>
+                        <Input value={`£${form.getValues('vatAmount').toFixed(2)}`} readOnly className="font-bold bg-muted" />
                     </div>
-                    <div className="col-span-4 sm:col-span-1 flex items-start h-full">
-                      <Button type="button" variant="destructive" size="icon" onClick={() => fields.length > 1 && remove(index)} disabled={fields.length <= 1}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="space-y-2">
+                        <Label>Total Amount</Label>
+                        <Input value={`£${form.getValues('totalAmount').toFixed(2)}`} readOnly className="font-bold bg-primary text-primary-foreground" />
                     </div>
-                  </div>
-                ))}
-                {form.formState.errors.jobItems && <p className="text-sm text-destructive">{form.formState.errors.jobItems.message || form.formState.errors.jobItems.root?.message}</p>}
-                <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0, vatApplied: false })}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                </div>
+
+                {/* Row 5: Status, IR Number */}
+                <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Controller name="status" control={form.control} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{jobSheetStatus.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    </Select>
+                    )} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="irNumber">IR Number</Label>
+                    <Input id="irNumber" {...form.register('irNumber')} />
+                </div>
+
+                {/* Row 6: Special Note */}
+                <div className="space-y-2 md:col-span-4">
+                    <Label htmlFor="specialNote">Special Note</Label>
+                    <Textarea id="specialNote" {...form.register('specialNote')} />
+                </div>
+                </div>
+            </CardContent>
+            <CardFooter className={cn("justify-end gap-2", isEditMode ? 'p-6' : '')}>
+                {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
+                <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? "Update Job Sheet" : "Create Job Sheet"}
                 </Button>
-              </div>
-              
-              {/* Row 4: Totals */}
-              <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center rounded-lg border p-4">
-                  <div className="space-y-2">
-                      <Label>Sub-Total</Label>
-                      <Input value={`£${form.getValues('subTotal').toFixed(2)}`} readOnly className="font-bold bg-muted" />
-                  </div>
-                  <div className="space-y-2">
-                      <Label>VAT Amount</Label>
-                      <Input value={`£${form.getValues('vatAmount').toFixed(2)}`} readOnly className="font-bold bg-muted" />
-                  </div>
-                  <div className="space-y-2">
-                      <Label>Total Amount</Label>
-                      <Input value={`£${form.getValues('totalAmount').toFixed(2)}`} readOnly className="font-bold bg-primary text-primary-foreground" />
-                  </div>
-              </div>
-
-              {/* Row 5: Status, IR Number */}
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Controller name="status" control={form.control} render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{jobSheetStatus.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                )} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="irNumber">IR Number</Label>
-                <Input id="irNumber" {...form.register('irNumber')} />
-              </div>
-
-              {/* Row 6: Special Note */}
-              <div className="space-y-2 md:col-span-4">
-                <Label htmlFor="specialNote">Special Note</Label>
-                <Textarea id="specialNote" {...form.register('specialNote')} />
-              </div>
-            </div>
-           </CardContent>
-          <CardFooter className={cn("justify-end gap-2", isEditMode ? 'pt-6 pr-1' : '')}>
-            {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditMode ? "Update Job Sheet" : "Create Job Sheet"}
-            </Button>
-          </CardFooter>
-        </form>
-      </Wrapper>
+            </CardFooter>
+            </form>
+        </Card>
     </>
   );
 }
