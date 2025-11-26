@@ -74,7 +74,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     }
   }, [jobSheetToEdit, form]);
 
-  const watchedItems = form.watch('jobItems');
   const watchedOperator = form.watch('operator');
 
   useEffect(() => {
@@ -90,7 +89,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
         }, 0);
         const totalAmount = subTotal + vatAmount;
 
-        // Use setValue with shouldValidate: true to trigger validation and UI update
         form.setValue('subTotal', subTotal, { shouldValidate: true });
         form.setValue('vatAmount', vatAmount, { shouldValidate: true });
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
@@ -135,7 +133,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   };
 
   const formTitle = isEditMode ? `Edit Job Sheet ${jobSheetToEdit?.jobId}` : 'Create Job Sheet';
-  const Wrapper = isEditMode ? 'div' : Card;
 
   return (
     <>
@@ -144,7 +141,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
         isOpen={!!lastJobSheet && !isEditMode}
         onClose={() => setLastJobSheet(null)}
       />
-      <Wrapper className={!isEditMode ? 'w-full' : ''}>
+      <Card className="w-full border-none shadow-none sm:border-solid sm:shadow-sm">
         <form onSubmit={form.handleSubmit(onSubmit)}>
           {!isEditMode && (
             <CardHeader>
@@ -152,7 +149,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
               <CardDescription>Fill in the details to create a new job sheet.</CardDescription>
             </CardHeader>
           )}
-           <CardContent className={cn("grid grid-cols-1 md:grid-cols-4 gap-6", isEditMode && "p-0 pt-4")}>
+           <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* Row 1: Operator, Date, Client Name */}
             <div className="space-y-2">
               <Label htmlFor="operator">Operator</Label>
@@ -272,7 +269,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
               <Textarea id="specialNote" {...form.register('specialNote')} />
             </div>
           </CardContent>
-          <CardFooter className={cn("justify-end gap-2", isEditMode && "pt-6")}>
+          <CardFooter className="justify-end gap-2">
             {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -280,7 +277,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
             </Button>
           </CardFooter>
         </form>
-      </Wrapper>
+      </Card>
     </>
   );
 }
