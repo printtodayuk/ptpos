@@ -53,6 +53,7 @@ export function JobSheetsTable({
             <TableHead>Date</TableHead>
             <TableHead>Client</TableHead>
             <TableHead>Type</TableHead>
+            <TableHead className="hidden md:table-cell">IR Number</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-center">Status</TableHead>
@@ -74,6 +75,7 @@ export function JobSheetsTable({
               <TableCell>
                   <Badge variant={js.type === 'Invoice' ? 'default' : 'secondary'}>{js.type}</Badge>
               </TableCell>
+              <TableCell className="hidden md:table-cell">{js.irNumber}</TableCell>
               <TableCell className="hidden md:table-cell">{js.operator}</TableCell>
               <TableCell className="text-right">
                 £{js.totalAmount.toFixed(2)}
