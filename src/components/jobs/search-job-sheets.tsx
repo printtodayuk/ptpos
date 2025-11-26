@@ -78,11 +78,11 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
   return (
     <>
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-4xl p-0">
-          <DialogHeader className="p-6 pb-0">
+        <DialogContent className="sm:max-w-4xl p-0 flex flex-col h-full max-h-[90vh]">
+          <DialogHeader className="p-6 pb-4">
             <DialogTitle>Edit Job Sheet {jobSheetToEdit?.jobId}</DialogTitle>
           </DialogHeader>
-          <div className="p-6">
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
              <JobSheetForm
                 onJobSheetAdded={handleUpdate}
                 jobSheetToEdit={jobSheetToEdit}
