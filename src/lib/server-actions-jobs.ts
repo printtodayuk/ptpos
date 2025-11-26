@@ -49,13 +49,19 @@ export async function addJobSheet(
       transaction.set(counterRef, { count: newCount }, { merge: true });
       return `JID${String(newCount).padStart(4, '0')}`;
     });
-    
-    const docRef = await addDoc(collection(db, 'jobSheets'), {
+
+    const dataToSave: any = {
       ...validatedData.data,
       jobId: newJobId,
-      date: Timestamp.fromDate(validatedData.data.date),
+      date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
-    });
+    };
+
+    if (validatedData.data.deliveryBy) {
+      dataToSave.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
+    }
+    
+    const docRef = await addDoc(collection(db, 'jobSheets'), dataToSave);
 
     const newDocSnap = await getDoc(docRef);
     const newDocData = newDocSnap.data();
@@ -63,10 +69,11 @@ export async function addJobSheet(
     let newJobSheet: JobSheet | null = null;
     if (newDocData) {
       newJobSheet = {
-        ...(newDocData as Omit<JobSheet, 'id' | 'date' | 'createdAt'>),
+        ...(newDocData as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy'>),
         id: docRef.id,
         jobId: newJobId,
         date: (newDocData.date as Timestamp).toDate(),
+        deliveryBy: newDocData.deliveryBy ? (newDocData.deliveryBy as Timestamp).toDate() : null,
         createdAt: (newDocData.createdAt as Timestamp)?.toDate() || new Date(), 
       };
     }
@@ -90,10 +97,18 @@ export async function updateJobSheet(
   
   try {
     const jobSheetRef = doc(db, 'jobSheets', id);
-    await updateDoc(jobSheetRef, {
+    const dataToUpdate: any = {
         ...validatedData.data,
-        date: Timestamp.fromDate(validatedData.data.date),
-    });
+        date: Timestamp.fromDate(validatedData.data.date as Date),
+    };
+
+    if (validatedData.data.deliveryBy) {
+        dataToUpdate.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
+    } else {
+        dataToUpdate.deliveryBy = null;
+    }
+    
+    await updateDoc(jobSheetRef, dataToUpdate);
     
     revalidatePath('/job-sheet');
     const updatedDoc = await getDoc(jobSheetRef);
@@ -101,9 +116,10 @@ export async function updateJobSheet(
      let jobSheet: JobSheet | null = null;
     if (updatedData) {
         jobSheet = {
-            ...(updatedData as Omit<JobSheet, 'id' | 'date' | 'createdAt'>),
+            ...(updatedData as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy'>),
             id: updatedDoc.id,
             date: (updatedData.date as Timestamp).toDate(),
+            deliveryBy: updatedData.deliveryBy ? (updatedData.deliveryBy as Timestamp).toDate() : null,
             createdAt: (updatedData.createdAt as Timestamp)?.toDate() || new Date(),
         };
     }
@@ -125,6 +141,7 @@ export async function searchJobSheets(searchTerm: string): Promise<JobSheet[]> {
         ...data,
         id: doc.id,
         date: (data.date as Timestamp).toDate(),
+        deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
         createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as JobSheet;
     });

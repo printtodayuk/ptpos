@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addJobSheet, updateJobSheet } from '@/lib/server-actions-jobs';
-import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator } from '@/lib/types';
+import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
@@ -43,6 +43,8 @@ const getFreshDefaultValues = (): Partial<FormValues> => ({
   status: 'Hold',
   specialNote: '',
   irNumber: '',
+  deliveryBy: null,
+  type: 'Invoice',
 });
 
 export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormProps) {
@@ -67,6 +69,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
       form.reset({
         ...jobSheetToEdit,
         date: new Date(jobSheetToEdit.date),
+        deliveryBy: jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : null,
       });
     } else {
       setIsEditMode(false);
@@ -254,7 +257,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                     </div>
                 </div>
 
-                {/* Row 5: Status, IR Number */}
+                {/* Row 5: Status, IR Number, etc */}
                 <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
                     <Controller name="status" control={form.control} render={({ field }) => (
@@ -267,6 +270,29 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="space-y-2">
                     <Label htmlFor="irNumber">IR Number</Label>
                     <Input id="irNumber" {...form.register('irNumber')} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="deliveryBy">Delivery By</Label>
+                    <Controller name="deliveryBy" control={form.control} render={({ field }) => (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !field.value && 'text-muted-foreground')}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                    </Popover>
+                    )} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="type">Type</Label>
+                    <Controller name="type" control={form.control} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{jobSheetTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                    </Select>
+                    )} />
                 </div>
 
                 {/* Row 6: Special Note */}

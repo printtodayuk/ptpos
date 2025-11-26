@@ -181,7 +181,7 @@
         },
         "status": {
           "type": "string",
-          "enum": ["Hold", "Invoice", "Cancel"],
+          "enum": ["Hold", "Studio", "Production", "Cancel"],
           "description": "The current status of the job sheet."
         },
         "specialNote": {
@@ -192,13 +192,23 @@
           "type": "string",
           "description": "The IR number associated with the job."
         },
+        "deliveryBy": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date the job is scheduled for delivery."
+        },
+        "type": {
+            "type": "string",
+            "enum": ["Invoice", "Quotation"],
+            "description": "The type of the job sheet."
+        },
         "createdAt": {
             "type": "string",
             "format": "date-time"
         }
       },
       "required": [
-        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "status"
+        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "status", "type"
       ]
     }
   },

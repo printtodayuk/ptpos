@@ -10,6 +10,8 @@ type JobSheetViewProps = {
 export function JobSheetView({ jobSheet }: JobSheetViewProps) {
   if (!jobSheet) return null;
 
+  const jobSheetTitle = jobSheet.type === 'Quotation' ? 'QUOTATION' : 'JOB SHEET';
+
   return (
     <div 
       id="job-sheet-to-print" 
@@ -26,7 +28,7 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
           />
         </div>
         <div className="w-1/3 text-center">
-            <h1 className="text-2xl font-bold">JOB SHEET</h1>
+            <h1 className="text-2xl font-bold">{jobSheetTitle}</h1>
         </div>
         <div className="w-1/3 text-right text-xs">
             <p>75 Green Street, London E7 8JF</p>
@@ -37,7 +39,7 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
       </div>
 
       {/* Job Info */}
-       <div className="grid grid-cols-2 gap-4 mt-4 text-xs">
+       <div className="grid grid-cols-3 gap-4 mt-4 text-xs">
         <div className="border border-black p-2">
             <strong>Job No:</strong> <span className="font-bold">{jobSheet.jobId}</span>
         </div>
@@ -49,6 +51,9 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
         </div>
         <div className="border border-black p-2">
             <strong>Operator:</strong> {jobSheet.operator}
+        </div>
+         <div className="border border-black p-2">
+            <strong>Delivery By:</strong> {jobSheet.deliveryBy ? format(new Date(jobSheet.deliveryBy), 'dd/MM/yyyy') : 'N/A'}
         </div>
       </div>
       
