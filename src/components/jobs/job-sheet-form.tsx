@@ -30,11 +30,10 @@ type JobSheetFormProps = {
 
 type FormValues = Omit<JobSheet, 'id' | 'createdAt' | 'jobId'>;
 
-let lastOperator: Operator = 'PTMGH';
 
-const getFreshDefaultValues = (): Partial<FormValues> => ({
+const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> => ({
   date: new Date(),
-  operator: lastOperator,
+  operator: operator || undefined,
   clientName: '',
   clientDetails: '',
   jobItems: [{ description: '', quantity: 1, price: 0, vatApplied: false }],
@@ -52,12 +51,13 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [lastJobSheet, setLastJobSheet] = useState<JobSheet | null>(null);
+  const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
 
   const isEditMode = !!jobSheetToEdit;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(JobSheetSchema.omit({ id: true, createdAt: true, jobId: true })),
-    defaultValues: getFreshDefaultValues(),
+    defaultValues: getFreshDefaultValues(lastOperator),
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -70,6 +70,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
         const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : null;
         form.reset({
             ...jobSheetToEdit,
+            operator: undefined, // Reset operator as requested
             date: new Date(jobSheetToEdit.date),
             deliveryBy: deliveryByDate,
             irNumber: jobSheetToEdit.irNumber || '',
@@ -77,9 +78,9 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
             clientDetails: jobSheetToEdit.clientDetails || '',
         });
     } else {
-        form.reset(getFreshDefaultValues());
+        form.reset(getFreshDefaultValues(lastOperator));
     }
-  }, [jobSheetToEdit, form]);
+  }, [jobSheetToEdit, form, lastOperator]);
 
 
   const watchedValues = form.watch();
@@ -104,11 +105,13 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     if (form.getValues('totalAmount') !== totalAmount) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedValues, form]);
+  }, [watchedValues.jobItems, form]);
 
 
   useEffect(() => {
-    lastOperator = watchedValues.operator as Operator;
+    if (watchedValues.operator) {
+      setLastOperator(watchedValues.operator as Operator);
+    }
   }, [watchedValues.operator]);
 
   const onSubmit = (data: FormValues) => {
@@ -124,7 +127,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
         } else {
           setLastJobSheet(result.jobSheet);
           toast({ title: 'Success', description: `Job Sheet ${result.jobSheet.jobId} created.` });
-          form.reset(getFreshDefaultValues());
+          form.reset(getFreshDefaultValues(lastOperator));
           onJobSheetAdded?.();
         }
       } else {
@@ -163,10 +166,11 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                     <Label htmlFor="operator">Operator</Label>
                     <Controller name="operator" control={form.control} render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select Operator" /></SelectTrigger>
                         <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
                     </Select>
                     )} />
+                    {form.formState.errors.operator && <p className="text-sm text-destructive">{form.formState.errors.operator.message}</p>}
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="date">Date</Label>
@@ -313,3 +317,5 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     </>
   );
 }
+
+    
