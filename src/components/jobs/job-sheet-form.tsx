@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -104,7 +105,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     if (form.getValues('totalAmount') !== totalAmount) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedValues.jobItems, form, watchedValues]);
+  }, [watchedValues.jobItems, form]);
 
 
   useEffect(() => {
