@@ -27,6 +27,8 @@ const CreateJobSheetSchema = JobSheetSchema.omit({
   createdAt: true,
 });
 
+const UpdateJobSheetSchema = CreateJobSheetSchema;
+
 export async function addJobSheet(
   data: z.infer<typeof CreateJobSheetSchema>
 ) {
@@ -59,6 +61,8 @@ export async function addJobSheet(
 
     if (validatedData.data.deliveryBy) {
       dataToSave.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
+    } else {
+      dataToSave.deliveryBy = null;
     }
     
     const docRef = await addDoc(collection(db, 'jobSheets'), dataToSave);
@@ -88,9 +92,9 @@ export async function addJobSheet(
 
 export async function updateJobSheet(
   id: string,
-  data: z.infer<typeof CreateJobSheetSchema>
+  data: z.infer<typeof UpdateJobSheetSchema>
 ) {
-  const validatedData = CreateJobSheetSchema.safeParse(data);
+  const validatedData = UpdateJobSheetSchema.safeParse(data);
   if (!validatedData.success) {
     return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
   }

@@ -51,7 +51,8 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [lastJobSheet, setLastJobSheet] = useState<JobSheet | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+
+  const isEditMode = !!jobSheetToEdit;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(JobSheetSchema.omit({ id: true, createdAt: true, jobId: true })),
@@ -65,27 +66,30 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
   useEffect(() => {
     if (jobSheetToEdit) {
-      setIsEditMode(true);
-      const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : null;
-      form.reset({
-        ...jobSheetToEdit,
-        date: new Date(jobSheetToEdit.date),
-        deliveryBy: deliveryByDate,
-      });
+        const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : null;
+        form.reset({
+            ...jobSheetToEdit,
+            date: new Date(jobSheetToEdit.date),
+            deliveryBy: deliveryByDate,
+            // Ensure optional fields that might be null/undefined are handled
+            irNumber: jobSheetToEdit.irNumber || '',
+            specialNote: jobSheetToEdit.specialNote || '',
+            clientDetails: jobSheetToEdit.clientDetails || '',
+        });
     } else {
-      setIsEditMode(false);
-      form.reset(getFreshDefaultValues());
+        form.reset(getFreshDefaultValues());
     }
   }, [jobSheetToEdit, form]);
+
 
   const watchedValues = form.watch();
 
   useEffect(() => {
     const items = watchedValues.jobItems || [];
-    const subTotal = items.reduce((acc, item) => acc + (item?.price || 0), 0);
+    const subTotal = items.reduce((acc, item) => acc + ((item?.quantity || 1) * (item?.price || 0)), 0);
     const vatAmount = items.reduce((acc, item) => {
         if (item?.vatApplied) {
-            return acc + ((item?.price || 0) * 0.2);
+            return acc + (((item?.quantity || 1) * (item?.price || 0)) * 0.2);
         }
         return acc;
     }, 0);
@@ -100,7 +104,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     if (form.getValues('totalAmount') !== totalAmount) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedValues, form]);
+  }, [watchedValues.jobItems, form, watchedValues]);
 
 
   useEffect(() => {
@@ -116,16 +120,12 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
       if (result.success && result.jobSheet) {
         if (isEditMode) {
           toast({ title: 'Success', description: 'Job sheet updated successfully.' });
+          onJobSheetAdded?.(); // This will close the dialog
         } else {
           setLastJobSheet(result.jobSheet);
           toast({ title: 'Success', description: `Job Sheet ${result.jobSheet.jobId} created.` });
-        }
-        form.reset(getFreshDefaultValues());
-        onJobSheetAdded?.();
-        // In edit mode, onJobSheetAdded (handleUpdate) closes the dialog
-        // so we don't need to explicitly set isEditMode to false here.
-        if (!isEditMode) {
-          setIsEditMode(false);
+          form.reset(getFreshDefaultValues());
+          onJobSheetAdded?.();
         }
       } else {
         toast({
@@ -138,7 +138,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   };
 
   const cancelEdit = () => {
-    // onJobSheetAdded is the callback that closes the dialog
     onJobSheetAdded?.(); 
   };
   
