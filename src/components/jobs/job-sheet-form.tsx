@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addJobSheet, updateJobSheet } from '@/lib/server-actions-jobs';
-import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes } from '@/lib/types';
+import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
@@ -87,25 +87,33 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
   useEffect(() => {
     const items = watchedValues.jobItems || [];
-    const subTotal = items.reduce((acc, item) => acc + (item?.price || 0), 0);
+    const subTotal = items.reduce((acc, item) => {
+        const price = Number(item?.price) || 0;
+        return acc + price;
+    }, 0);
+
     const vatAmount = items.reduce((acc, item) => {
         if (item?.vatApplied) {
-            return acc + ((item?.price || 0) * 0.2);
+            const price = Number(item?.price) || 0;
+            return acc + (price * 0.2);
         }
         return acc;
     }, 0);
+
     const totalAmount = subTotal + vatAmount;
 
-    if (form.getValues('subTotal') !== subTotal) {
+    // Use a small tolerance for float comparisons
+    const tolerance = 0.001;
+    if (Math.abs(form.getValues('subTotal') - subTotal) > tolerance) {
         form.setValue('subTotal', subTotal, { shouldValidate: true });
     }
-    if (form.getValues('vatAmount') !== vatAmount) {
+    if (Math.abs(form.getValues('vatAmount') - vatAmount) > tolerance) {
         form.setValue('vatAmount', vatAmount, { shouldValidate: true });
     }
-    if (form.getValues('totalAmount') !== totalAmount) {
+    if (Math.abs(form.getValues('totalAmount') - totalAmount) > tolerance) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedValues.jobItems, form]);
+  }, [watchedValues, form]);
 
 
   useEffect(() => {
@@ -266,7 +274,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                     <Controller name="status" control={form.control} render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{jobSheetStatus.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                        <SelectContent>{jobSheetStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                     </Select>
                     )} />
                 </div>
