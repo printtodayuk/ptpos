@@ -44,7 +44,7 @@ const getFreshDefaultValues = (): Partial<FormValues> => ({
   status: 'Hold',
   specialNote: '',
   irNumber: '',
-  deliveryBy: null,
+  deliveryBy: undefined,
   type: 'Invoice',
 });
 
@@ -105,7 +105,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     if (form.getValues('totalAmount') !== totalAmount) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedValues.jobItems, form]);
+  }, [watchedValues, form]);
 
 
   useEffect(() => {
