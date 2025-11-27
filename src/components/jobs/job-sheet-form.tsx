@@ -66,10 +66,11 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   useEffect(() => {
     if (jobSheetToEdit) {
       setIsEditMode(true);
+      const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : null;
       form.reset({
         ...jobSheetToEdit,
         date: new Date(jobSheetToEdit.date),
-        deliveryBy: jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : null,
+        deliveryBy: deliveryByDate,
       });
     } else {
       setIsEditMode(false);
