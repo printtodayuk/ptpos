@@ -77,11 +77,10 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     }
   }, [jobSheetToEdit, form]);
 
-  const watchedOperator = form.watch('operator');
-  const watchedJobItems = form.watch('jobItems');
+  const watchedValues = form.watch();
 
   useEffect(() => {
-    const items = watchedJobItems || [];
+    const items = watchedValues.jobItems || [];
     const subTotal = items.reduce((acc, item) => acc + (item?.price || 0), 0);
     const vatAmount = items.reduce((acc, item) => {
         if (item?.vatApplied) {
@@ -100,12 +99,12 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     if (form.getValues('totalAmount') !== totalAmount) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedJobItems, form]);
+  }, [watchedValues, form]);
 
 
   useEffect(() => {
-    lastOperator = watchedOperator;
-  }, [watchedOperator]);
+    lastOperator = watchedValues.operator as Operator;
+  }, [watchedValues.operator]);
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
@@ -157,7 +156,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <CardDescription>Fill in the details to create a new job sheet.</CardDescription>
                 </CardHeader>
             )}
-            <CardContent className={cn(isEditMode && "p-6")}>
+            <CardContent className={cn(isEditMode && "pt-6")}>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {/* Row 1: Operator, Date, Client Name */}
                 <div className="space-y-2">
@@ -302,7 +301,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 </div>
                 </div>
             </CardContent>
-            <CardFooter className={cn("justify-end gap-2", isEditMode ? 'p-6' : '')}>
+            <CardFooter className={cn("justify-end gap-2", isEditMode ? 'pt-6' : '')}>
                 {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
                 <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
