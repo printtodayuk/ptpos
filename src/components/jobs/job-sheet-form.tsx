@@ -72,7 +72,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
             ...jobSheetToEdit,
             date: new Date(jobSheetToEdit.date),
             deliveryBy: deliveryByDate,
-            // Ensure optional fields that might be null/undefined are handled
             irNumber: jobSheetToEdit.irNumber || '',
             specialNote: jobSheetToEdit.specialNote || '',
             clientDetails: jobSheetToEdit.clientDetails || '',
@@ -87,10 +86,10 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
   useEffect(() => {
     const items = watchedValues.jobItems || [];
-    const subTotal = items.reduce((acc, item) => acc + ((item?.quantity || 1) * (item?.price || 0)), 0);
+    const subTotal = items.reduce((acc, item) => acc + (item?.price || 0), 0);
     const vatAmount = items.reduce((acc, item) => {
         if (item?.vatApplied) {
-            return acc + (((item?.quantity || 1) * (item?.price || 0)) * 0.2);
+            return acc + ((item?.price || 0) * 0.2);
         }
         return acc;
     }, 0);
