@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -198,10 +199,14 @@ export async function exportAllJobSheets(): Promise<any[]> {
         }
 
         const jobSheets = querySnapshot.docs.map(doc => {
-            const data = doc.data() as JobSheet;
+            const data = doc.data() as Omit<JobSheet, 'date' | 'deliveryBy'> & { date: Timestamp, deliveryBy: Timestamp | null };
+            
+            const date = data.date ? data.date.toDate() : new Date();
+            const deliveryBy = data.deliveryBy ? data.deliveryBy.toDate() : null;
+
             return {
                 'Job ID': data.jobId,
-                'Date': format(new Date(data.date), 'yyyy-MM-dd'),
+                'Date': format(date, 'yyyy-MM-dd'),
                 'Operator': data.operator,
                 'Client Name': data.clientName,
                 'Client Details': data.clientDetails,
@@ -212,7 +217,7 @@ export async function exportAllJobSheets(): Promise<any[]> {
                 'Status': data.status,
                 'Special Note': data.specialNote,
                 'IR Number': data.irNumber,
-                'Delivery By': data.deliveryBy ? format(new Date(data.deliveryBy), 'yyyy-MM-dd') : 'N/A',
+                'Delivery By': deliveryBy ? format(deliveryBy, 'yyyy-MM-dd') : 'N/A',
                 'Type': data.type,
             };
         });
