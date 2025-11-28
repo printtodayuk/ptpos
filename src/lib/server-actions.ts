@@ -24,7 +24,7 @@ import { z } from 'zod';
 import type { Transaction, PaymentMethod, JobSheet, PaymentStatus } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { startOfDay, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay, parseISO, isValid } from 'date-fns';
 
 const CreateTransactionSchema = TransactionSchema.omit({
   id: true,
@@ -47,7 +47,7 @@ async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude
     }
     
     const jobSheetRef = jobSheetSnapshot.docs[0].ref;
-    const jobSheetData = jobSheetSnapshot.docs[0].data() as JobSheet;
+    const jobSheetData = jobSheetSnapshot.docs[0].data() as Omit<JobSheet, 'id'>;
 
     const transactionsQuery = query(collection(db, 'transactions'), where('jid', '==', jobId));
     const transactionsSnapshot = await getDocs(transactionsQuery);
@@ -62,9 +62,9 @@ async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude
     const newDueAmount = jobSheetData.totalAmount - totalPaid;
     
     let newPaymentStatus: PaymentStatus = 'Unpaid';
-    if (newDueAmount <= 0) {
+    if (newDueAmount <= 0.001) { // Use a small tolerance for float comparison
         newPaymentStatus = 'Paid';
-    } else if (totalPaid > 0 && newDueAmount > 0) {
+    } else if (totalPaid > 0) {
         newPaymentStatus = 'Partially Paid';
     }
 
@@ -104,7 +104,7 @@ export async function addTransaction(
     const docRef = await addDoc(collection(db, 'transactions'), {
       ...validatedData.data,
       transactionId: newTransactionId,
-      date: Timestamp.fromDate(validatedData.data.date),
+      date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
       adminChecked: false,
       checkedBy: null,
@@ -167,7 +167,7 @@ export async function updateTransaction(
     
     await updateDoc(transactionRef, {
         ...validatedData.data,
-        date: Timestamp.fromDate(validatedData.data.date),
+        date: Timestamp.fromDate(validatedData.data.date as Date),
         jid: validatedData.data.jid || null,
     });
     
@@ -255,25 +255,25 @@ export async function getDashboardStats() {
 
     const dailyCash = dailyTransactions
       .filter(t => t.paymentMethod === 'Cash')
-      .reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.paidAmount, 0);
     const dailyBank = dailyTransactions
       .filter(t => t.paymentMethod === 'Bank Transfer' || t.paymentMethod === 'ST Bank Transfer' || t.paymentMethod === 'AIR Bank Transfer')
-      .reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.paidAmount, 0);
     const dailyCard = dailyTransactions
       .filter(t => t.paymentMethod === 'Card Payment')
-      .reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.paidAmount, 0);
 
     const totalInputs = allTransactions.length;
     const cashAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Cash')
-      .reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.paidAmount, 0);
     const bankAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Bank Transfer' || t.paymentMethod === 'ST Bank Transfer' || t.paymentMethod === 'AIR Bank Transfer')
-      .reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.paidAmount, 0);
     const cardAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Card Payment')
-      .reduce((sum, t) => sum + t.totalAmount, 0);
-    const totalSales = allTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.paidAmount, 0);
+    const totalSales = allTransactions.reduce((sum, t) => sum + t.paidAmount, 0);
 
     return {
       totalSales,
@@ -340,25 +340,12 @@ export async function markTransactionAsChecked(id: string) {
   }
 }
 
-export async function getReportData({
-  from,
-  to,
-}: {
-  from: Date;
-  to: Date;
-}): Promise<Transaction[]> {
+export async function getReportData({ searchTerm }: { searchTerm?: string }): Promise<Transaction[]> {
   try {
-    const fromTimestamp = Timestamp.fromDate(from);
-    const toTimestamp = Timestamp.fromDate(to);
-
-    const q = query(
-      collection(db, 'transactions'),
-      where('date', '>=', fromTimestamp),
-      where('date', '<=', toTimestamp),
-      orderBy('date', 'desc')
-    );
+    const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => {
+    
+    let transactions = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,
@@ -367,6 +354,29 @@ export async function getReportData({
         createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
+
+    if (searchTerm) {
+        const lowercasedTerm = searchTerm.toLowerCase();
+        
+        // Check if the search term is a date
+        const searchDate = parseISO(searchTerm);
+        const isDateSearch = isValid(searchDate);
+
+        transactions = transactions.filter(t => {
+            if (isDateSearch) {
+                const transactionDate = new Date(t.date);
+                return transactionDate.toDateString() === searchDate.toDateString();
+            }
+
+            return (
+                t.transactionId?.toLowerCase().includes(lowercasedTerm) ||
+                t.jid?.toLowerCase().includes(lowercasedTerm) ||
+                t.clientName?.toLowerCase().includes(lowercasedTerm)
+            );
+        });
+    }
+    
+    return transactions;
   } catch (e) {
     console.error(e);
     return [];
@@ -422,6 +432,9 @@ export async function deleteTransaction(id: string) {
     try {
         const transactionRef = doc(db, 'transactions', id);
         const transactionSnap = await getDoc(transactionRef);
+        if (!transactionSnap.exists()) {
+             return { success: false, message: 'Transaction not found.' };
+        }
         const transactionData = transactionSnap.data() as Transaction;
         
         await deleteDoc(transactionRef);
@@ -506,5 +519,3 @@ export async function bulkMarkAsChecked(ids: string[]) {
         return { success: false, message: 'An error occurred during bulk update.' };
     }
 }
-
-    
