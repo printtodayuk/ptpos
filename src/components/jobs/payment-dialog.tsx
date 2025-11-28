@@ -13,21 +13,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { type JobSheet, type Transaction, operators, paymentMethods, TransactionSchema } from '@/lib/types';
+import { type JobSheet, type Transaction, operators, paymentMethods } from '@/lib/types';
 import { addTransactionFromJobSheet } from '@/lib/server-actions-jobs';
 
 
-const PaymentFormSchema = TransactionSchema.pick({
-    paidAmount: true,
-    paymentMethod: true,
-    operator: true,
-    reference: true,
-}).extend({
+const PaymentFormSchema = z.object({
     jid: z.string(),
     clientName: z.string(),
     jobDescription: z.string().optional().nullable(),
     totalAmount: z.number(),
+    paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative'),
     dueAmount: z.number(),
+    paymentMethod: z.enum(paymentMethods),
+    operator: z.enum(operators),
+    reference: z.string().optional().nullable(),
+    date: z.date(),
 });
 
 
@@ -52,6 +52,7 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
       paymentMethod: 'Cash',
       operator: 'PTMGH',
       reference: '',
+      date: new Date(),
     },
   });
 
@@ -70,6 +71,7 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
         operator: 'PTMGH',
         jobDescription: jobDescription,
         reference: '',
+        date: new Date(),
       });
     }
   }, [jobSheet, form]);
@@ -90,6 +92,8 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
       
       if (result.success && result.transaction) {
         onPaymentSuccess(result.transaction);
+        toast({ title: 'Success', description: 'Transaction created successfully.' });
+        onClose();
       } else {
         toast({
           variant: 'destructive',

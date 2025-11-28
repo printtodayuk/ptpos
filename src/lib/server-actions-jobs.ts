@@ -21,7 +21,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { JobSheet, Transaction } from '@/lib/types';
-import { JobSheetSchema, TransactionSchema } from '@/lib/types';
+import { JobSheetSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { addTransaction } from './server-actions';
@@ -229,7 +229,7 @@ export async function exportAllJobSheets(): Promise<any[]> {
         }
 
         const jobSheets = querySnapshot.docs.map(doc => {
-            const data = doc.data() as Omit<JobSheet, 'date' | 'deliveryBy'> & { date: Timestamp, deliveryBy: Timestamp | null };
+            const data = doc.data() as Omit<JobSheet, 'date' | 'deliveryBy'> & { date: Timestamp, deliveryBy: Timestamp | null, createdAt: Timestamp };
             
             const date = data.date ? data.date.toDate() : new Date();
             const deliveryBy = data.deliveryBy ? data.deliveryBy.toDate() : null;
@@ -258,29 +258,31 @@ export async function exportAllJobSheets(): Promise<any[]> {
     }
 }
 
-const CreateTransactionFromJSSchema = TransactionSchema.omit({
-  id: true,
-  transactionId: true,
-  createdAt: true,
-  type: true,
-  invoiceNumber: true,
-  adminChecked: true,
-  checkedBy: true,
-  amount: true,
-  vatApplied: true,
+const PaymentDataSchema = z.object({
+    jid: z.string(),
+    clientName: z.string(),
+    jobDescription: z.string().optional().nullable(),
+    totalAmount: z.number(),
+    paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative'),
+    dueAmount: z.number(),
+    paymentMethod: z.enum(['Bank Transfer', 'Card Payment', 'Cash', 'ST Bank Transfer', 'AIR Bank Transfer']),
+    operator: z.enum(['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK']),
+    reference: z.string().optional().nullable(),
+    date: z.date(),
 });
 
-export async function addTransactionFromJobSheet(jobSheet: JobSheet, data: z.infer<typeof CreateTransactionFromJSSchema>) {
-    const validatedData = CreateTransactionFromJSSchema.safeParse(data);
+
+export async function addTransactionFromJobSheet(jobSheet: JobSheet, data: z.infer<typeof PaymentDataSchema>) {
+    const validatedData = PaymentDataSchema.safeParse(data);
     if (!validatedData.success) {
         return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
     }
 
     const transactionData = {
-        ...validatedData.data,
         type: 'non-invoicing' as const, // Always PT Till
         amount: jobSheet.subTotal,
         vatApplied: jobSheet.vatAmount > 0,
+        ...validatedData.data,
     };
 
     const result = await addTransaction(transactionData);
