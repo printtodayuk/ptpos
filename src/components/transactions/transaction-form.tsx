@@ -168,6 +168,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   
   const formTitle = 'PT Till';
   const Wrapper = isEditMode ? 'div' : Card;
+  const isLocked = !!debouncedJid && !isEditMode;
 
   return (
     <>
@@ -206,6 +207,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                           'w-full justify-start text-left font-normal',
                           !field.value && 'text-muted-foreground'
                         )}
+                         disabled={isLocked || isEditMode}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
@@ -228,19 +230,19 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="clientName">Client Name</Label>
-              <Input id="clientName" {...form.register('clientName')} readOnly={!!debouncedJid} disabled={isEditMode || !!debouncedJid} />
+              <Input id="clientName" {...form.register('clientName')} readOnly={isLocked} disabled={isLocked || isEditMode} />
               {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
 
             <div className="space-y-2 lg:col-span-4">
               <Label htmlFor="jobDescription">Job Description</Label>
-              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={!!debouncedJid} disabled={isEditMode || !!debouncedJid}/>
+              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={isLocked} disabled={isLocked || isEditMode}/>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:col-span-4">
               <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
-                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={!!debouncedJid} disabled={isEditMode || !!debouncedJid} />
+                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={isLocked} disabled={isLocked || isEditMode} />
                   {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
               </div>
 
@@ -256,7 +258,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                               id="vatApplied"
                               checked={field.value}
                               onCheckedChange={field.onChange}
-                              disabled={isEditMode || !!debouncedJid}
+                              disabled={isLocked || isEditMode}
                           />
                       )}
                       />
