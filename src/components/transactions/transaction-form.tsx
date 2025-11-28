@@ -28,7 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addTransaction, updateTransaction } from '@/lib/server-actions';
 import { getJobSheetByJobId } from '@/lib/server-actions-jobs';
-import { TransactionSchema, operators, paymentMethods, type Transaction, Operator } from '@/lib/types';
+import { TransactionSchema, operators, paymentMethods, type Transaction, type Operator } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { ReceiptDialog } from './receipt-dialog';
@@ -89,11 +89,8 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
           form.setValue('vatApplied', jobSheet.vatAmount > 0);
           form.setValue('totalAmount', jobSheet.totalAmount);
           form.setValue('paidAmount', jobSheet.totalAmount);
+          form.setValue('dueAmount', 0); // Since we default paid amount to total
           form.setValue('jobDescription', jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', '));
-        } else {
-          // Optionally clear fields if JID is not found
-          form.setValue('clientName', '');
-          form.setValue('amount', 0);
         }
       });
     }
@@ -113,27 +110,24 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
       form.reset(getFreshDefaultValues(type, lastOperator));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactionToEdit, type, form.reset, lastOperator]);
+  }, [transactionToEdit, type, form.reset]);
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
   const watchedPaidAmount = form.watch('paidAmount');
   const watchedOperator = form.watch('operator');
 
-  const totalAmount = watchedVatApplied ? watchedAmount * 1.2 : watchedAmount;
-  const dueAmount = totalAmount - watchedPaidAmount;
-
   useEffect(() => {
-    const currentTotal = form.getValues('totalAmount');
-    const currentDue = form.getValues('dueAmount');
-
-    if (currentTotal !== totalAmount) {
-      form.setValue('totalAmount', totalAmount);
-    }
-    if (currentDue !== dueAmount) {
-        form.setValue('dueAmount', dueAmount);
-    }
-  }, [totalAmount, dueAmount, form]);
+      const total = watchedVatApplied ? watchedAmount * 1.2 : watchedAmount;
+      const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
+      const due = total - paid;
+      if (form.getValues('totalAmount') !== total) {
+        form.setValue('totalAmount', total);
+      }
+      if (form.getValues('dueAmount') !== due) {
+        form.setValue('dueAmount', due);
+      }
+  }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form]);
   
   useEffect(() => {
     if (watchedOperator) {
@@ -237,9 +231,10 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               <Input id="clientName" {...form.register('clientName')} readOnly={!!debouncedJid} disabled={isEditMode || !!debouncedJid} />
               {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
-            
-            <div className="hidden">
-              <Textarea id="jobDescription" {...form.register('jobDescription')} />
+
+            <div className="space-y-2 lg:col-span-4">
+              <Label htmlFor="jobDescription">Job Description</Label>
+              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={!!debouncedJid} disabled={isEditMode || !!debouncedJid}/>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:col-span-4">
@@ -269,7 +264,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
               <div className="space-y-2">
                   <Label>Total Amount</Label>
-                  <Input value={`£${(form.getValues('totalAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                  <Input value={`£${(form.watch('totalAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
               </div>
               <div className="space-y-2">
                   <Label htmlFor="paidAmount">Paid Amount (£)</Label>
@@ -278,7 +273,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               </div>
                 <div className="space-y-2">
                     <Label>Due Amount</Label>
-                    <Input value={`£${(form.getValues('dueAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                    <Input value={`£${(form.watch('dueAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
                 </div>
             </div>
 
