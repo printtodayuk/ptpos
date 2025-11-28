@@ -30,8 +30,6 @@ function getCurrentDateString() {
 export async function getOperatorStatus(operator: Operator): Promise<TimeRecord | null> {
   const date = getCurrentDateString();
   
-  // Simplified query to avoid composite index requirement.
-  // We fetch all of today's records for the user and find the active one in code.
   const q = query(
     collection(db, 'timeRecords'),
     where('operator', '==', operator),
@@ -44,7 +42,6 @@ export async function getOperatorStatus(operator: Operator): Promise<TimeRecord 
     return null;
   }
   
-  // Sort by clockInTime descending to find the latest record first
   const records = querySnapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() }))
     .sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());

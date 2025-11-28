@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
@@ -78,18 +79,22 @@ export default function AttendancePage() {
     if (!selectedOperator) return <p className="text-center text-muted-foreground p-4">Please select an operator.</p>;
     if (!timeRecord) return <div className="flex flex-col items-center gap-4 p-4"><p>Not clocked in for today.</p><ClockInButton /></div>;
 
-    const clockInTime = timeRecord.clockInTime;
+    const clockInTime = new Date(timeRecord.clockInTime);
     const now = currentTime;
     
     let currentBreakDuration = 0;
     const currentBreak = timeRecord.breaks.find(b => !b.endTime);
     if (currentBreak) {
-        currentBreakDuration = differenceInMinutes(now, currentBreak.startTime);
+        currentBreakDuration = differenceInMinutes(now, new Date(currentBreak.startTime));
     }
     
     const totalCompletedBreakDuration = timeRecord.breaks
         .filter(b => b.endTime)
-        .reduce((acc, b) => acc + differenceInMinutes(b.endTime!, b.startTime), 0);
+        .reduce((acc, b) => {
+            const endTime = b.endTime ? new Date(b.endTime) : new Date();
+            const startTime = new Date(b.startTime);
+            return acc + differenceInMinutes(endTime, startTime)
+        }, 0);
 
     const totalBreakMinutes = totalCompletedBreakDuration + currentBreakDuration;
     const totalMinutes = differenceInMinutes(now, clockInTime);
