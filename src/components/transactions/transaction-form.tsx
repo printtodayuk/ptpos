@@ -68,11 +68,20 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const { toast } = useToast();
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
+  const [jobSheetDueAmount, setJobSheetDueAmount] = useState<number | null>(null);
 
   const isEditMode = !!transactionToEdit;
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
+    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true }).superRefine((data, ctx) => {
+        if (jobSheetDueAmount !== null && data.paidAmount > jobSheetDueAmount) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Cannot pay more than the due amount of £${jobSheetDueAmount.toFixed(2)}`,
+                path: ['paidAmount'],
+            });
+        }
+    })),
     defaultValues: getFreshDefaultValues(type, lastOperator),
   });
 
@@ -88,16 +97,20 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
           form.setValue('amount', jobSheet.subTotal);
           form.setValue('vatApplied', jobSheet.vatAmount > 0);
           form.setValue('totalAmount', jobSheet.totalAmount);
-          form.setValue('paidAmount', jobSheet.totalAmount); // Default paid to total
+          form.setValue('paidAmount', jobSheet.dueAmount); // Pre-fill paid amount with what's due
           form.setValue('jobDescription', jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', '));
+          setJobSheetDueAmount(jobSheet.dueAmount);
         } else {
           // Clear fields if no job sheet is found
             form.setValue('clientName', '');
             form.setValue('amount', 0);
             form.setValue('vatApplied', false);
             form.setValue('jobDescription', '');
+            setJobSheetDueAmount(null);
         }
       });
+    } else {
+        setJobSheetDueAmount(null);
     }
   }, [debouncedJid, form]);
 
