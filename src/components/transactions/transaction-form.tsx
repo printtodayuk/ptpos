@@ -135,7 +135,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     } else {
       form.reset(getFreshDefaultValues(type, lastOperator));
     }
-  }, [transactionToEdit, type, form, lastOperator]);
+  }, [transactionToEdit, type, form]);
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
