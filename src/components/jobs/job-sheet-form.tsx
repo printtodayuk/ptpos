@@ -67,7 +67,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
   useEffect(() => {
     if (jobSheetToEdit) {
-        const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : null;
+        const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : undefined;
         form.reset({
             ...jobSheetToEdit,
             operator: undefined, // Reset operator as requested
@@ -113,17 +113,15 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     if (Math.abs(form.getValues('totalAmount') - totalAmount) > tolerance) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedValues, form]);
+  }, [watchedValues.jobItems, form]);
 
-
-  useEffect(() => {
-    if (watchedValues.operator) {
-      setLastOperator(watchedValues.operator as Operator);
-    }
-  }, [watchedValues.operator]);
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
+      if (data.operator) {
+        setLastOperator(data.operator as Operator);
+      }
+      
       const result = isEditMode && jobSheetToEdit?.id
         ? await updateJobSheet(jobSheetToEdit.id, data)
         : await addJobSheet(data);
@@ -325,5 +323,3 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     </>
   );
 }
-
-    
