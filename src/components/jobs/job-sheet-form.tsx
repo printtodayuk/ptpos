@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2, Lock } from 'lucide-react';
 import { enGB } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 type JobSheetFormProps = {
   onJobSheetAdded?: () => void;
@@ -55,6 +56,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
 
   const isEditMode = !!jobSheetToEdit;
+  const isPaid = isEditMode && (jobSheetToEdit.paymentStatus === 'Paid' || jobSheetToEdit.paymentStatus === 'Partially Paid');
 
   const form = useForm<FormValues>({
     resolver: zodResolver(JobSheetSchema.omit({ id: true, createdAt: true, jobId: true })),
@@ -71,7 +73,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
         const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : undefined;
         form.reset({
             ...jobSheetToEdit,
-            operator: undefined, // Reset operator as requested
             date: new Date(jobSheetToEdit.date),
             deliveryBy: deliveryByDate,
             irNumber: jobSheetToEdit.irNumber || '',
@@ -82,7 +83,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     } else {
         form.reset(getFreshDefaultValues(lastOperator));
     }
-  }, [jobSheetToEdit, form]);
+  }, [jobSheetToEdit, form, lastOperator]);
 
 
   const watchedJobItems = form.watch('jobItems');
@@ -135,13 +136,12 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
       if (result.success && result.jobSheet) {
         if (isEditMode) {
           toast({ title: 'Success', description: 'Job sheet updated successfully.' });
-          onJobSheetAdded?.(); // This will close the dialog
         } else {
           setLastJobSheet(result.jobSheet);
           toast({ title: 'Success', description: `Job Sheet ${result.jobSheet.jobId} created.` });
-          form.reset(getFreshDefaultValues(lastOperator));
-          onJobSheetAdded?.();
         }
+        form.reset(getFreshDefaultValues(lastOperator));
+        onJobSheetAdded?.();
       } else {
         toast({
           variant: 'destructive',
@@ -172,12 +172,21 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 </CardHeader>
             )}
             <CardContent className={cn(isEditMode && "pt-6")}>
+                {isPaid && (
+                  <Alert variant="destructive" className="mb-6">
+                    <Lock className="h-4 w-4" />
+                    <AlertTitle>Editing Locked</AlertTitle>
+                    <AlertDescription>
+                      This job sheet has payments recorded against it. Financial details (items, prices, client) cannot be edited. You can still update the status or notes.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {/* Row 1: Operator, Date, Client Name */}
                 <div className="space-y-2">
                     <Label htmlFor="operator">Operator</Label>
                     <Controller name="operator" control={form.control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isPaid}>
                         <SelectTrigger><SelectValue placeholder="Select Operator" /></SelectTrigger>
                         <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
                     </Select>
@@ -189,7 +198,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                     <Controller name="date" control={form.control} render={({ field }) => (
                     <Popover>
                         <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !field.value && 'text-muted-foreground')}>
+                        <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !field.value && 'text-muted-foreground')} disabled={isPaid}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
                         </Button>
@@ -200,14 +209,14 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 </div>
                 <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="clientName">Client Name</Label>
-                    <Input id="clientName" {...form.register('clientName')} />
+                    <Input id="clientName" {...form.register('clientName')} disabled={isPaid}/>
                     {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
                 </div>
 
                 {/* Row 2: Client Details */}
                 <div className="space-y-2 md:col-span-4">
                     <Label htmlFor="clientDetails">Client Details (Address, Phone, etc.)</Label>
-                    <Textarea id="clientDetails" {...form.register('clientDetails')} />
+                    <Textarea id="clientDetails" {...form.register('clientDetails')} disabled={isPaid}/>
                 </div>
 
                 {/* Row 3: Dynamic Job Items */}
@@ -223,13 +232,13 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                     {fields.map((field, index) => (
                     <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
                         <div className="col-span-12 sm:col-span-6">
-                        <Textarea {...form.register(`jobItems.${index}.description`)} placeholder="Job description" className="h-10"/>
+                        <Textarea {...form.register(`jobItems.${index}.description`)} placeholder="Job description" className="h-10" disabled={isPaid}/>
                         </div>
                         <div className="col-span-3 sm:col-span-2">
-                        <Input type="number" {...form.register(`jobItems.${index}.quantity`, { valueAsNumber: true })} placeholder="Qty" />
+                        <Input type="number" {...form.register(`jobItems.${index}.quantity`, { valueAsNumber: true })} placeholder="Qty" disabled={isPaid}/>
                         </div>
                         <div className="col-span-4 sm:col-span-2">
-                        <Input type="number" step="0.01" {...form.register(`jobItems.${index}.price`, { valueAsNumber: true })} placeholder="Price" />
+                        <Input type="number" step="0.01" {...form.register(`jobItems.${index}.price`, { valueAsNumber: true })} placeholder="Price" disabled={isPaid}/>
                         </div>
                         <div className="col-span-1 sm:col-span-1 flex items-center justify-center h-full">
                         <Controller
@@ -239,19 +248,20 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                                 <Checkbox
                                     checked={value}
                                     onCheckedChange={onChange}
+                                    disabled={isPaid}
                                 />
                             )}
                         />
                         </div>
                         <div className="col-span-4 sm:col-span-1 flex items-start h-full">
-                        <Button type="button" variant="destructive" size="icon" onClick={() => fields.length > 1 && remove(index)} disabled={fields.length <= 1}>
+                        <Button type="button" variant="destructive" size="icon" onClick={() => fields.length > 1 && remove(index)} disabled={fields.length <= 1 || isPaid}>
                             <Trash2 className="h-4 w-4" />
                         </Button>
                         </div>
                     </div>
                     ))}
                     {form.formState.errors.jobItems && <p className="text-sm text-destructive">{form.formState.errors.jobItems.message || form.formState.errors.jobItems.root?.message}</p>}
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0, vatApplied: false })}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ description: '', quantity: 1, price: 0, vatApplied: false })} disabled={isPaid}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                     </Button>
                 </div>
@@ -274,7 +284,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                  {/* Automation IDs */}
                  <div className="space-y-2 md:col-span-4">
                     <Label htmlFor="tid">Transaction ID (Optional)</Label>
-                    <Input id="tid" {...form.register('tid')} placeholder="e.g. TID0001" />
+                    <Input id="tid" {...form.register('tid')} placeholder="e.g. TID0001" disabled={isPaid}/>
                     <p className="text-xs text-muted-foreground">Link an existing transaction to this job sheet.</p>
                 </div>
 
@@ -310,7 +320,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="space-y-2">
                     <Label htmlFor="type">Type</Label>
                     <Controller name="type" control={form.control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isPaid}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>{jobSheetTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
@@ -336,3 +346,5 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     </>
   );
 }
+
+    

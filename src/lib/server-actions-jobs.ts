@@ -129,6 +129,9 @@ export async function updateJobSheet(
   try {
     const jobSheetRef = doc(db, 'jobSheets', id);
     const originalJobSheetSnap = await getDoc(jobSheetRef);
+    if (!originalJobSheetSnap.exists()) {
+        return { success: false, message: 'Job Sheet not found.' };
+    }
     const originalJobSheet = originalJobSheetSnap.data() as JobSheet;
 
     const dataToUpdate: any = {
@@ -156,6 +159,17 @@ export async function updateJobSheet(
         const txDoc = querySnapshot.docs[0];
         await updateDoc(txDoc.ref, { jid: originalJobSheet.jobId });
       }
+    }
+    // If TID is being removed
+    if (originalJobSheet.tid && !data.tid) {
+       const q = query(collection(db, 'transactions'), where('transactionId', '==', originalJobSheet.tid));
+       const querySnapshot = await getDocs(q);
+       if (!querySnapshot.empty) {
+            const txDoc = querySnapshot.docs[0];
+            if (txDoc.data().jid === originalJobSheet.jobId) {
+                await updateDoc(txDoc.ref, { jid: null });
+            }
+       }
     }
     
     await updateDoc(jobSheetRef, dataToUpdate);
@@ -335,3 +349,5 @@ export async function getJobSheetByJobId(jobId: string): Promise<JobSheet | null
     return null;
   }
 }
+
+    
