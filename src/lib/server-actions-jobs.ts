@@ -20,6 +20,7 @@ import { z } from 'zod';
 import type { JobSheet } from '@/lib/types';
 import { JobSheetSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
+import { format } from 'date-fns';
 
 const CreateJobSheetSchema = JobSheetSchema.omit({
   id: true,
@@ -83,6 +84,7 @@ export async function addJobSheet(
     }
 
     revalidatePath('/job-sheet');
+    revalidatePath('/js-report');
     return { success: true, message: 'Job sheet added successfully.', jobSheet: newJobSheet };
   } catch (error) {
     console.error('Error adding job sheet:', error);
@@ -104,6 +106,7 @@ export async function updateJobSheet(
     const dataToUpdate: any = {
         ...validatedData.data,
         date: Timestamp.fromDate(validatedData.data.date as Date),
+        operator: data.operator, // Make sure operator is updated
     };
 
     if (validatedData.data.deliveryBy) {
@@ -115,6 +118,7 @@ export async function updateJobSheet(
     await updateDoc(jobSheetRef, dataToUpdate);
     
     revalidatePath('/job-sheet');
+    revalidatePath('/js-report');
     const updatedDoc = await getDoc(jobSheetRef);
     const updatedData = updatedDoc.data();
      let jobSheet: JobSheet | null = null;
@@ -134,9 +138,9 @@ export async function updateJobSheet(
   }
 }
 
-export async function searchJobSheets(searchTerm: string): Promise<JobSheet[]> {
+export async function searchJobSheets(searchTerm: string, returnAllOnEmpty: boolean = false): Promise<JobSheet[]> {
   try {
-    const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'), limit(100));
+    const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
 
     let jobSheets = querySnapshot.docs.map((doc) => {
@@ -161,6 +165,10 @@ export async function searchJobSheets(searchTerm: string): Promise<JobSheet[]> {
       });
     }
 
+    if (returnAllOnEmpty && !searchTerm) {
+        return jobSheets;
+    }
+
     return jobSheets.slice(0, 50);
   } catch (e) {
     console.error('Error searching job sheets: ', e);
@@ -173,8 +181,44 @@ export async function deleteJobSheet(id: string) {
     try {
         await deleteDoc(doc(db, 'jobSheets', id));
         revalidatePath('/job-sheet');
+        revalidatePath('/js-report');
         return { success: true, message: 'Job sheet deleted successfully.' };
     } catch (error) {
         return { success: false, message: error instanceof Error ? error.message : 'An unexpected error occurred.' };
+    }
+}
+
+export async function exportAllJobSheets(): Promise<any[]> {
+    try {
+        const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return [];
+        }
+
+        const jobSheets = querySnapshot.docs.map(doc => {
+            const data = doc.data() as JobSheet;
+            return {
+                'Job ID': data.jobId,
+                'Date': format(new Date(data.date), 'yyyy-MM-dd'),
+                'Operator': data.operator,
+                'Client Name': data.clientName,
+                'Client Details': data.clientDetails,
+                'Job Items': data.jobItems.map(item => `${item.quantity}x ${item.description} @ £${item.price.toFixed(2)} (VAT: ${item.vatApplied ? 'Yes' : 'No'})`).join('; '),
+                'Sub-Total': data.subTotal.toFixed(2),
+                'VAT Amount': data.vatAmount.toFixed(2),
+                'Total Amount': data.totalAmount.toFixed(2),
+                'Status': data.status,
+                'Special Note': data.specialNote,
+                'IR Number': data.irNumber,
+                'Delivery By': data.deliveryBy ? format(new Date(data.deliveryBy), 'yyyy-MM-dd') : 'N/A',
+                'Type': data.type,
+            };
+        });
+        return jobSheets;
+    } catch (e) {
+        console.error('Error exporting job sheets:', e);
+        return [];
     }
 }

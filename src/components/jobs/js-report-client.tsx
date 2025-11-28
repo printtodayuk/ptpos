@@ -1,0 +1,167 @@
+'use client';
+
+import { useState, useTransition, useEffect, useCallback } from 'react';
+import { searchJobSheets, exportAllJobSheets } from '@/lib/server-actions-jobs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Loader2, Search, Download } from 'lucide-react';
+import type { JobSheet } from '@/lib/types';
+import { useDebounce } from '@/hooks/use-debounce';
+import { JobSheetsTable } from './job-sheets-table';
+import { JobSheetForm } from './job-sheet-form';
+import { JobSheetViewDialog } from './job-sheet-view-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { deleteJobSheet } from '@/lib/server-actions-jobs';
+import { exportToCsv } from '@/lib/utils';
+
+
+export function JsReportClient() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [results, setResults] = useState<JobSheet[]>([]);
+  const [isSearching, startSearchTransition] = useTransition();
+  const [isExporting, startExportTransition] = useTransition();
+  const [jobSheetToEdit, setJobSheetToEdit] = useState<JobSheet | null>(null);
+  const [jobSheetToView, setJobSheetToView] = useState<JobSheet | null>(null);
+  const [jobSheetToDelete, setJobSheetToDelete] = useState<JobSheet | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { toast } = useToast();
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  const performSearch = useCallback((term: string) => {
+    startSearchTransition(async () => {
+      // Pass true to get all results for the report
+      const allResults = await searchJobSheets(term, true);
+      setResults(allResults);
+    });
+  }, []);
+
+  useEffect(() => {
+    performSearch(debouncedSearchTerm);
+  }, [debouncedSearchTerm, performSearch]);
+
+  const handleExport = () => {
+    startExportTransition(async () => {
+        const dataToExport = await exportAllJobSheets();
+        if (dataToExport.length > 0) {
+            exportToCsv(`job-sheets-report_${new Date().toISOString().split('T')[0]}.csv`, dataToExport);
+            toast({ title: "Success", description: "Job sheets exported successfully." });
+        } else {
+            toast({ variant: "destructive", title: "Nothing to Export", description: "No job sheets found to export." });
+        }
+    });
+  };
+
+  const handleEdit = (jobSheet: JobSheet) => {
+    setJobSheetToEdit(jobSheet);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleView = (jobSheet: JobSheet) => {
+    setJobSheetToView(jobSheet);
+  };
+
+  const handleDeleteRequest = (jobSheet: JobSheet) => {
+    setJobSheetToDelete(jobSheet);
+  };
+
+  const confirmDelete = async () => {
+    if (!jobSheetToDelete) return;
+    setIsDeleting(true);
+    const result = await deleteJobSheet(jobSheetToDelete.id!);
+    setIsDeleting(false);
+    if (result.success) {
+      toast({ title: 'Success', description: 'Job Sheet deleted.' });
+      performSearch(debouncedSearchTerm);
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+    setJobSheetToDelete(null);
+  };
+
+  const handleUpdate = () => {
+    setIsEditDialogOpen(false);
+    setJobSheetToEdit(null);
+    performSearch(debouncedSearchTerm);
+  };
+
+  return (
+    <>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-4xl p-0 flex flex-col h-full max-h-[90vh]">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle>Edit Job Sheet {jobSheetToEdit?.jobId}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
+             <JobSheetForm
+                onJobSheetAdded={handleUpdate}
+                jobSheetToEdit={jobSheetToEdit}
+              />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <JobSheetViewDialog
+        jobSheet={jobSheetToView}
+        isOpen={!!jobSheetToView}
+        onClose={() => setJobSheetToView(null)}
+      />
+
+      <AlertDialog open={!!jobSheetToDelete} onOpenChange={() => setJobSheetToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the job sheet
+              with ID <span className="font-bold">{jobSheetToDelete?.jobId}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search by Job ID, client name, or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10"
+              />
+            </div>
+            <Button onClick={handleExport} disabled={isExporting} variant="outline" className="w-full sm:w-auto">
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Export as CSV
+            </Button>
+          </div>
+          {isSearching ? (
+            <div className="flex justify-center items-center p-10">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <JobSheetsTable
+              jobSheets={results}
+              onEdit={handleEdit}
+              onView={handleView}
+              onDelete={handleDeleteRequest}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}

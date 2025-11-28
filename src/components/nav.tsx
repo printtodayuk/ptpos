@@ -10,6 +10,7 @@ import {
   UserCheck,
   ClipboardList,
   Contact,
+  FileSpreadsheet,
 } from 'lucide-react';
 import React from 'react';
 
@@ -24,6 +25,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/job-sheet', icon: ClipboardList, label: 'Job Sheet' },
+  { href: '/js-report', icon: FileSpreadsheet, label: 'JS Report' },
   { href: '/invoicing', icon: FileText, label: 'Xero' },
   { href: '/non-invoicing', icon: File, label: 'PT Till' },
   { href: '/contact-list', icon: Contact, label: 'Contact List' },
