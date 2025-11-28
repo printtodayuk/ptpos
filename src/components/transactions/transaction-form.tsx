@@ -42,10 +42,7 @@ type TransactionFormProps = {
 
 type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'transactionId'>;
 
-// Use a static state for the last operator
-let lastOperator: Operator = 'PTMGH';
-
-const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<FormValues> => ({
+const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing', operator: Operator | null): Partial<FormValues> => ({
     type: type,
     date: new Date(),
     clientName: '',
@@ -57,7 +54,7 @@ const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<For
     paidAmount: 0,
     dueAmount: 0,
     paymentMethod: 'Bank Transfer',
-    operator: lastOperator, // Use the persisted operator
+    operator: operator || undefined,
     invoiceNumber: '',
     reference: '',
     adminChecked: false,
@@ -69,14 +66,14 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const [isPending, startTransition] = useTransition();
   const [isFetchingJob, startFetchingJobTransition] = useTransition();
   const { toast } = useToast();
-  const [totalAmount, setTotalAmount] = useState<number>(0);
-  const [dueAmount, setDueAmount] = useState<number>(0);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
-    defaultValues: getFreshDefaultValues(type),
+    defaultValues: getFreshDefaultValues(type, lastOperator),
   });
 
   const jidValue = form.watch('jid');
@@ -113,32 +110,37 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
       form.reset(valuesToReset);
     } else {
       setIsEditMode(false);
-      form.reset(getFreshDefaultValues(type));
+      form.reset(getFreshDefaultValues(type, lastOperator));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactionToEdit, type, form.reset]);
+  }, [transactionToEdit, type, form.reset, lastOperator]);
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
   const watchedPaidAmount = form.watch('paidAmount');
   const watchedOperator = form.watch('operator');
 
+  const totalAmount = watchedVatApplied ? watchedAmount * 1.2 : watchedAmount;
+  const dueAmount = totalAmount - watchedPaidAmount;
+
   useEffect(() => {
-    const currentAmount = isNaN(watchedAmount) ? 0 : watchedAmount;
-    const newTotal = watchedVatApplied ? currentAmount * 1.2 : currentAmount;
-    setTotalAmount(newTotal);
-    form.setValue('totalAmount', newTotal);
+    const currentTotal = form.getValues('totalAmount');
+    const currentDue = form.getValues('dueAmount');
 
-    const currentPaidAmount = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
-    const newDue = newTotal - currentPaidAmount;
-    setDueAmount(newDue);
-    form.setValue('dueAmount', newDue);
-
-  }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form]);
+    if (currentTotal !== totalAmount) {
+      form.setValue('totalAmount', totalAmount);
+    }
+    if (currentDue !== dueAmount) {
+        form.setValue('dueAmount', dueAmount);
+    }
+  }, [totalAmount, dueAmount, form]);
   
   useEffect(() => {
-      lastOperator = watchedOperator;
+    if (watchedOperator) {
+      setLastOperator(watchedOperator);
+    }
   }, [watchedOperator]);
+
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
@@ -152,7 +154,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
         } else {
             setLastTransaction(result.transaction);
         }
-        form.reset(getFreshDefaultValues(type));
+        form.reset(getFreshDefaultValues(type, lastOperator));
         setIsEditMode(false);
         onTransactionAdded?.();
       } else {
@@ -267,7 +269,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
               <div className="space-y-2">
                   <Label>Total Amount</Label>
-                  <Input value={`£${totalAmount.toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                  <Input value={`£${(form.getValues('totalAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
               </div>
               <div className="space-y-2">
                   <Label htmlFor="paidAmount">Paid Amount (£)</Label>
@@ -276,7 +278,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               </div>
                 <div className="space-y-2">
                     <Label>Due Amount</Label>
-                    <Input value={`£${dueAmount.toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                    <Input value={`£${(form.getValues('dueAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
                 </div>
             </div>
 
@@ -329,8 +331,8 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
           </CardContent>
           <CardFooter className={cn("justify-end gap-2", isEditMode && "pt-6")}>
             {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isPending || isFetchingJob}>
+              {(isPending || isFetchingJob) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditMode ? "Update Transaction" : "Add Transaction"}
             </Button>
           </CardFooter>
