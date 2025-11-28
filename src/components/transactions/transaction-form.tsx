@@ -162,7 +162,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   
   const formTitle = type === 'non-invoicing' ? 'PT Till' : 'Xero Transaction';
   const Wrapper = isEditMode ? 'div' : Card;
-  const isLockedByJid = !!debouncedJid && !isEditMode;
+  const isLockedByJid = !!jidValue && !isEditMode;
 
   return (
     <>
@@ -224,19 +224,19 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="clientName">Client Name</Label>
-              <Input id="clientName" {...form.register('clientName')} readOnly={isLockedByJid || isEditMode} disabled={isLockedByJid || isEditMode} />
+              <Input id="clientName" {...form.register('clientName')} readOnly={isLockedByJid} disabled={isLockedByJid} />
               {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
 
             <div className="space-y-2 lg:col-span-4">
               <Label htmlFor="jobDescription">Job Description</Label>
-              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={isLockedByJid || isEditMode} disabled={isLockedByJid || isEditMode}/>
+              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={isLockedByJid} disabled={isLockedByJid}/>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:col-span-4">
               <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
-                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={isLockedByJid || isEditMode} disabled={isLockedByJid || isEditMode} />
+                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={isLockedByJid} disabled={isLockedByJid} />
                   {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
               </div>
 
