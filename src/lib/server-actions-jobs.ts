@@ -65,8 +65,13 @@ export async function addJobSheet(
       jobId: newJobId,
       date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
-      tid: validatedData.data.tid || null,
     };
+     if (validatedData.data.tid) {
+      dataToSave.tid = validatedData.data.tid;
+    } else {
+      dataToSave.tid = null;
+    }
+
 
     if (validatedData.data.deliveryBy) {
       dataToSave.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
@@ -127,8 +132,12 @@ export async function updateJobSheet(
         ...validatedData.data,
         date: Timestamp.fromDate(validatedData.data.date as Date),
         operator: data.operator, // Make sure operator is updated
-        tid: validatedData.data.tid || null,
     };
+    if (validatedData.data.tid) {
+      dataToUpdate.tid = validatedData.data.tid;
+    } else {
+      dataToUpdate.tid = null;
+    }
 
     if (validatedData.data.deliveryBy) {
         dataToUpdate.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);

@@ -82,7 +82,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   useEffect(() => {
     if (debouncedJid) {
       startFetchingJobTransition(async () => {
-        const jobSheet = await getJobSheetByJobId(debouncedJid);
+        const jobSheet = await getJobSheetByJobId(`JID${debouncedJid}`);
         if (jobSheet) {
           form.setValue('clientName', jobSheet.clientName);
           form.setValue('amount', jobSheet.subTotal);
@@ -90,6 +90,12 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
           form.setValue('totalAmount', jobSheet.totalAmount);
           form.setValue('paidAmount', jobSheet.totalAmount); // Default paid to total
           form.setValue('jobDescription', jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', '));
+        } else {
+          // Clear fields if no job sheet is found
+            form.setValue('clientName', '');
+            form.setValue('amount', 0);
+            form.setValue('vatApplied', false);
+            form.setValue('jobDescription', '');
         }
       });
     }
@@ -100,7 +106,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
       const valuesToReset = {
         ...transactionToEdit,
         date: new Date(transactionToEdit.date),
-        jid: transactionToEdit.jid || '',
+        jid: transactionToEdit.jid?.replace('JID', '') || '',
       };
       form.reset(valuesToReset);
     } else {
@@ -133,10 +139,15 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
 
   const onSubmit = (data: FormValues) => {
+    const dataWithPrefix = { ...data };
+    if (data.jid) {
+        dataWithPrefix.jid = `JID${data.jid}`;
+    }
+
     startTransition(async () => {
       const result = isEditMode && transactionToEdit?.id 
-        ? await updateTransaction(transactionToEdit.id, data)
-        : await addTransaction(data);
+        ? await updateTransaction(transactionToEdit.id, dataWithPrefix)
+        : await addTransaction(dataWithPrefix);
 
       if (result.success && result.transaction) {
         if (isEditMode) {
@@ -183,7 +194,19 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             
              <div className="space-y-2 lg:col-span-1 relative">
                 <Label htmlFor="jid">Job ID (Optional)</Label>
-                <Input id="jid" {...form.register('jid')} placeholder="e.g. JID0001" disabled={isEditMode} />
+                <div className="flex items-center">
+                    <span className="inline-flex h-10 items-center px-3 rounded-l-md border border-r-0 border-input bg-gray-100 text-muted-foreground text-sm">
+                        JID
+                    </span>
+                    <Input 
+                        id="jid" 
+                        type="number"
+                        {...form.register('jid')} 
+                        placeholder="0001" 
+                        disabled={isEditMode}
+                        className="rounded-l-none"
+                     />
+                </div>
                 {isFetchingJob && <Loader2 className="absolute right-3 top-9 h-4 w-4 animate-spin" />}
             </div>
 

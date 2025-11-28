@@ -164,7 +164,7 @@ export async function updateTransaction(
     }
 
 
-    revalidatePath(`/${validatedData.data.type}`);
+    revalidatePath('/non-invoicing');
     revalidatePath('/dashboard');
     revalidatePath('/reporting');
     revalidatePath('/admin');
@@ -403,7 +403,6 @@ export async function deleteTransaction(id: string) {
         revalidatePath('/admin');
         revalidatePath('/reporting');
         revalidatePath('/dashboard');
-        revalidatePath('/invoicing');
         revalidatePath('/non-invoicing');
         return { success: true, message: 'Transaction deleted successfully.' };
     } catch (error) {
@@ -430,7 +429,6 @@ export async function bulkDeleteTransactions(ids: string[]) {
         revalidatePath('/admin');
         revalidatePath('/reporting');
         revalidatePath('/dashboard');
-        revalidatePath('/invoicing');
         revalidatePath('/non-invoicing');
 
         return { success: true, message: `${ids.length} transaction(s) deleted successfully.` };
