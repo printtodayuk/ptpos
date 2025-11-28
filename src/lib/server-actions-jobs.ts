@@ -299,3 +299,29 @@ export async function addTransactionFromJobSheet(jobSheet: JobSheet, data: z.inf
 
     return { success: false, message: result.message || 'Failed to create transaction.' };
 }
+
+export async function getJobSheetByJobId(jobId: string): Promise<JobSheet | null> {
+  if (!jobId) return null;
+
+  try {
+    const q = query(collection(db, 'jobSheets'), where('jobId', '==', jobId), limit(1));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    return {
+      ...data,
+      id: doc.id,
+      date: (data.date as Timestamp).toDate(),
+      deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
+      createdAt: (data.createdAt as Timestamp)?.toDate(),
+    } as JobSheet;
+  } catch (error) {
+    console.error('Error fetching job sheet by JID:', error);
+    return null;
+  }
+}

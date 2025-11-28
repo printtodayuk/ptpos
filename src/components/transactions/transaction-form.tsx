@@ -27,10 +27,12 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addTransaction, updateTransaction } from '@/lib/server-actions';
+import { getJobSheetByJobId } from '@/lib/server-actions-jobs';
 import { TransactionSchema, operators, paymentMethods, type Transaction, Operator } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { ReceiptDialog } from './receipt-dialog';
+import { useDebounce } from '@/hooks/use-debounce';
 
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
@@ -65,6 +67,7 @@ const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<For
 
 export function TransactionForm({ type, onTransactionAdded, transactionToEdit }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition();
+  const [isFetchingJob, startFetchingJobTransition] = useTransition();
   const { toast } = useToast();
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [dueAmount, setDueAmount] = useState<number>(0);
@@ -75,6 +78,29 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
     defaultValues: getFreshDefaultValues(type),
   });
+
+  const jidValue = form.watch('jid');
+  const debouncedJid = useDebounce(jidValue, 500);
+
+  useEffect(() => {
+    if (debouncedJid && !isEditMode) {
+      startFetchingJobTransition(async () => {
+        const jobSheet = await getJobSheetByJobId(debouncedJid);
+        if (jobSheet) {
+          form.setValue('clientName', jobSheet.clientName);
+          form.setValue('amount', jobSheet.subTotal);
+          form.setValue('vatApplied', jobSheet.vatAmount > 0);
+          form.setValue('totalAmount', jobSheet.totalAmount);
+          form.setValue('paidAmount', jobSheet.totalAmount);
+          form.setValue('jobDescription', jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', '));
+        } else {
+          // Optionally clear fields if JID is not found
+          form.setValue('clientName', '');
+          form.setValue('amount', 0);
+        }
+      });
+    }
+  }, [debouncedJid, form, isEditMode]);
 
   useEffect(() => {
     if (transactionToEdit) {
@@ -144,7 +170,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     onTransactionAdded?.(); 
   }
   
-  const formTitle = type === 'invoicing' ? 'Xero' : 'PT Till';
+  const formTitle = 'PT Till';
   const Wrapper = isEditMode ? 'div' : Card;
 
   return (
@@ -159,32 +185,17 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
           {!isEditMode && (
             <CardHeader>
               <CardTitle className="capitalize">{formTitle}</CardTitle>
-              <CardDescription>Enter the details for the new transaction.</CardDescription>
+              <CardDescription>Enter a Job ID to auto-fill details or enter manually.</CardDescription>
             </CardHeader>
           )}
           <CardContent className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6", isEditMode && "p-0 pt-4")}>
             
-            <div className="space-y-2 lg:col-span-1">
-              <Label htmlFor="operator">Operator Name</Label>
-              <Controller
-                control={form.control}
-                name="operator"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="operator">
-                      <SelectValue placeholder="Select operator" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {operators.map((op) => (
-                        <SelectItem key={op} value={op}>{op}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {form.formState.errors.operator && <p className="text-sm text-destructive">{form.formState.errors.operator.message}</p>}
+             <div className="space-y-2 lg:col-span-1 relative">
+                <Label htmlFor="jid">Job ID (Optional)</Label>
+                <Input id="jid" {...form.register('jid')} placeholder="e.g. JID0001" disabled={isEditMode} />
+                {isFetchingJob && <Loader2 className="absolute right-3 top-9 h-4 w-4 animate-spin" />}
             </div>
-            
+
             <div className="space-y-2 lg:col-span-1">
               <Label htmlFor="date">Date</Label>
               <Controller
@@ -221,31 +232,18 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="clientName">Client Name</Label>
-              <Input id="clientName" {...form.register('clientName')} />
+              <Input id="clientName" {...form.register('clientName')} readOnly={!!debouncedJid} disabled={isEditMode || !!debouncedJid} />
               {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
-
-            <div className="space-y-2 lg:col-span-1">
-                <Label htmlFor="jid">Job ID (Optional)</Label>
-                <Input id="jid" {...form.register('jid')} placeholder="e.g. JID0001" />
-            </div>
             
-            {type === 'invoicing' && (
-              <div className="space-y-2 col-span-1 md:col-span-1 lg:col-span-1">
-                <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
-                <Input id="invoiceNumber" {...form.register('invoiceNumber')} />
-              </div>
-            )}
-
-            <div className={cn("space-y-2", type === 'invoicing' ? 'col-span-1 md:col-span-2 lg:col-span-2' : 'col-span-1 md:col-span-2 lg:col-span-3')}>
-              <Label htmlFor="jobDescription">Job Description (Optional)</Label>
+            <div className="hidden">
               <Textarea id="jobDescription" {...form.register('jobDescription')} />
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:col-span-4">
               <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
-                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} />
+                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={!!debouncedJid} disabled={isEditMode || !!debouncedJid} />
                   {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
               </div>
 
@@ -261,6 +259,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                               id="vatApplied"
                               checked={field.value}
                               onCheckedChange={field.onChange}
+                              disabled={isEditMode || !!debouncedJid}
                           />
                       )}
                       />
@@ -281,6 +280,26 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                 </div>
             </div>
 
+            <div className="space-y-2 lg:col-span-1">
+              <Label htmlFor="operator">Operator Name</Label>
+              <Controller
+                control={form.control}
+                name="operator"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="operator">
+                      <SelectValue placeholder="Select operator" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {operators.map((op) => (
+                        <SelectItem key={op} value={op}>{op}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.operator && <p className="text-sm text-destructive">{form.formState.errors.operator.message}</p>}
+            </div>
 
             <div className="space-y-2 lg:col-span-1">
               <Label htmlFor="paymentMethod">Payment Method</Label>
@@ -302,7 +321,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               />
             </div>
 
-            <div className="space-y-2 md:col-span-2 lg:col-span-3">
+            <div className="space-y-2 md:col-span-2 lg:col-span-2">
               <Label htmlFor="reference">Reference (Optional)</Label>
               <Input id="reference" {...form.register('reference')} />
             </div>
