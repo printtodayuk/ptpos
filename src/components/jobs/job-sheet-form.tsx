@@ -54,6 +54,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   const { toast } = useToast();
   const [lastJobSheet, setLastJobSheet] = useState<JobSheet | null>(null);
   const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
+  const [currentJobSheetId, setCurrentJobSheetId] = useState<string | undefined>(undefined);
 
   const isEditMode = !!jobSheetToEdit;
   const isPaid = isEditMode && (jobSheetToEdit.paymentStatus === 'Paid' || jobSheetToEdit.paymentStatus === 'Partially Paid');
@@ -69,7 +70,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   });
 
   useEffect(() => {
-    if (jobSheetToEdit) {
+    if (jobSheetToEdit && jobSheetToEdit.id !== currentJobSheetId) {
         const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : undefined;
         form.reset({
             ...jobSheetToEdit,
@@ -80,10 +81,12 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
             clientDetails: jobSheetToEdit.clientDetails || '',
             tid: jobSheetToEdit.tid || '',
         });
-    } else {
+        setCurrentJobSheetId(jobSheetToEdit.id);
+    } else if (!jobSheetToEdit && currentJobSheetId) {
         form.reset(getFreshDefaultValues(lastOperator));
+        setCurrentJobSheetId(undefined);
     }
-  }, [jobSheetToEdit, form, lastOperator]);
+  }, [jobSheetToEdit, form, lastOperator, currentJobSheetId]);
 
 
   const watchedJobItems = form.watch('jobItems');
@@ -130,7 +133,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
       }
       
       const result = isEditMode && jobSheetToEdit?.id
-        ? await updateJobSheet(jobSheetToEdit.id, {...data, operator: operator})
+        ? await updateJobSheet(jobSheetToEdit.id, data)
         : await addJobSheet(data);
 
       if (result.success && result.jobSheet) {
@@ -140,7 +143,9 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
           setLastJobSheet(result.jobSheet);
           toast({ title: 'Success', description: `Job Sheet ${result.jobSheet.jobId} created.` });
         }
-        form.reset(getFreshDefaultValues(lastOperator));
+        if (!isEditMode) {
+            form.reset(getFreshDefaultValues(lastOperator));
+        }
         onJobSheetAdded?.();
       } else {
         toast({
