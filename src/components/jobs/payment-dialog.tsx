@@ -23,7 +23,7 @@ const createPaymentFormSchema = (maxAmount: number) => z.object({
     jobDescription: z.string().optional().nullable(),
     totalAmount: z.number(),
     paidAmount: z.coerce.number()
-      .min(0, 'Paid amount cannot be negative')
+      .min(0.01, 'Paid amount must be positive')
       .max(maxAmount, { message: `Cannot pay more than the due amount of £${maxAmount.toFixed(2)}` }),
     dueAmount: z.number(),
     paymentMethod: z.enum(paymentMethods),
@@ -62,17 +62,17 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
   const watchedPaidAmount = form.watch('paidAmount');
 
   useEffect(() => {
-    if (jobSheet) {
+    if (jobSheet && isOpen) {
       const currentDue = jobSheet.dueAmount;
-      setMaxPayment(currentDue);
+      setMaxPayment(currentDue > 0 ? currentDue : 0.01);
       const jobDescription = jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', ');
       
       form.reset({
         jid: jobSheet.jobId,
         clientName: jobSheet.clientName,
         totalAmount: jobSheet.totalAmount,
-        paidAmount: currentDue, // Default to paying the remaining due amount
-        dueAmount: 0, // This will be recalculated
+        paidAmount: currentDue,
+        dueAmount: 0,
         paymentMethod: 'Cash',
         operator: 'PTMGH',
         jobDescription: jobDescription,
@@ -83,9 +83,9 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
   }, [jobSheet, form, isOpen]);
 
   useEffect(() => {
-      const total = form.getValues('totalAmount');
+      const currentDue = jobSheet?.dueAmount || 0;
       const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
-      const newDue = total - ( (jobSheet?.paidAmount || 0) + paid );
+      const newDue = currentDue - paid;
       
       if (form.getValues('dueAmount') !== newDue) {
         form.setValue('dueAmount', newDue);

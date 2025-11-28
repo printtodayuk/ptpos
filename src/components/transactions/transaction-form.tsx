@@ -43,8 +43,8 @@ type TransactionFormProps = {
 
 const createTransactionSchema = (maxAmount: number | null) => TransactionSchema.omit({ 
     id: true, 
-    createdAt: true, 
-    transactionId: true 
+    transactionId: true, 
+    createdAt: true 
 }).superRefine((data, ctx) => {
     if (maxAmount !== null && data.paidAmount > maxAmount) {
         ctx.addIssue({
@@ -101,15 +101,15 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
       startFetchingJobTransition(async () => {
         const jobSheet = await getJobSheetByJobId(`JID${debouncedJid}`);
         if (jobSheet) {
+          const due = jobSheet.dueAmount > 0 ? jobSheet.dueAmount : 0;
           form.setValue('clientName', jobSheet.clientName);
           form.setValue('amount', jobSheet.subTotal);
           form.setValue('vatApplied', jobSheet.vatAmount > 0);
           form.setValue('totalAmount', jobSheet.totalAmount);
-          form.setValue('paidAmount', jobSheet.dueAmount); // Pre-fill paid amount with what's due
+          form.setValue('paidAmount', due); // Pre-fill paid amount with what's due
           form.setValue('jobDescription', jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', '));
-          setJobSheetDueAmount(jobSheet.dueAmount);
+          setJobSheetDueAmount(due > 0 ? due : null);
         } else {
-          // Clear fields if no job sheet is found
             form.setValue('clientName', '');
             form.setValue('amount', 0);
             form.setValue('vatApplied', false);
@@ -125,7 +125,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   useEffect(() => {
     if (transactionToEdit) {
       const due = transactionToEdit.dueAmount;
-      setJobSheetDueAmount(due);
+      setJobSheetDueAmount(due > 0 ? due : null);
       const valuesToReset = {
         ...transactionToEdit,
         date: new Date(transactionToEdit.date),
@@ -144,26 +144,24 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const watchedOperator = form.watch('operator');
 
   useEffect(() => {
-      const total = watchedVatApplied ? watchedAmount * 1.2 : watchedAmount;
-      const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
-      
-      let due = total - paid;
-      if (jobSheetDueAmount !== null && isEditMode && transactionToEdit) {
-        // In edit mode of a JID transaction, due is based on previous payments
-        const originalPaidOnJob = (transactionToEdit.totalAmount - transactionToEdit.dueAmount) - transactionToEdit.paidAmount;
-        due = transactionToEdit.totalAmount - originalPaidOnJob - paid;
-      } else if (jobSheetDueAmount !== null) {
-        due = total - ((total - jobSheetDueAmount) + paid);
-      }
+    const total = watchedVatApplied ? watchedAmount * 1.2 : watchedAmount;
+    const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
 
+    let due;
+    if (jobSheetDueAmount !== null) {
+        due = jobSheetDueAmount - paid;
+    } else {
+        due = total - paid;
+    }
 
-      if (form.getValues('totalAmount') !== total) {
-        form.setValue('totalAmount', total);
-      }
-      if (form.getValues('dueAmount') !== due) {
-        form.setValue('dueAmount', due);
-      }
-  }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form, jobSheetDueAmount, isEditMode, transactionToEdit]);
+    if (form.getValues('totalAmount') !== total) {
+      form.setValue('totalAmount', total);
+    }
+    if (form.getValues('dueAmount') !== due) {
+      form.setValue('dueAmount', due);
+    }
+}, [watchedAmount, watchedVatApplied, watchedPaidAmount, form, jobSheetDueAmount]);
+
   
   useEffect(() => {
     if (watchedOperator) {
@@ -207,7 +205,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   
   const formTitle = type === 'non-invoicing' ? 'PT Till' : 'Xero Transaction';
   const Wrapper = isEditMode ? 'div' : Card;
-  const isLockedByJid = !!jidValue && !isEditMode;
+  const isLockedByJid = !!jidValue;
 
   return (
     <>
