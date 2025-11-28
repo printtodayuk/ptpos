@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin'] as const;
+export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK'] as const;
 export type Operator = (typeof operators)[number];
 
 export const paymentMethods = ['Bank Transfer', 'Card Payment', 'Cash'] as const;
