@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -40,7 +41,22 @@ type TransactionFormProps = {
   transactionToEdit?: Transaction | null;
 };
 
-type FormValues = Omit<Transaction, 'id' | 'createdAt' | 'transactionId'>;
+const createTransactionSchema = (maxAmount: number | null) => TransactionSchema.omit({ 
+    id: true, 
+    createdAt: true, 
+    transactionId: true 
+}).superRefine((data, ctx) => {
+    if (maxAmount !== null && data.paidAmount > maxAmount) {
+        ctx.addIssue({
+            code: 'custom',
+            message: `Cannot pay more than the due amount of £${maxAmount.toFixed(2)}`,
+            path: ['paidAmount'],
+        });
+    }
+});
+
+
+type FormValues = z.infer<ReturnType<typeof createTransactionSchema>>;
 
 const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing', operator: Operator | null): Partial<FormValues> => ({
     type: type,
@@ -73,15 +89,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const isEditMode = !!transactionToEdit;
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true }).superRefine((data, ctx) => {
-        if (jobSheetDueAmount !== null && data.paidAmount > jobSheetDueAmount) {
-            ctx.addIssue({
-                code: 'custom',
-                message: `Cannot pay more than the due amount of £${jobSheetDueAmount.toFixed(2)}`,
-                path: ['paidAmount'],
-            });
-        }
-    })),
+    resolver: zodResolver(createTransactionSchema(jobSheetDueAmount)),
     defaultValues: getFreshDefaultValues(type, lastOperator),
   });
 
@@ -116,10 +124,13 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
   useEffect(() => {
     if (transactionToEdit) {
+      const due = transactionToEdit.dueAmount;
+      setJobSheetDueAmount(due);
       const valuesToReset = {
         ...transactionToEdit,
         date: new Date(transactionToEdit.date),
         jid: transactionToEdit.jid?.replace('JID', '') || '',
+        paidAmount: due, // On edit, default to paying the rest
       };
       form.reset(valuesToReset);
     } else {
@@ -135,14 +146,24 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   useEffect(() => {
       const total = watchedVatApplied ? watchedAmount * 1.2 : watchedAmount;
       const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
-      const due = total - paid;
+      
+      let due = total - paid;
+      if (jobSheetDueAmount !== null && isEditMode && transactionToEdit) {
+        // In edit mode of a JID transaction, due is based on previous payments
+        const originalPaidOnJob = (transactionToEdit.totalAmount - transactionToEdit.dueAmount) - transactionToEdit.paidAmount;
+        due = transactionToEdit.totalAmount - originalPaidOnJob - paid;
+      } else if (jobSheetDueAmount !== null) {
+        due = total - ((total - jobSheetDueAmount) + paid);
+      }
+
+
       if (form.getValues('totalAmount') !== total) {
         form.setValue('totalAmount', total);
       }
       if (form.getValues('dueAmount') !== due) {
         form.setValue('dueAmount', due);
       }
-  }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form]);
+  }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form, jobSheetDueAmount, isEditMode, transactionToEdit]);
   
   useEffect(() => {
     if (watchedOperator) {
@@ -260,19 +281,19 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="clientName">Client Name</Label>
-              <Input id="clientName" {...form.register('clientName')} readOnly={isLockedByJid} disabled={isLockedByJid} />
+              <Input id="clientName" {...form.register('clientName')} readOnly={isLockedByJid} disabled={isLockedByJid || isEditMode} />
               {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
 
             <div className="space-y-2 lg:col-span-4">
               <Label htmlFor="jobDescription">Job Description</Label>
-              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={isLockedByJid} disabled={isLockedByJid}/>
+              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={isLockedByJid} disabled={isLockedByJid || isEditMode}/>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:col-span-4">
               <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
-                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={isLockedByJid} disabled={isLockedByJid} />
+                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={isLockedByJid} disabled={isLockedByJid || isEditMode} />
                   {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
               </div>
 
@@ -300,7 +321,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               </div>
               <div className="space-y-2">
                   <Label htmlFor="paidAmount">Paid Amount (£)</Label>
-                  <Input id="paidAmount" type="number" step="0.01" {...form.register('paidAmount', {valueAsNumber: true})} />
+                  <Input id="paidAmount" type="number" step="0.01" {...form.register('paidAmount')} />
                   {form.formState.errors.paidAmount && <p className="text-sm text-destructive">{form.formState.errors.paidAmount.message}</p>}
               </div>
                 <div className="space-y-2">

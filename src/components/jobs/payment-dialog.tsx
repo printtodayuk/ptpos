@@ -17,12 +17,14 @@ import { type JobSheet, type Transaction, operators, paymentMethods } from '@/li
 import { addTransactionFromJobSheet } from '@/lib/server-actions-jobs';
 
 
-const PaymentFormSchema = z.object({
+const createPaymentFormSchema = (maxAmount: number) => z.object({
     jid: z.string(),
     clientName: z.string(),
     jobDescription: z.string().optional().nullable(),
     totalAmount: z.number(),
-    paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative'),
+    paidAmount: z.coerce.number()
+      .min(0, 'Paid amount cannot be negative')
+      .max(maxAmount, { message: `Cannot pay more than the due amount of £${maxAmount.toFixed(2)}` }),
     dueAmount: z.number(),
     paymentMethod: z.enum(paymentMethods),
     operator: z.enum(operators),
@@ -31,7 +33,7 @@ const PaymentFormSchema = z.object({
 });
 
 
-type PaymentFormValues = z.infer<typeof PaymentFormSchema>;
+type PaymentFormValues = z.infer<ReturnType<typeof createPaymentFormSchema>>;
 
 type PaymentDialogProps = {
   jobSheet: JobSheet | null;
@@ -43,9 +45,10 @@ type PaymentDialogProps = {
 export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: PaymentDialogProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const [maxPayment, setMaxPayment] = useState(0);
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(PaymentFormSchema),
+    resolver: zodResolver(createPaymentFormSchema(maxPayment)),
     defaultValues: {
       paidAmount: 0,
       dueAmount: 0,
@@ -60,13 +63,16 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
 
   useEffect(() => {
     if (jobSheet) {
+      const currentDue = jobSheet.dueAmount;
+      setMaxPayment(currentDue);
       const jobDescription = jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', ');
+      
       form.reset({
         jid: jobSheet.jobId,
         clientName: jobSheet.clientName,
         totalAmount: jobSheet.totalAmount,
-        paidAmount: jobSheet.totalAmount, // Default to paying the full amount
-        dueAmount: 0,
+        paidAmount: currentDue, // Default to paying the remaining due amount
+        dueAmount: 0, // This will be recalculated
         paymentMethod: 'Cash',
         operator: 'PTMGH',
         jobDescription: jobDescription,
@@ -74,16 +80,17 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
         date: new Date(),
       });
     }
-  }, [jobSheet, form, isOpen]); // Rerun when dialog opens
+  }, [jobSheet, form, isOpen]);
 
   useEffect(() => {
       const total = form.getValues('totalAmount');
       const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
-      const newDue = total - paid;
+      const newDue = total - ( (jobSheet?.paidAmount || 0) + paid );
+      
       if (form.getValues('dueAmount') !== newDue) {
         form.setValue('dueAmount', newDue);
       }
-  }, [watchedPaidAmount, form]);
+  }, [watchedPaidAmount, form, jobSheet]);
 
 
   const onSubmit = (data: PaymentFormValues) => {
@@ -107,6 +114,9 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
   };
 
   if (!jobSheet) return null;
+  
+  const currentTotalPaid = jobSheet.paidAmount || 0;
+  const currentDue = jobSheet.totalAmount - currentTotalPaid;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -114,7 +124,7 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
         <DialogHeader>
           <DialogTitle>Record Payment for Job <span className="font-mono">{jobSheet.jobId}</span></DialogTitle>
           <DialogDescription>
-            Record a payment against this job sheet. This will create a new transaction in PT Till.
+            Record a payment against this job sheet. This will create a new transaction.
           </DialogDescription>
         </DialogHeader>
 
@@ -129,16 +139,22 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
               <Input value={`£${jobSheet.totalAmount.toFixed(2)}`} readOnly disabled className="font-bold" />
             </div>
           </div>
+          <div className="rounded-md border bg-muted p-3">
+             <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>Already Paid: <span className="font-semibold">£{currentTotalPaid.toFixed(2)}</span></div>
+                <div className="text-right">Amount Due: <span className="font-semibold">£{currentDue.toFixed(2)}</span></div>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
              <div className="space-y-2">
                 <Label htmlFor="paidAmount">Paying Amount (£)</Label>
-                <Input id="paidAmount" type="number" step="0.01" {...form.register('paidAmount', { valueAsNumber: true })} />
+                <Input id="paidAmount" type="number" step="0.01" {...form.register('paidAmount')} />
                 {form.formState.errors.paidAmount && <p className="text-sm text-destructive">{form.formState.errors.paidAmount.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label>Due Amount</Label>
-                <Input value={`£${form.watch('dueAmount').toFixed(2)}`} readOnly disabled className="font-bold"/>
+                <Label>New Due Amount</Label>
+                <Input value={`£${(currentDue - (form.watch('paidAmount') || 0)).toFixed(2)}`} readOnly disabled className="font-bold"/>
             </div>
           </div>
 
