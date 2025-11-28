@@ -74,13 +74,15 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
         date: new Date(),
       });
     }
-  }, [jobSheet, form]);
+  }, [jobSheet, form, isOpen]); // Rerun when dialog opens
 
   useEffect(() => {
       const total = form.getValues('totalAmount');
       const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
       const newDue = total - paid;
-      form.setValue('dueAmount', newDue);
+      if (form.getValues('dueAmount') !== newDue) {
+        form.setValue('dueAmount', newDue);
+      }
   }, [watchedPaidAmount, form]);
 
 
@@ -136,7 +138,7 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
             </div>
             <div className="space-y-2">
                 <Label>Due Amount</Label>
-                <Input value={`£${form.getValues('dueAmount').toFixed(2)}`} readOnly disabled className="font-bold"/>
+                <Input value={`£${form.watch('dueAmount').toFixed(2)}`} readOnly disabled className="font-bold"/>
             </div>
           </div>
 
