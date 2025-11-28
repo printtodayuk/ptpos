@@ -15,16 +15,20 @@ import {
 } from '@/lib/server-actions-attendance';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, User, Clock, Coffee, LogIn, LogOut } from 'lucide-react';
-import { format, differenceInMinutes } from 'date-fns';
+import { format, differenceInSeconds } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/dashboard/stat-card';
 
-function formatDuration(minutes: number) {
-  if (isNaN(minutes) || minutes < 0) return '0h 0m';
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  return `${hours}h ${mins}m`;
+function formatDurationWithSeconds(seconds: number) {
+  if (isNaN(seconds) || seconds < 0) return '00:00:00';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.round(seconds % 60);
+  
+  const pad = (num: number) => num.toString().padStart(2, '0');
+
+  return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
 }
 
 export default function AttendancePage() {
@@ -50,7 +54,7 @@ export default function AttendancePage() {
   }, [selectedOperator]);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000); // Update every second
     return () => clearInterval(timer);
   }, []);
 
@@ -85,7 +89,7 @@ export default function AttendancePage() {
     let currentBreakDuration = 0;
     const currentBreak = timeRecord.breaks.find(b => !b.endTime);
     if (currentBreak) {
-        currentBreakDuration = differenceInMinutes(now, new Date(currentBreak.startTime));
+        currentBreakDuration = differenceInSeconds(now, new Date(currentBreak.startTime));
     }
     
     const totalCompletedBreakDuration = timeRecord.breaks
@@ -93,12 +97,12 @@ export default function AttendancePage() {
         .reduce((acc, b) => {
             const endTime = b.endTime ? new Date(b.endTime) : new Date();
             const startTime = new Date(b.startTime);
-            return acc + differenceInMinutes(endTime, startTime)
+            return acc + differenceInSeconds(endTime, startTime)
         }, 0);
 
-    const totalBreakMinutes = totalCompletedBreakDuration + currentBreakDuration;
-    const totalMinutes = differenceInMinutes(now, clockInTime);
-    const workMinutes = totalMinutes - totalBreakMinutes;
+    const totalBreakSeconds = totalCompletedBreakDuration + currentBreakDuration;
+    const totalSeconds = differenceInSeconds(now, clockInTime);
+    const workSeconds = totalSeconds - totalBreakSeconds;
 
     return (
       <>
@@ -112,9 +116,9 @@ export default function AttendancePage() {
             </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
-           <StatCard title="Total Time" value={formatDuration(totalMinutes)} icon={Clock} isCurrency={false} />
-           <StatCard title="Work Time" value={formatDuration(workMinutes)} icon={Clock} isCurrency={false} />
-           <StatCard title="Break Time" value={formatDuration(totalBreakMinutes)} icon={Coffee} isCurrency={false} />
+           <StatCard title="Total Time" value={formatDurationWithSeconds(totalSeconds)} icon={Clock} isCurrency={false} />
+           <StatCard title="Work Time" value={formatDurationWithSeconds(workSeconds)} icon={Clock} isCurrency={false} />
+           <StatCard title="Break Time" value={formatDurationWithSeconds(totalBreakSeconds)} icon={Coffee} isCurrency={false} />
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
             {timeRecord.status === 'clocked-in' && <StartBreakButton />}
