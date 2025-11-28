@@ -85,37 +85,40 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   }, [jobSheetToEdit, form]);
 
 
-  const watchedValues = form.watch();
+  const watchedJobItems = form.watch('jobItems');
   
+  const subTotal = (watchedJobItems || []).reduce((acc, item) => {
+    const price = Number(item?.price) || 0;
+    return acc + price;
+  }, 0);
+
+  const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
+    if (item?.vatApplied) {
+      const price = Number(item?.price) || 0;
+      return acc + (price * 0.2);
+    }
+    return acc;
+  }, 0);
+
+  const totalAmount = subTotal + vatAmount;
+
   useEffect(() => {
-    const items = watchedValues.jobItems || [];
-    const subTotal = items.reduce((acc, item) => {
-        const price = Number(item?.price) || 0;
-        return acc + price;
-    }, 0);
+    const currentSubTotal = form.getValues('subTotal') || 0;
+    const currentVatAmount = form.getValues('vatAmount') || 0;
+    const currentTotalAmount = form.getValues('totalAmount') || 0;
 
-    const vatAmount = items.reduce((acc, item) => {
-        if (item?.vatApplied) {
-            const price = Number(item?.price) || 0;
-            return acc + (price * 0.2);
-        }
-        return acc;
-    }, 0);
-
-    const totalAmount = subTotal + vatAmount;
-
-    // Use a small tolerance for float comparisons
     const tolerance = 0.001;
-    if (Math.abs((form.getValues('subTotal') || 0) - subTotal) > tolerance) {
-        form.setValue('subTotal', subTotal, { shouldValidate: true });
+
+    if (Math.abs(currentSubTotal - subTotal) > tolerance) {
+      form.setValue('subTotal', subTotal, { shouldValidate: true });
     }
-    if (Math.abs((form.getValues('vatAmount') || 0) - vatAmount) > tolerance) {
-        form.setValue('vatAmount', vatAmount, { shouldValidate: true });
+    if (Math.abs(currentVatAmount - vatAmount) > tolerance) {
+      form.setValue('vatAmount', vatAmount, { shouldValidate: true });
     }
-    if (Math.abs((form.getValues('totalAmount') || 0) - totalAmount) > tolerance) {
-        form.setValue('totalAmount', totalAmount, { shouldValidate: true });
+    if (Math.abs(currentTotalAmount - totalAmount) > tolerance) {
+      form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
-  }, [watchedValues.jobItems, form]);
+  }, [subTotal, vatAmount, totalAmount, form]);
 
 
   const onSubmit = (data: FormValues) => {
@@ -257,15 +260,15 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center rounded-lg border p-4">
                     <div className="space-y-2">
                         <Label>Sub-Total</Label>
-                        <Input value={`£${(form.getValues('subTotal') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                        <Input value={`£${subTotal.toFixed(2)}`} readOnly className="font-bold bg-muted" />
                     </div>
                     <div className="space-y-2">
                         <Label>VAT Amount</Label>
-                        <Input value={`£${(form.getValues('vatAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                        <Input value={`£${vatAmount.toFixed(2)}`} readOnly className="font-bold bg-muted" />
                     </div>
                     <div className="space-y-2">
                         <Label>Total Amount</Label>
-                        <Input value={`£${(form.getValues('totalAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-primary text-primary-foreground" />
+                        <Input value={`£${totalAmount.toFixed(2)}`} readOnly className="font-bold bg-primary text-primary-foreground" />
                     </div>
                 </div>
                  {/* Automation IDs */}
