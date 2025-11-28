@@ -21,7 +21,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { Transaction, PaymentMethod, JobSheet } from '@/lib/types';
+import type { Transaction, PaymentMethod, JobSheet, PaymentStatus } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { startOfDay, endOfDay } from 'date-fns';
@@ -42,33 +42,36 @@ async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude
     const jobSheetSnapshot = await getDocs(jobSheetQuery);
 
     if (jobSheetSnapshot.empty) {
-        return; // Job sheet not found
+        console.warn(`Job sheet with JID ${jobId} not found. Cannot update payment status.`);
+        return; 
     }
     
     const jobSheetRef = jobSheetSnapshot.docs[0].ref;
     const jobSheetData = jobSheetSnapshot.docs[0].data() as JobSheet;
 
-    // 2. Find all transactions for that JID
     const transactionsQuery = query(collection(db, 'transactions'), where('jid', '==', jobId));
     const transactionsSnapshot = await getDocs(transactionsQuery);
     
     let totalPaid = 0;
     transactionsSnapshot.docs.forEach(doc => {
-        // This is to handle the case where we are deleting a transaction
         if (doc.id !== transactionIdToExclude) {
             totalPaid += (doc.data().paidAmount || 0);
         }
     });
 
-    // 3. Calculate new paid and due amounts
     const newDueAmount = jobSheetData.totalAmount - totalPaid;
-    const newStatus = newDueAmount <= 0 ? 'Paid' : jobSheetData.status === 'Paid' ? 'Hold' : jobSheetData.status;
+    
+    let newPaymentStatus: PaymentStatus = 'Unpaid';
+    if (newDueAmount <= 0) {
+        newPaymentStatus = 'Paid';
+    } else if (totalPaid > 0 && newDueAmount > 0) {
+        newPaymentStatus = 'Partially Paid';
+    }
 
-    // 4. Update the job sheet
     await updateDoc(jobSheetRef, {
         paidAmount: totalPaid,
         dueAmount: newDueAmount,
-        status: newStatus
+        paymentStatus: newPaymentStatus,
     });
 }
 
@@ -92,7 +95,6 @@ export async function addTransaction(
     
     const newTransactionId = await runTransaction(db, async (transaction) => {
       const counterDoc = await transaction.get(counterRef);
-      // Initialize counter if it doesn't exist
       const currentCount = counterDoc.exists() ? counterDoc.data()?.count : 0;
       const newCount = (currentCount || 0) + 1;
       transaction.set(counterRef, { count: newCount }, { merge: true });
@@ -104,12 +106,11 @@ export async function addTransaction(
       transactionId: newTransactionId,
       date: Timestamp.fromDate(validatedData.data.date),
       createdAt: serverTimestamp(),
-      adminChecked: false, // Ensure this is false on creation
+      adminChecked: false,
       checkedBy: null,
       jid: validatedData.data.jid || null,
     });
     
-    // Update JobSheet payment status
     if (data.jid) {
         await updateJobSheetPaymentStatus(data.jid);
     }
@@ -127,13 +128,11 @@ export async function addTransaction(
       };
     }
 
-
     revalidatePath(`/non-invoicing`);
     revalidatePath('/dashboard');
     revalidatePath('/reporting');
     revalidatePath('/admin');
     revalidatePath('/job-sheet');
-
 
     return { 
       success: true, 
@@ -172,14 +171,12 @@ export async function updateTransaction(
         jid: validatedData.data.jid || null,
     });
     
-    // If the JID was changed, we need to update both old and new job sheets
     if (originalTransaction.jid && originalTransaction.jid !== data.jid) {
         await updateJobSheetPaymentStatus(originalTransaction.jid, id);
     }
     if (data.jid) {
         await updateJobSheetPaymentStatus(data.jid);
     }
-
 
     const updatedDocSnap = await getDoc(transactionRef);
     const updatedData = updatedDocSnap.data();
@@ -193,7 +190,6 @@ export async function updateTransaction(
             createdAt: (updatedData.createdAt as Timestamp)?.toDate() || new Date(), 
         };
     }
-
 
     revalidatePath('/non-invoicing');
     revalidatePath('/dashboard');
@@ -257,7 +253,6 @@ export async function getDashboardStats() {
     const allTransactions = allTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
     const dailyTransactions = dailyTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
 
-    // Calculate daily stats
     const dailyCash = dailyTransactions
       .filter(t => t.paymentMethod === 'Cash')
       .reduce((sum, t) => sum + t.totalAmount, 0);
@@ -268,7 +263,6 @@ export async function getDashboardStats() {
       .filter(t => t.paymentMethod === 'Card Payment')
       .reduce((sum, t) => sum + t.totalAmount, 0);
 
-    // Calculate all-time stats
     const totalInputs = allTransactions.length;
     const cashAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Cash')
@@ -335,7 +329,7 @@ export async function markTransactionAsChecked(id: string) {
     const transactionRef = doc(db, 'transactions', id);
     await updateDoc(transactionRef, {
       adminChecked: true,
-      checkedBy: 'admin', // Using a placeholder
+      checkedBy: 'admin',
     });
     revalidatePath('/admin');
     revalidatePath('/reporting');
@@ -384,8 +378,6 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    // We always query and sort by the same field to use Firestore's built-in indexes.
-    // All filtering will happen in-memory after the fetch.
     const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(1000));
     const querySnapshot = await getDocs(q);
 
@@ -399,12 +391,10 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    // 1. Filter by Payment Method if provided
     if (paymentMethod) {
       transactions = transactions.filter(t => t.paymentMethod === paymentMethod);
     }
     
-    // 2. Filter by search term if provided
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
       transactions = transactions.filter((t) => {

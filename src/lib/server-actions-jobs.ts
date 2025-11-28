@@ -67,6 +67,7 @@ export async function addJobSheet(
       createdAt: serverTimestamp(),
       paidAmount: 0,
       dueAmount: validatedData.data.totalAmount,
+      paymentStatus: 'Unpaid',
     };
      if (validatedData.data.tid) {
       dataToSave.tid = validatedData.data.tid;
@@ -257,7 +258,8 @@ export async function exportAllJobSheets(): Promise<any[]> {
                 'Total Amount': data.totalAmount.toFixed(2),
                 'Paid Amount': data.paidAmount.toFixed(2),
                 'Due Amount': data.dueAmount.toFixed(2),
-                'Status': data.status,
+                'Job Status': data.status,
+                'Payment Status': data.paymentStatus,
                 'Special Note': data.specialNote,
                 'IR Number': data.irNumber,
                 'Delivery By': deliveryBy ? format(deliveryBy, 'yyyy-MM-dd') : 'N/A',

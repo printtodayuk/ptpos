@@ -189,8 +189,13 @@
         },
         "status": {
           "type": "string",
-          "enum": ["Hold", "Studio", "Production", "Cancel", "Paid"],
+          "enum": ["Hold", "Studio", "Production", "Cancel", "Ready Pickup", "DPD", "Delivered", "MGH"],
           "description": "The current status of the job sheet."
+        },
+         "paymentStatus": {
+          "type": "string",
+          "enum": ["Unpaid", "Partially Paid", "Paid"],
+          "description": "The current payment status of the job sheet."
         },
         "specialNote": {
           "type": "string",
@@ -216,7 +221,7 @@
         }
       },
       "required": [
-        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "paidAmount", "dueAmount", "status", "type"
+        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "paidAmount", "dueAmount", "status", "paymentStatus", "type"
       ]
     }
   },

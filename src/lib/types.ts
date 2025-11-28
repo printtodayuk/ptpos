@@ -33,10 +33,12 @@ export type Transaction = Omit<z.infer<typeof TransactionSchema>, 'date'> & {
 };
 
 
-export const jobSheetStatus = ['Hold', 'Studio', 'Production', 'Cancel', 'Ready Pickup', 'DPD', 'Delivered', 'MGH', 'Paid'] as const;
+export const jobSheetStatus = ['Hold', 'Studio', 'Production', 'Cancel', 'Ready Pickup', 'DPD', 'Delivered', 'MGH'] as const;
 export type JobSheetStatus = (typeof jobSheetStatus)[number];
 export const jobSheetTypes = ['Invoice', 'Quotation', 'N/A', 'STR', 'AIR'] as const;
 export type JobSheetType = (typeof jobSheetTypes)[number];
+export const paymentStatuses = ['Unpaid', 'Partially Paid', 'Paid'] as const;
+export type PaymentStatus = (typeof paymentStatuses)[number];
 
 const JobItemSchema = z.object({
   description: z.string().min(1, 'Description is required.'),
@@ -60,8 +62,9 @@ export const JobSheetSchema = z.object({
   paidAmount: z.number().default(0),
   dueAmount: z.number().default(0),
   status: z.enum(jobSheetStatus),
+  paymentStatus: z.enum(paymentStatuses).default('Unpaid'),
   specialNote: z.string().optional().nullable(),
-irNumber: z.string().optional().nullable(),
+  irNumber: z.string().optional().nullable(),
   deliveryBy: z.date().optional().nullable(),
   type: z.enum(jobSheetTypes).default('Invoice'),
   createdAt: z.any().optional(),

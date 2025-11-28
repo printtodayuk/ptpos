@@ -7,7 +7,7 @@ import { MoreHorizontal, Eye, Edit, Trash2, CreditCard } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import type { JobSheet, JobSheetStatus } from '@/lib/types';
+import type { JobSheet, JobSheetStatus, PaymentStatus } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -52,10 +52,21 @@ export function JobSheetsTable({
          return 'bg-yellow-500 hover:bg-yellow-500/80 text-black';
       case 'Delivered':
         return 'bg-green-600 hover:bg-green-600/80 text-white';
-      case 'Paid':
-        return 'bg-green-700 hover:bg-green-700/80 text-white';
       case 'MGH':
         return 'bg-pink-500 hover:bg-pink-500/80 text-white';
+      default:
+        return 'bg-gray-500 hover:bg-gray-500/80 text-white';
+    }
+  };
+  
+  const getPaymentStatusClass = (status?: PaymentStatus): string => {
+    switch (status) {
+      case 'Paid':
+        return 'bg-green-700 hover:bg-green-700/80 text-white';
+      case 'Partially Paid':
+        return 'bg-yellow-500 hover:bg-yellow-500/80 text-black';
+      case 'Unpaid':
+        return 'bg-red-500 hover:bg-red-500/80 text-white';
       default:
         return 'bg-gray-500 hover:bg-gray-500/80 text-white';
     }
@@ -70,11 +81,10 @@ export function JobSheetsTable({
             <TableHead>Job ID</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Client</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="hidden md:table-cell">IR Number</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
             <TableHead className="text-right">Total</TableHead>
-            <TableHead className="text-center">Status</TableHead>
+            <TableHead className="text-center">Job Status</TableHead>
+            <TableHead className="text-center">Payment Status</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
             </TableHead>
@@ -90,10 +100,6 @@ export function JobSheetsTable({
                 {format(new Date(js.date), 'dd/MM/yy')}
               </TableCell>
               <TableCell>{js.clientName}</TableCell>
-              <TableCell>
-                  <Badge variant={js.type === 'Invoice' ? 'default' : 'secondary'}>{js.type}</Badge>
-              </TableCell>
-              <TableCell className="hidden md:table-cell">{js.irNumber}</TableCell>
               <TableCell className="hidden md:table-cell">{js.operator}</TableCell>
               <TableCell className="text-right">
                 £{js.totalAmount.toFixed(2)}
@@ -103,6 +109,13 @@ export function JobSheetsTable({
                     className={cn('border-transparent', getStatusClass(js.status))}
                   >
                     {js.status}
+                </Badge>
+              </TableCell>
+               <TableCell className="text-center">
+                 <Badge 
+                    className={cn('border-transparent', getPaymentStatusClass(js.paymentStatus))}
+                  >
+                    {js.paymentStatus || 'Unpaid'}
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
@@ -117,7 +130,7 @@ export function JobSheetsTable({
                     <DropdownMenuItem onSelect={() => onView(js)}>
                       <Eye className="mr-2 h-4 w-4" /> View Details
                     </DropdownMenuItem>
-                     <DropdownMenuItem onSelect={() => onPay(js)} disabled={js.status === 'Paid'}>
+                     <DropdownMenuItem onSelect={() => onPay(js)} disabled={js.paymentStatus === 'Paid'}>
                       <CreditCard className="mr-2 h-4 w-4" /> Pay Now
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
