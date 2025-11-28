@@ -2,11 +2,11 @@
 'use client';
 
 import { format } from 'date-fns';
-import { MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, CreditCard } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import type { JobSheet, JobSheetStatus } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ type JobSheetsTableProps = {
   onView: (jobSheet: JobSheet) => void;
   onEdit: (jobSheet: JobSheet) => void;
   onDelete: (jobSheet: JobSheet) => void;
+  onPay: (jobSheet: JobSheet) => void;
 };
 
 export function JobSheetsTable({ 
@@ -24,6 +25,7 @@ export function JobSheetsTable({
   onView,
   onEdit,
   onDelete,
+  onPay
 }: JobSheetsTableProps) {
 
   if (jobSheets.length === 0) {
@@ -113,6 +115,10 @@ export function JobSheetsTable({
                     <DropdownMenuItem onSelect={() => onView(js)}>
                       <Eye className="mr-2 h-4 w-4" /> View Details
                     </DropdownMenuItem>
+                     <DropdownMenuItem onSelect={() => onPay(js)}>
+                      <CreditCard className="mr-2 h-4 w-4" /> Pay Now
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => onEdit(js)}>
                       <Edit className="mr-2 h-4 w-4" /> Edit
                     </DropdownMenuItem>

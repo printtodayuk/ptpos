@@ -45,6 +45,7 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   irNumber: '',
   deliveryBy: undefined,
   type: 'Invoice',
+  tid: '',
 });
 
 export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormProps) {
@@ -76,15 +77,16 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
             irNumber: jobSheetToEdit.irNumber || '',
             specialNote: jobSheetToEdit.specialNote || '',
             clientDetails: jobSheetToEdit.clientDetails || '',
+            tid: jobSheetToEdit.tid || '',
         });
     } else {
         form.reset(getFreshDefaultValues(lastOperator));
     }
-  }, [jobSheetToEdit, form, lastOperator]);
+  }, [jobSheetToEdit, form]);
 
 
   const watchedValues = form.watch();
-
+  
   useEffect(() => {
     const items = watchedValues.jobItems || [];
     const subTotal = items.reduce((acc, item) => {
@@ -104,13 +106,13 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
     // Use a small tolerance for float comparisons
     const tolerance = 0.001;
-    if (Math.abs(form.getValues('subTotal') - subTotal) > tolerance) {
+    if (Math.abs((form.getValues('subTotal') || 0) - subTotal) > tolerance) {
         form.setValue('subTotal', subTotal, { shouldValidate: true });
     }
-    if (Math.abs(form.getValues('vatAmount') - vatAmount) > tolerance) {
+    if (Math.abs((form.getValues('vatAmount') || 0) - vatAmount) > tolerance) {
         form.setValue('vatAmount', vatAmount, { shouldValidate: true });
     }
-    if (Math.abs(form.getValues('totalAmount') - totalAmount) > tolerance) {
+    if (Math.abs((form.getValues('totalAmount') || 0) - totalAmount) > tolerance) {
         form.setValue('totalAmount', totalAmount, { shouldValidate: true });
     }
   }, [watchedValues.jobItems, form]);
@@ -118,12 +120,13 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
-      if (data.operator) {
-        setLastOperator(data.operator as Operator);
+      const operator = form.getValues('operator');
+      if (operator) {
+        setLastOperator(operator as Operator);
       }
       
       const result = isEditMode && jobSheetToEdit?.id
-        ? await updateJobSheet(jobSheetToEdit.id, data)
+        ? await updateJobSheet(jobSheetToEdit.id, {...data, operator: operator})
         : await addJobSheet(data);
 
       if (result.success && result.jobSheet) {
@@ -254,17 +257,24 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center rounded-lg border p-4">
                     <div className="space-y-2">
                         <Label>Sub-Total</Label>
-                        <Input value={`£${form.getValues('subTotal').toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                        <Input value={`£${(form.getValues('subTotal') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
                     </div>
                     <div className="space-y-2">
                         <Label>VAT Amount</Label>
-                        <Input value={`£${form.getValues('vatAmount').toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                        <Input value={`£${(form.getValues('vatAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-muted" />
                     </div>
                     <div className="space-y-2">
                         <Label>Total Amount</Label>
-                        <Input value={`£${form.getValues('totalAmount').toFixed(2)}`} readOnly className="font-bold bg-primary text-primary-foreground" />
+                        <Input value={`£${(form.getValues('totalAmount') || 0).toFixed(2)}`} readOnly className="font-bold bg-primary text-primary-foreground" />
                     </div>
                 </div>
+                 {/* Automation IDs */}
+                 <div className="space-y-2 md:col-span-4">
+                    <Label htmlFor="tid">Transaction ID (Optional)</Label>
+                    <Input id="tid" {...form.register('tid')} placeholder="e.g. TID0001" />
+                    <p className="text-xs text-muted-foreground">Link an existing transaction to this job sheet.</p>
+                </div>
+
 
                 {/* Row 5: Status, IR Number, etc */}
                 <div className="space-y-2">

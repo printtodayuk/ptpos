@@ -15,13 +15,17 @@ import {
   doc,
   runTransaction,
   deleteDoc,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { JobSheet } from '@/lib/types';
-import { JobSheetSchema } from '@/lib/types';
+import type { JobSheet, Transaction } from '@/lib/types';
+import { JobSheetSchema, TransactionSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
+import { addTransaction } from './server-actions';
+
 
 const CreateJobSheetSchema = JobSheetSchema.omit({
   id: true,
@@ -29,7 +33,9 @@ const CreateJobSheetSchema = JobSheetSchema.omit({
   createdAt: true,
 });
 
-const UpdateJobSheetSchema = CreateJobSheetSchema;
+const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
+    tid: z.string().optional().nullable(),
+});
 
 export async function addJobSheet(
   data: z.infer<typeof CreateJobSheetSchema>
@@ -59,12 +65,22 @@ export async function addJobSheet(
       jobId: newJobId,
       date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
+      tid: validatedData.data.tid || null,
     };
 
     if (validatedData.data.deliveryBy) {
       dataToSave.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
     } else {
       dataToSave.deliveryBy = null;
+    }
+
+    if (data.tid) {
+      const q = query(collection(db, 'transactions'), where('transactionId', '==', data.tid));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+          const txDoc = querySnapshot.docs[0];
+          await updateDoc(txDoc.ref, { jid: newJobId });
+      }
     }
     
     const docRef = await addDoc(collection(db, 'jobSheets'), dataToSave);
@@ -104,16 +120,30 @@ export async function updateJobSheet(
   
   try {
     const jobSheetRef = doc(db, 'jobSheets', id);
+    const originalJobSheetSnap = await getDoc(jobSheetRef);
+    const originalJobSheet = originalJobSheetSnap.data() as JobSheet;
+
     const dataToUpdate: any = {
         ...validatedData.data,
         date: Timestamp.fromDate(validatedData.data.date as Date),
         operator: data.operator, // Make sure operator is updated
+        tid: validatedData.data.tid || null,
     };
 
     if (validatedData.data.deliveryBy) {
         dataToUpdate.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
     } else {
         dataToUpdate.deliveryBy = null;
+    }
+    
+    // If TID is being added or changed
+    if (data.tid && data.tid !== originalJobSheet.tid) {
+      const q = query(collection(db, 'transactions'), where('transactionId', '==', data.tid));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const txDoc = querySnapshot.docs[0];
+        await updateDoc(txDoc.ref, { jid: originalJobSheet.jobId });
+      }
     }
     
     await updateDoc(jobSheetRef, dataToUpdate);
@@ -226,4 +256,44 @@ export async function exportAllJobSheets(): Promise<any[]> {
         console.error('Error exporting job sheets:', e);
         return [];
     }
+}
+
+const CreateTransactionFromJSSchema = TransactionSchema.omit({
+  id: true,
+  transactionId: true,
+  createdAt: true,
+  type: true,
+  invoiceNumber: true,
+  adminChecked: true,
+  checkedBy: true,
+  amount: true,
+  vatApplied: true,
+});
+
+export async function addTransactionFromJobSheet(jobSheet: JobSheet, data: z.infer<typeof CreateTransactionFromJSSchema>) {
+    const validatedData = CreateTransactionFromJSSchema.safeParse(data);
+    if (!validatedData.success) {
+        return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
+    }
+
+    const transactionData = {
+        ...validatedData.data,
+        type: 'non-invoicing' as const, // Always PT Till
+        amount: jobSheet.subTotal,
+        vatApplied: jobSheet.vatAmount > 0,
+    };
+
+    const result = await addTransaction(transactionData);
+
+    if (result.success && result.transaction) {
+        const jobSheetRef = doc(db, 'jobSheets', jobSheet.id!);
+        await updateDoc(jobSheetRef, { tid: result.transaction.transactionId });
+
+        revalidatePath('/job-sheet');
+        revalidatePath('/js-report');
+
+        return { success: true, transaction: result.transaction };
+    }
+
+    return { success: false, message: result.message || 'Failed to create transaction.' };
 }

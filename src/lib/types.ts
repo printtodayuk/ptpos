@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK'] as const;
 export type Operator = (typeof operators)[number];
 
-export const paymentMethods = ['Bank Transfer', 'Card Payment', 'Cash'] as const;
+export const paymentMethods = ['Bank Transfer', 'Card Payment', 'Cash', 'ST Bank Transfer', 'AIR Bank Transfer'] as const;
 export type PaymentMethod = typeof paymentMethods[number];
 
 export const TransactionSchema = z.object({
@@ -14,6 +14,7 @@ export const TransactionSchema = z.object({
   date: z.union([z.date(), z.string()]),
   clientName: z.string().min(1, 'Client name is required'),
   jobDescription: z.string().optional().nullable(),
+  jid: z.string().optional().nullable(), // Job ID
   amount: z.coerce.number().positive('Amount must be positive'),
   vatApplied: z.boolean(),
   totalAmount: z.number(),
@@ -47,6 +48,7 @@ const JobItemSchema = z.object({
 export const JobSheetSchema = z.object({
   id: z.string().optional(),
   jobId: z.string(),
+  tid: z.string().optional().nullable(),
   date: z.union([z.date(), z.string()]),
   operator: z.enum(operators),
   clientName: z.string().min(1, 'Client name is required.'),

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useTransition, useEffect, useCallback } from 'react';
-import { searchJobSheets, deleteJobSheet } from '@/lib/server-actions-jobs';
+import { searchJobSheets, deleteJobSheet, addTransactionFromJobSheet } from '@/lib/server-actions-jobs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Loader2, Search } from 'lucide-react';
@@ -12,6 +12,10 @@ import { JobSheetViewDialog } from './job-sheet-view-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { PaymentDialog } from './payment-dialog';
+import { ReceiptDialog } from '../transactions/receipt-dialog';
+import type { Transaction } from '@/lib/types';
+
 
 type SearchJobSheetsProps = {
   onJobSheetUpdated: () => void;
@@ -23,9 +27,11 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
   const [isSearching, startSearchTransition] = useTransition();
   const [jobSheetToEdit, setJobSheetToEdit] = useState<JobSheet | null>(null);
   const [jobSheetToView, setJobSheetToView] = useState<JobSheet | null>(null);
+  const [jobSheetToPay, setJobSheetToPay] = useState<JobSheet | null>(null);
   const [jobSheetToDelete, setJobSheetToDelete] = useState<JobSheet | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -48,6 +54,10 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
   
   const handleView = (jobSheet: JobSheet) => {
     setJobSheetToView(jobSheet);
+  };
+  
+  const handlePay = (jobSheet: JobSheet) => {
+    setJobSheetToPay(jobSheet);
   };
 
   const handleDeleteRequest = (jobSheet: JobSheet) => {
@@ -75,6 +85,13 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
     performSearch(debouncedSearchTerm);
   };
 
+  const handlePaymentSuccess = (transaction: Transaction) => {
+    setJobSheetToPay(null);
+    setLastTransaction(transaction);
+    toast({ title: 'Success', description: `Payment recorded. Transaction ID: ${transaction.transactionId}` });
+    performSearch(debouncedSearchTerm);
+  }
+
   return (
     <>
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -95,6 +112,19 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
         jobSheet={jobSheetToView}
         isOpen={!!jobSheetToView}
         onClose={() => setJobSheetToView(null)}
+      />
+
+      <PaymentDialog
+        jobSheet={jobSheetToPay}
+        isOpen={!!jobSheetToPay}
+        onClose={() => setJobSheetToPay(null)}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+      
+      <ReceiptDialog
+        transaction={lastTransaction}
+        isOpen={!!lastTransaction}
+        onClose={() => setLastTransaction(null)}
       />
 
        <AlertDialog open={!!jobSheetToDelete} onOpenChange={() => setJobSheetToDelete(null)}>
@@ -144,6 +174,7 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
               onEdit={handleEdit}
               onView={handleView}
               onDelete={handleDeleteRequest}
+              onPay={handlePay}
             />
           )}
         </CardContent>

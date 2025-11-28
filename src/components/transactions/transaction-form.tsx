@@ -48,6 +48,7 @@ const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing'): Partial<For
     date: new Date(),
     clientName: '',
     jobDescription: '',
+    jid: '',
     amount: 0,
     vatApplied: false,
     totalAmount: 0,
@@ -81,6 +82,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
       const valuesToReset = {
         ...transactionToEdit,
         date: new Date(transactionToEdit.date),
+        jid: transactionToEdit.jid || '',
       };
       form.reset(valuesToReset);
     } else {
@@ -222,6 +224,11 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               <Input id="clientName" {...form.register('clientName')} />
               {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
+
+            <div className="space-y-2 lg:col-span-1">
+                <Label htmlFor="jid">Job ID (Optional)</Label>
+                <Input id="jid" {...form.register('jid')} placeholder="e.g. JID0001" />
+            </div>
             
             {type === 'invoicing' && (
               <div className="space-y-2 col-span-1 md:col-span-1 lg:col-span-1">
@@ -230,7 +237,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
               </div>
             )}
 
-            <div className={cn("space-y-2", type === 'invoicing' ? 'col-span-1 md:col-span-2 lg:col-span-3' : 'col-span-1 md:col-span-2 lg:col-span-4')}>
+            <div className={cn("space-y-2", type === 'invoicing' ? 'col-span-1 md:col-span-2 lg:col-span-2' : 'col-span-1 md:col-span-2 lg:col-span-3')}>
               <Label htmlFor="jobDescription">Job Description (Optional)</Label>
               <Textarea id="jobDescription" {...form.register('jobDescription')} />
             </div>

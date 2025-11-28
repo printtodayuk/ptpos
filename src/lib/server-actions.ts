@@ -71,7 +71,17 @@ export async function addTransaction(
       createdAt: serverTimestamp(),
       adminChecked: false, // Ensure this is false on creation
       checkedBy: null,
+      jid: validatedData.data.jid || null,
     });
+    
+    if (data.jid) {
+        const q = query(collection(db, 'jobSheets'), where('jobId', '==', data.jid));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const jsDoc = querySnapshot.docs[0];
+            await updateDoc(jsDoc.ref, { tid: newTransactionId });
+        }
+    }
 
     const newDocSnap = await getDoc(docRef);
     const newDocData = newDocSnap.data();
@@ -91,6 +101,8 @@ export async function addTransaction(
     revalidatePath('/dashboard');
     revalidatePath('/reporting');
     revalidatePath('/admin');
+    revalidatePath('/job-sheet');
+
 
     return { 
       success: true, 
@@ -120,10 +132,23 @@ export async function updateTransaction(
   
   try {
     const transactionRef = doc(db, 'transactions', id);
+    const originalTransactionSnap = await getDoc(transactionRef);
+    const originalTransaction = originalTransactionSnap.data() as Transaction;
+    
     await updateDoc(transactionRef, {
         ...validatedData.data,
         date: Timestamp.fromDate(validatedData.data.date),
+        jid: validatedData.data.jid || null,
     });
+
+    if (data.jid && data.jid !== originalTransaction.jid) {
+        const q = query(collection(db, 'jobSheets'), where('jobId', '==', data.jid));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const jsDoc = querySnapshot.docs[0];
+            await updateDoc(jsDoc.ref, { tid: originalTransaction.transactionId });
+        }
+    }
 
     const updatedDocSnap = await getDoc(transactionRef);
     const updatedData = updatedDocSnap.data();
@@ -143,6 +168,7 @@ export async function updateTransaction(
     revalidatePath('/dashboard');
     revalidatePath('/reporting');
     revalidatePath('/admin');
+    revalidatePath('/job-sheet');
 
     return { success: true, message: 'Transaction updated successfully.', transaction };
   } catch (error) {
@@ -205,7 +231,7 @@ export async function getDashboardStats() {
       .filter(t => t.paymentMethod === 'Cash')
       .reduce((sum, t) => sum + t.totalAmount, 0);
     const dailyBank = dailyTransactions
-      .filter(t => t.paymentMethod === 'Bank Transfer')
+      .filter(t => t.paymentMethod === 'Bank Transfer' || t.paymentMethod === 'ST Bank Transfer' || t.paymentMethod === 'AIR Bank Transfer')
       .reduce((sum, t) => sum + t.totalAmount, 0);
     const dailyCard = dailyTransactions
       .filter(t => t.paymentMethod === 'Card Payment')
@@ -217,7 +243,7 @@ export async function getDashboardStats() {
       .filter((t) => t.paymentMethod === 'Cash')
       .reduce((sum, t) => sum + t.totalAmount, 0);
     const bankAmount = allTransactions
-      .filter((t) => t.paymentMethod === 'Bank Transfer')
+      .filter((t) => t.paymentMethod === 'Bank Transfer' || t.paymentMethod === 'ST Bank Transfer' || t.paymentMethod === 'AIR Bank Transfer')
       .reduce((sum, t) => sum + t.totalAmount, 0);
     const cardAmount = allTransactions
       .filter((t) => t.paymentMethod === 'Card Payment')
@@ -354,7 +380,8 @@ export async function searchTransactions(
         const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
         const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
         const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-        return tidMatch || clientMatch || jobMatch;
+        const jidMatch = t.jid?.toLowerCase().includes(lowercasedTerm);
+        return tidMatch || clientMatch || jobMatch || jidMatch;
       });
     }
 
