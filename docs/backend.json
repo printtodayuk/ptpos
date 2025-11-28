@@ -199,7 +199,7 @@
         },
         "type": {
             "type": "string",
-            "enum": ["Invoice", "Quotation"],
+            "enum": ["Invoice", "Quotation", "N/A", "STR", "AIR"],
             "description": "The type of the job sheet."
         },
         "createdAt": {
