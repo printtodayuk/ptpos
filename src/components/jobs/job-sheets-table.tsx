@@ -7,7 +7,7 @@ import { MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import type { JobSheet } from '@/lib/types';
+import type { JobSheet, JobSheetStatus } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -34,15 +34,29 @@ export function JobSheetsTable({
     );
   }
 
-  const getStatusVariant = (status: JobSheet['status']) => {
-    switch(status) {
-        case 'Hold': return 'secondary';
-        case 'Studio': return 'default';
-        case 'Production': return 'outline';
-        case 'Cancel': return 'destructive';
-        default: return 'outline';
+  const getStatusClass = (status: JobSheetStatus): string => {
+    switch (status) {
+      case 'Hold':
+        return 'bg-red-500 hover:bg-red-500/80 text-white';
+      case 'Studio':
+        return 'bg-blue-500 hover:bg-blue-500/80 text-white';
+      case 'Production':
+        return 'bg-orange-500 hover:bg-orange-500/80 text-white';
+      case 'Cancel':
+        return 'bg-destructive hover:bg-destructive/80 text-destructive-foreground';
+      case 'Ready Pickup':
+        return 'bg-purple-500 hover:bg-purple-500/80 text-white';
+      case 'DPD':
+         return 'bg-yellow-500 hover:bg-yellow-500/80 text-black';
+      case 'Delivered':
+        return 'bg-green-600 hover:bg-green-600/80 text-white';
+      case 'MGH':
+        return 'bg-pink-500 hover:bg-pink-500/80 text-white';
+      default:
+        return 'bg-gray-500 hover:bg-gray-500/80 text-white';
     }
-  }
+  };
+
 
   return (
     <div className="rounded-lg border-t">
@@ -82,8 +96,7 @@ export function JobSheetsTable({
               </TableCell>
               <TableCell className="text-center">
                  <Badge 
-                    variant={getStatusVariant(js.status)}
-                    className={cn(js.status === 'Studio' && 'bg-blue-500 text-white', js.status === 'Production' && 'bg-orange-500 text-white')}
+                    className={cn('border-transparent', getStatusClass(js.status))}
                   >
                     {js.status}
                 </Badge>
