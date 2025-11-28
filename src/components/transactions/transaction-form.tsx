@@ -37,7 +37,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
-  onTransactionAdded?: () => void;
+  onTransactionAdded?: (transaction: Transaction) => void;
   transactionToEdit?: Transaction | null;
 };
 
@@ -82,7 +82,6 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const [isPending, startTransition] = useTransition();
   const [isFetchingJob, startFetchingJobTransition] = useTransition();
   const { toast } = useToast();
-  const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
   const [jobSheetDueAmount, setJobSheetDueAmount] = useState<number | null>(null);
 
@@ -97,7 +96,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const debouncedJid = useDebounce(jidValue, 500);
 
   useEffect(() => {
-    if (debouncedJid) {
+    if (debouncedJid && !isEditMode) {
       startFetchingJobTransition(async () => {
         const jobSheet = await getJobSheetByJobId(`JID${debouncedJid}`);
         if (jobSheet) {
@@ -117,10 +116,10 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             setJobSheetDueAmount(null);
         }
       });
-    } else {
+    } else if (!debouncedJid) {
         setJobSheetDueAmount(null);
     }
-  }, [debouncedJid, form]);
+  }, [debouncedJid, form, isEditMode]);
 
   useEffect(() => {
     if (transactionToEdit) {
@@ -130,7 +129,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
         ...transactionToEdit,
         date: new Date(transactionToEdit.date),
         jid: transactionToEdit.jid?.replace('JID', '') || '',
-        paidAmount: due, // On edit, default to paying the rest
+        paidAmount: due > 0 ? due : 0, // On edit, default to paying the rest
       };
       form.reset(valuesToReset);
     } else {
@@ -153,6 +152,9 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     } else {
         due = total - paid;
     }
+    
+    // Ensure due is not negative
+    due = Math.max(0, due);
 
     if (form.getValues('totalAmount') !== total) {
       form.setValue('totalAmount', total);
@@ -185,10 +187,17 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
         if (isEditMode) {
             toast({ title: "Success", description: "Transaction updated successfully." });
         } else {
-            setLastTransaction(result.transaction);
+            toast({ title: "Success", description: `Transaction ${result.transaction.transactionId} created.` });
         }
-        form.reset(getFreshDefaultValues(type, lastOperator));
-        onTransactionAdded?.();
+        
+        if (onTransactionAdded) {
+          onTransactionAdded(result.transaction);
+        }
+
+        if (!isEditMode) {
+          form.reset(getFreshDefaultValues(type, lastOperator));
+        }
+
       } else {
         toast({
           variant: 'destructive',
@@ -200,20 +209,18 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   };
 
   const cancelEdit = () => {
-    onTransactionAdded?.(); 
+    if (onTransactionAdded) {
+      // A bit of a misnomer, but this will trigger the dialog to close
+      onTransactionAdded({} as Transaction);
+    }
   }
   
   const formTitle = type === 'non-invoicing' ? 'PT Till' : 'Xero Transaction';
   const Wrapper = isEditMode ? 'div' : Card;
-  const isLockedByJid = !!jidValue;
+  const isLockedByJid = !!jidValue && !isEditMode;
 
   return (
     <>
-      <ReceiptDialog 
-        transaction={lastTransaction}
-        isOpen={!!lastTransaction && !isEditMode}
-        onClose={() => setLastTransaction(null)}
-      />
       <Wrapper className={!isEditMode ? 'w-full' : ''}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           {!isEditMode && (
