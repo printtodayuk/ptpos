@@ -20,7 +20,7 @@ import { z } from 'zod';
 import { differenceInMinutes } from 'date-fns';
 
 import type { TimeRecord, Operator } from '@/lib/types';
-import { TimeRecordSchema } from '@/lib/types';
+import { TimeRecordSchema, UpdateTimeRecordSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 
 function getCurrentDateString() {
@@ -85,6 +85,7 @@ export async function handleClockIn(operator: Operator) {
   try {
     await addDoc(collection(db, 'timeRecords'), newRecord);
     revalidatePath('/attendance');
+    revalidatePath('/admin-time');
     return { success: true, message: 'Clocked in successfully.' };
   } catch (error) {
     return { success: false, message: 'Failed to clock in.' };
@@ -124,6 +125,7 @@ export async function handleClockOut(recordId: string) {
       totalBreakDuration,
     });
     revalidatePath('/attendance');
+    revalidatePath('/admin-time');
     return { success: true, message: 'Clocked out successfully.' };
   } catch (error) {
     return { success: false, message: 'Failed to clock out.' };
@@ -152,6 +154,7 @@ export async function handleStartBreak(recordId: string) {
       breaks: updatedBreaks,
     });
     revalidatePath('/attendance');
+    revalidatePath('/admin-time');
     return { success: true, message: 'Break started.' };
   } catch (error) {
     return { success: false, message: 'Failed to start break.' };
@@ -185,6 +188,7 @@ export async function handleEndBreak(recordId: string) {
       breaks: updatedBreaks,
     });
     revalidatePath('/attendance');
+    revalidatePath('/admin-time');
     return { success: true, message: 'Break ended.' };
   } catch (error) {
     return { success: false, message: 'Failed to end break.' };
@@ -221,4 +225,58 @@ export async function getTimeRecordsForReport({ startDate, endDate }: { startDat
     console.error(e);
     return [];
   }
+}
+
+export async function updateTimeRecord(id: string, data: z.infer<typeof UpdateTimeRecordSchema>) {
+    const validatedData = UpdateTimeRecordSchema.safeParse(data);
+    if (!validatedData.success) {
+        return {
+            success: false,
+            message: 'Validation failed.',
+            errors: validatedData.error.flatten().fieldErrors,
+        };
+    }
+    
+    const recordRef = doc(db, 'timeRecords', id);
+    
+    try {
+        const { clockInTime, clockOutTime, breaks, status } = validatedData.data;
+
+        let totalBreakDuration = 0;
+        const processedBreaks = breaks.map(b => {
+            if (b.startTime && b.endTime) {
+                 totalBreakDuration += differenceInMinutes(b.endTime, b.startTime);
+            }
+            return {
+                startTime: b.startTime ? Timestamp.fromDate(b.startTime) : null,
+                endTime: b.endTime ? Timestamp.fromDate(b.endTime) : null,
+            };
+        }).filter(b => b.startTime);
+
+        let totalWorkDuration = 0;
+        if (clockOutTime) {
+            totalWorkDuration = differenceInMinutes(clockOutTime, clockInTime) - totalBreakDuration;
+        }
+
+        const dataToUpdate = {
+            ...validatedData.data,
+            clockInTime: Timestamp.fromDate(clockInTime),
+            clockOutTime: clockOutTime ? Timestamp.fromDate(clockOutTime) : null,
+            breaks: processedBreaks,
+            totalWorkDuration: Math.max(0, totalWorkDuration),
+            totalBreakDuration: Math.max(0, totalBreakDuration),
+            status: status || (clockOutTime ? 'clocked-out' : 'clocked-in')
+        };
+        
+        await updateDoc(recordRef, dataToUpdate);
+
+        revalidatePath('/admin-time');
+        revalidatePath('/attendance-report');
+
+        return { success: true, message: 'Time record updated successfully.' };
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        return { success: false, message: errorMessage };
+    }
 }

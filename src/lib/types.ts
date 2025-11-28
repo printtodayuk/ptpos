@@ -117,3 +117,13 @@ export type TimeRecord = Omit<z.infer<typeof TimeRecordSchema>, 'clockInTime' | 
     endTime?: Date | null;
   }[];
 };
+
+export const UpdateTimeRecordSchema = z.object({
+    clockInTime: z.date(),
+    clockOutTime: z.date().nullable(),
+    status: z.enum(timeRecordStatus),
+    breaks: z.array(z.object({
+        startTime: z.date(),
+        endTime: z.date().nullable(),
+    })).default([]),
+});

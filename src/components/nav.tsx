@@ -13,6 +13,7 @@ import {
   FileSpreadsheet,
   Clock,
   Briefcase,
+  Users,
 } from 'lucide-react';
 import React from 'react';
 
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/attendance-report', icon: Briefcase, label: 'Time Report'},
   { href: '/reporting', icon: BarChart4, label: 'Reporting' },
   { href: '/admin', icon: UserCheck, label: 'Admin' },
+  { href: '/admin-time', icon: Users, label: 'Admin-Time' },
 ];
 
 export function Nav() {
