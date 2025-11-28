@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -28,24 +29,32 @@ function getCurrentDateString() {
 
 export async function getOperatorStatus(operator: Operator): Promise<TimeRecord | null> {
   const date = getCurrentDateString();
+  
+  // Simplified query to avoid composite index requirement
   const q = query(
     collection(db, 'timeRecords'),
     where('operator', '==', operator),
     where('date', '==', date),
-    where('status', 'in', ['clocked-in', 'on-break']),
-    orderBy('clockInTime', 'desc'),
-    limit(1)
+    orderBy('clockInTime', 'desc')
   );
 
   const querySnapshot = await getDocs(q);
+
   if (querySnapshot.empty) {
     return null;
   }
-  const docSnap = querySnapshot.docs[0];
-  const data = docSnap.data();
+  
+  // Find the currently active record in code
+  const activeRecord = querySnapshot.docs.find(d => ['clocked-in', 'on-break'].includes(d.data().status));
+
+  if (!activeRecord) {
+    return null;
+  }
+
+  const data = activeRecord.data();
   return {
     ...data,
-    id: docSnap.id,
+    id: activeRecord.id,
     clockInTime: (data.clockInTime as Timestamp).toDate(),
     clockOutTime: data.clockOutTime ? (data.clockOutTime as Timestamp).toDate() : null,
     breaks: data.breaks.map((b: any) => ({
