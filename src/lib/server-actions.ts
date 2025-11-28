@@ -340,7 +340,7 @@ export async function markTransactionAsChecked(id: string) {
   }
 }
 
-export async function getReportData({ searchTerm }: { searchTerm?: string }): Promise<Transaction[]> {
+export async function getReportData({ searchTerm, startDate, endDate }: { searchTerm?: string, startDate?: string, endDate?: string }): Promise<Transaction[]> {
   try {
     const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
     const querySnapshot = await getDocs(q);
@@ -354,6 +354,15 @@ export async function getReportData({ searchTerm }: { searchTerm?: string }): Pr
         createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
+
+    if (startDate && endDate) {
+      const start = startOfDay(new Date(startDate));
+      const end = endOfDay(new Date(endDate));
+      transactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= start && transactionDate <= end;
+      });
+    }
 
     if (searchTerm) {
         const lowercasedTerm = searchTerm.toLowerCase();

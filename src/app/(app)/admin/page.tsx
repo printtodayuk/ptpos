@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useCallback, useTransition } from 'react';
@@ -10,7 +11,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { TransactionsTable } from '@/components/transactions/transactions-table';
-import { TransactionForm } from '@/components/transactions/transaction-form';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PinLock } from '@/components/admin/pin-lock';
 
@@ -41,10 +35,8 @@ export default function AdminPage() {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'all'>('all');
   const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
-  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [isBulkActionPending, startBulkActionTransition] = useTransition();
   const [bulkAction, setBulkAction] = useState<'delete' | 'check' | null>(null);
@@ -67,11 +59,6 @@ export default function AdminPage() {
     performSearch();
   }, [debouncedSearchTerm, paymentMethodFilter, performSearch]);
 
-  const handleEdit = (transaction: Transaction) => {
-    setTransactionToEdit(transaction);
-    setIsEditDialogOpen(true);
-  };
-
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
   };
@@ -90,12 +77,6 @@ export default function AdminPage() {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
     setTransactionToDelete(null);
-  };
-
-  const handleUpdate = () => {
-    setIsEditDialogOpen(false);
-    setTransactionToEdit(null);
-    performSearch();
   };
 
   const onTransactionChecked = () => {
@@ -142,21 +123,6 @@ export default function AdminPage() {
 
   return (
     <PinLock>
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Edit Transaction</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <TransactionForm
-              type={transactionToEdit?.type || 'invoicing'}
-              onTransactionAdded={handleUpdate}
-              transactionToEdit={transactionToEdit}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -197,7 +163,7 @@ export default function AdminPage() {
       <div className="flex flex-col gap-6">
         <CardHeader className="p-0">
           <CardTitle>Admin Control Panel</CardTitle>
-          <CardDescription>Search, view, edit, and verify all transactions.</CardDescription>
+          <CardDescription>Search, view, and verify all transactions.</CardDescription>
         </CardHeader>
 
         <Card>
@@ -265,7 +231,6 @@ export default function AdminPage() {
               ) : (
                 <TransactionsTable
                   transactions={results}
-                  onEdit={handleEdit}
                   onDelete={handleDeleteRequest}
                   onTransactionChecked={onTransactionChecked}
                   showAdminControls={true}

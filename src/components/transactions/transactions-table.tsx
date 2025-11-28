@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Printer, CheckCircle, Edit, Trash2, Loader2, Ban } from 'lucide-react';
+import { MoreHorizontal, Printer, CheckCircle, Trash2, Loader2, Ban } from 'lucide-react';
 
 import {
   Table,
@@ -30,7 +31,6 @@ import { ReceiptDialog } from './receipt-dialog';
 
 type TransactionsTableProps = {
   transactions: Transaction[];
-  onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
   onTransactionChecked?: () => void;
   showAdminControls?: boolean;
@@ -40,7 +40,6 @@ type TransactionsTableProps = {
 
 export function TransactionsTable({ 
   transactions, 
-  onEdit, 
   onDelete, 
   onTransactionChecked, 
   showAdminControls = false,
@@ -194,11 +193,6 @@ export function TransactionsTable({
                       <DropdownMenuItem onSelect={() => setTransactionToView(tx)}>
                         <Printer className="mr-2 h-4 w-4" /> View Receipt
                       </DropdownMenuItem>
-                      {onEdit && (
-                        <DropdownMenuItem onSelect={() => onEdit(tx)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                      )}
                       {showAdminControls && (
                         <>
                           <DropdownMenuSeparator />

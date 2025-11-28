@@ -8,13 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Search } from 'lucide-react';
 import type { Transaction } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
-import { TransactionForm } from './transaction-form';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 
 type SearchTransactionsProps = {
   type: 'invoicing' | 'non-invoicing';
@@ -25,8 +18,6 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
-  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -44,17 +35,6 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
     performSearch(debouncedSearchTerm);
   }, [debouncedSearchTerm, performSearch]);
 
-  const handleEdit = (transaction: Transaction) => {
-    setTransactionToEdit(transaction);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleUpdate = () => {
-    setIsEditDialogOpen(false);
-    setTransactionToEdit(null);
-    onTransactionUpdated();
-    performSearch(debouncedSearchTerm);
-  };
 
   const onTransactionChecked = () => {
     performSearch(debouncedSearchTerm);
@@ -62,21 +42,6 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
 
   return (
     <>
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Edit Transaction</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-             <TransactionForm
-                type={type}
-                onTransactionAdded={handleUpdate}
-                transactionToEdit={transactionToEdit}
-              />
-          </div>
-        </DialogContent>
-      </Dialog>
-      
       <Card>
         <CardHeader>
           <CardTitle>Search Transactions</CardTitle>
@@ -102,7 +67,6 @@ export function SearchTransactions({ type, onTransactionUpdated }: SearchTransac
           ) : (
             <TransactionsTable
               transactions={results}
-              onEdit={handleEdit}
               onTransactionChecked={onTransactionChecked}
               showAdminControls={false}
             />

@@ -1,8 +1,10 @@
+
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Download, Loader2, Search } from 'lucide-react';
+import { Download, Loader2, Search, Calendar as CalendarIcon } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +15,8 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TransactionsTable } from '../transactions/transactions-table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 export function ReportClient() {
   const [isPending, startTransition] = useTransition();
@@ -22,10 +26,15 @@ export function ReportClient() {
   const [activeTab, setActiveTab] = useState('invoicing');
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [date, setDate] = useState<DateRange | undefined>();
 
-  const performSearch = useCallback((term: string) => {
+  const performSearch = useCallback((term: string, dateRange?: DateRange) => {
     startTransition(async () => {
-      const data = await getReportData({ searchTerm: term });
+      const data = await getReportData({ 
+        searchTerm: term,
+        startDate: dateRange?.from?.toISOString(),
+        endDate: dateRange?.to?.toISOString(),
+      });
       setInvoicingTransactions(data.filter(t => t.type === 'invoicing'));
       setNonInvoicingTransactions(data.filter(t => t.type === 'non-invoicing'));
       setHasSearched(true);
@@ -33,8 +42,8 @@ export function ReportClient() {
   }, []);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm);
-  }, [debouncedSearchTerm, performSearch]);
+    performSearch(debouncedSearchTerm, date);
+  }, [debouncedSearchTerm, date, performSearch]);
 
   const handleExport = () => {
     const transactionsToExport = activeTab === 'invoicing' ? invoicingTransactions : nonInvoicingTransactions;
@@ -64,7 +73,7 @@ export function ReportClient() {
   const hasData = invoicingTransactions.length > 0 || nonInvoicingTransactions.length > 0;
   
   const onTransactionChecked = () => {
-    performSearch(debouncedSearchTerm);
+    performSearch(debouncedSearchTerm, date);
   };
 
   return (
@@ -76,16 +85,52 @@ export function ReportClient() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input
                         type="text"
-                        placeholder="Search by TID, JID, client name, or date (YYYY-MM-DD)..."
+                        placeholder="Search by TID, JID, client name..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10"
                     />
                 </div>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                            "w-full sm:w-[300px] justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                        )}
+                        >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date?.from ? (
+                            date.to ? (
+                            <>
+                                {format(date.from, "LLL dd, y")} -{" "}
+                                {format(date.to, "LLL dd, y")}
+                            </>
+                            ) : (
+                            format(date.from, "LLL dd, y")
+                            )
+                        ) : (
+                            <span>Pick a date range</span>
+                        )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                        />
+                    </PopoverContent>
+                </Popover>
                 {hasData && (
                     <Button onClick={handleExport} variant="outline" className="w-full sm:w-auto flex-shrink-0">
                         <Download className="mr-2 h-4 w-4" />
-                        Export Current View
+                        Export View
                     </Button>
                 )}
             </div>
