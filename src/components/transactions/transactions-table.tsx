@@ -127,10 +127,11 @@ export function TransactionsTable({
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="hidden md:table-cell">Invoice #</TableHead>
+              <TableHead className="hidden md:table-cell">JID</TableHead>
               <TableHead className="hidden xl:table-cell">Job Description</TableHead>
               <TableHead className="hidden lg:table-cell">Reference</TableHead>
               <TableHead className="hidden md:table-cell">Payment</TableHead>
-              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Paid Amount</TableHead>
               <TableHead className="hidden lg:table-cell">Operator</TableHead>
               <TableHead className="hidden lg:table-cell text-center">Admin Checked</TableHead>
               <TableHead>
@@ -165,13 +166,14 @@ export function TransactionsTable({
                 </TableCell>
                 <TableCell>{tx.clientName}</TableCell>
                 <TableCell className="hidden md:table-cell">{tx.invoiceNumber}</TableCell>
+                <TableCell className="hidden md:table-cell">{tx.jid}</TableCell>
                 <TableCell className="hidden xl:table-cell truncate max-w-xs">{tx.jobDescription}</TableCell>
                 <TableCell className="hidden lg:table-cell">{tx.reference}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   <Badge variant="outline">{tx.paymentMethod}</Badge>
                 </TableCell>
-                <TableCell className="text-right">
-                  £{tx.totalAmount.toFixed(2)}
+                <TableCell className="text-right font-semibold">
+                  £{tx.paidAmount.toFixed(2)}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">{tx.operator}</TableCell>
                  <TableCell className="hidden lg:table-cell text-center">
