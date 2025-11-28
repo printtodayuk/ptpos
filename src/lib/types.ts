@@ -88,3 +88,32 @@ export const ContactSchema = z.object({
 });
 
 export type Contact = z.infer<typeof ContactSchema>;
+
+export const timeRecordStatus = ['clocked-in', 'on-break', 'clocked-out'] as const;
+export type TimeRecordStatus = (typeof timeRecordStatus)[number];
+
+const BreakRecordSchema = z.object({
+  startTime: z.any(),
+  endTime: z.any().nullable(),
+});
+
+export const TimeRecordSchema = z.object({
+  id: z.string().optional(),
+  operator: z.enum(operators),
+  clockInTime: z.any(),
+  clockOutTime: z.any().nullable(),
+  status: z.enum(timeRecordStatus),
+  breaks: z.array(BreakRecordSchema).default([]),
+  totalWorkDuration: z.number().nullable().default(null),
+  totalBreakDuration: z.number().nullable().default(null),
+  date: z.string(), // YYYY-MM-DD
+});
+
+export type TimeRecord = Omit<z.infer<typeof TimeRecordSchema>, 'clockInTime' | 'clockOutTime' | 'breaks'> & {
+  clockInTime: Date;
+  clockOutTime?: Date | null;
+  breaks: {
+    startTime: Date;
+    endTime?: Date | null;
+  }[];
+};

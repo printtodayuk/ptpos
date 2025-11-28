@@ -223,6 +223,34 @@
       "required": [
         "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "paidAmount", "dueAmount", "status", "paymentStatus", "type"
       ]
+    },
+    "TimeRecord": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Time Record",
+      "type": "object",
+      "description": "Represents an operator's work session, including breaks.",
+      "properties": {
+        "id": { "type": "string" },
+        "operator": { "type": "string" },
+        "clockInTime": { "type": "string", "format": "date-time" },
+        "clockOutTime": { "type": "string", "format": "date-time", "nullable": true },
+        "status": { "type": "string", "enum": ["clocked-in", "on-break", "clocked-out"] },
+        "breaks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "startTime": { "type": "string", "format": "date-time" },
+              "endTime": { "type": "string", "format": "date-time", "nullable": true }
+            },
+            "required": ["startTime"]
+          }
+        },
+        "totalWorkDuration": { "type": "number", "description": "Total work duration in minutes." },
+        "totalBreakDuration": { "type": "number", "description": "Total break duration in minutes." },
+        "date": { "type": "string", "format": "date", "description": "The date of the clock-in (YYYY-MM-DD)." }
+      },
+      "required": ["operator", "clockInTime", "status", "date"]
     }
   },
   "auth": {
@@ -293,8 +321,24 @@
             }
           ]
         }
+      },
+      {
+        "path": "/timeRecords/{timeRecordId}",
+        "definition": {
+            "entityName": "TimeRecord",
+            "schema": {
+                "$ref": "#/backend/entities/TimeRecord"
+            },
+            "description": "Stores operator clock-in/clock-out and break data.",
+            "params": [
+                {
+                    "name": "timeRecordId",
+                    "description": "Unique identifier for the time record."
+                }
+            ]
+        }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information, including payment status. A 'contacts' collection stores customer-submitted contact details."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information, including payment status. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance."
   }
 }

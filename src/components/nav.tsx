@@ -11,6 +11,8 @@ import {
   ClipboardList,
   Contact,
   FileSpreadsheet,
+  Clock,
+  Briefcase,
 } from 'lucide-react';
 import React from 'react';
 
@@ -28,6 +30,8 @@ const navItems = [
   { href: '/js-report', icon: FileSpreadsheet, label: 'JS Report' },
   { href: '/non-invoicing', icon: File, label: 'PT Till' },
   { href: '/contact-list', icon: Contact, label: 'Contact List' },
+  { href: '/attendance', icon: Clock, label: 'Attendance'},
+  { href: '/attendance-report', icon: Briefcase, label: 'Time Report'},
   { href: '/reporting', icon: BarChart4, label: 'Reporting' },
   { href: '/admin', icon: UserCheck, label: 'Admin' },
 ];
