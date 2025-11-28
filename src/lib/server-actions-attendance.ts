@@ -30,12 +30,12 @@ function getCurrentDateString() {
 export async function getOperatorStatus(operator: Operator): Promise<TimeRecord | null> {
   const date = getCurrentDateString();
   
-  // Simplified query to avoid composite index requirement
+  // Simplified query to avoid composite index requirement.
+  // We fetch all of today's records for the user and find the active one in code.
   const q = query(
     collection(db, 'timeRecords'),
     where('operator', '==', operator),
-    where('date', '==', date),
-    orderBy('clockInTime', 'desc')
+    where('date', '==', date)
   );
 
   const querySnapshot = await getDocs(q);
@@ -44,17 +44,21 @@ export async function getOperatorStatus(operator: Operator): Promise<TimeRecord 
     return null;
   }
   
-  // Find the currently active record in code
-  const activeRecord = querySnapshot.docs.find(d => ['clocked-in', 'on-break'].includes(d.data().status));
+  // Sort by clockInTime descending to find the latest record first
+  const records = querySnapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
 
-  if (!activeRecord) {
+  const activeRecordData = records.find(d => ['clocked-in', 'on-break'].includes(d.status));
+
+  if (!activeRecordData) {
     return null;
   }
 
-  const data = activeRecord.data();
+  const data = activeRecordData;
   return {
     ...data,
-    id: activeRecord.id,
+    id: data.id,
     clockInTime: (data.clockInTime as Timestamp).toDate(),
     clockOutTime: data.clockOutTime ? (data.clockOutTime as Timestamp).toDate() : null,
     breaks: data.breaks.map((b: any) => ({
