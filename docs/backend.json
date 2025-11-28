@@ -179,9 +179,17 @@
           "type": "number",
           "description": "The total amount including VAT."
         },
+        "paidAmount": {
+          "type": "number",
+          "description": "Total amount paid against the job sheet."
+        },
+        "dueAmount": {
+          "type": "number",
+          "description": "The remaining amount due for the job sheet."
+        },
         "status": {
           "type": "string",
-          "enum": ["Hold", "Studio", "Production", "Cancel"],
+          "enum": ["Hold", "Studio", "Production", "Cancel", "Paid"],
           "description": "The current status of the job sheet."
         },
         "specialNote": {
@@ -208,7 +216,7 @@
         }
       },
       "required": [
-        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "status", "type"
+        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "paidAmount", "dueAmount", "status", "type"
       ]
     }
   },
@@ -282,6 +290,6 @@
         }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information. A 'contacts' collection stores customer-submitted contact details."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information, including payment status. A 'contacts' collection stores customer-submitted contact details."
   }
 }

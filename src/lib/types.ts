@@ -57,6 +57,8 @@ export const JobSheetSchema = z.object({
   subTotal: z.number(),
   vatAmount: z.number(),
   totalAmount: z.number(),
+  paidAmount: z.number().default(0),
+  dueAmount: z.number().default(0),
   status: z.enum(jobSheetStatus),
   specialNote: z.string().optional().nullable(),
 irNumber: z.string().optional().nullable(),

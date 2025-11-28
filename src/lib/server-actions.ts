@@ -21,7 +21,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { Transaction, PaymentMethod } from '@/lib/types';
+import type { Transaction, PaymentMethod, JobSheet } from '@/lib/types';
 import { TransactionSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { startOfDay, endOfDay } from 'date-fns';
@@ -36,6 +36,41 @@ const UpdateTransactionSchema = CreateTransactionSchema.omit({
     adminChecked: true,
     checkedBy: true,
 });
+
+async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude: string | null = null) {
+    const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', '==', jobId), limit(1));
+    const jobSheetSnapshot = await getDocs(jobSheetQuery);
+
+    if (jobSheetSnapshot.empty) {
+        return; // Job sheet not found
+    }
+    
+    const jobSheetRef = jobSheetSnapshot.docs[0].ref;
+    const jobSheetData = jobSheetSnapshot.docs[0].data() as JobSheet;
+
+    // 2. Find all transactions for that JID
+    const transactionsQuery = query(collection(db, 'transactions'), where('jid', '==', jobId));
+    const transactionsSnapshot = await getDocs(transactionsQuery);
+    
+    let totalPaid = 0;
+    transactionsSnapshot.docs.forEach(doc => {
+        // This is to handle the case where we are deleting a transaction
+        if (doc.id !== transactionIdToExclude) {
+            totalPaid += (doc.data().paidAmount || 0);
+        }
+    });
+
+    // 3. Calculate new paid and due amounts
+    const newDueAmount = jobSheetData.totalAmount - totalPaid;
+    const newStatus = newDueAmount <= 0 ? 'Paid' : jobSheetData.status === 'Paid' ? 'Hold' : jobSheetData.status;
+
+    // 4. Update the job sheet
+    await updateDoc(jobSheetRef, {
+        paidAmount: totalPaid,
+        dueAmount: newDueAmount,
+        status: newStatus
+    });
+}
 
 
 export async function addTransaction(
@@ -74,17 +109,9 @@ export async function addTransaction(
       jid: validatedData.data.jid || null,
     });
     
+    // Update JobSheet payment status
     if (data.jid) {
-        const q = query(collection(db, 'jobSheets'), where('jobId', '==', data.jid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            const jsDoc = querySnapshot.docs[0];
-            const updates: { tid: string, status?: 'Paid' } = { tid: newTransactionId };
-            if (validatedData.data.dueAmount === 0) {
-              updates.status = 'Paid';
-            }
-            await updateDoc(jsDoc.ref, updates);
-        }
+        await updateJobSheetPaymentStatus(data.jid);
     }
 
     const newDocSnap = await getDoc(docRef);
@@ -144,26 +171,15 @@ export async function updateTransaction(
         date: Timestamp.fromDate(validatedData.data.date),
         jid: validatedData.data.jid || null,
     });
-
-    if (data.jid) {
-        const q = query(collection(db, 'jobSheets'), where('jobId', '==', data.jid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            const jsDoc = querySnapshot.docs[0];
-            const updates: { tid?: string, status?: 'Paid' } = {};
-            
-            if(data.jid !== originalTransaction.jid) {
-              updates.tid = originalTransaction.transactionId;
-            }
-
-            if (validatedData.data.dueAmount === 0) {
-              updates.status = 'Paid';
-            }
-            if (Object.keys(updates).length > 0) {
-              await updateDoc(jsDoc.ref, updates);
-            }
-        }
+    
+    // If the JID was changed, we need to update both old and new job sheets
+    if (originalTransaction.jid && originalTransaction.jid !== data.jid) {
+        await updateJobSheetPaymentStatus(originalTransaction.jid, id);
     }
+    if (data.jid) {
+        await updateJobSheetPaymentStatus(data.jid);
+    }
+
 
     const updatedDocSnap = await getDoc(transactionRef);
     const updatedData = updatedDocSnap.data();
@@ -414,7 +430,16 @@ export async function deleteTransaction(id: string) {
         return { success: false, message: 'Transaction ID is required.' };
     }
     try {
-        await deleteDoc(doc(db, 'transactions', id));
+        const transactionRef = doc(db, 'transactions', id);
+        const transactionSnap = await getDoc(transactionRef);
+        const transactionData = transactionSnap.data() as Transaction;
+        
+        await deleteDoc(transactionRef);
+        
+        if (transactionData.jid) {
+            await updateJobSheetPaymentStatus(transactionData.jid, id);
+        }
+
         revalidatePath('/admin');
         revalidatePath('/reporting');
         revalidatePath('/dashboard');
@@ -435,11 +460,25 @@ export async function bulkDeleteTransactions(ids: string[]) {
     }
     try {
         const batch = writeBatch(db);
-        ids.forEach(id => {
+        const jidsToUpdate = new Set<string>();
+
+        for (const id of ids) {
             const docRef = doc(db, 'transactions', id);
-            batch.delete(docRef);
-        });
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data() as Transaction;
+                if (data.jid) {
+                    jidsToUpdate.add(data.jid);
+                }
+                batch.delete(docRef);
+            }
+        }
         await batch.commit();
+
+        for (const jid of jidsToUpdate) {
+            await updateJobSheetPaymentStatus(jid);
+        }
+
 
         revalidatePath('/admin');
         revalidatePath('/reporting');

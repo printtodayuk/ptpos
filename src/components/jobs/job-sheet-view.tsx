@@ -11,6 +11,8 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
   if (!jobSheet) return null;
 
   const jobSheetTitle = jobSheet.type === 'Quotation' ? 'QUOTATION' : 'JOB SHEET';
+  const paidAmount = jobSheet.paidAmount || 0;
+  const dueAmount = jobSheet.totalAmount - paidAmount;
 
   return (
     <div 
@@ -112,9 +114,17 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
                 <span>VAT (20%):</span>
                 <span className="font-bold">£{jobSheet.vatAmount.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between items-center p-2 border-2 border-black bg-gray-200 text-sm">
+            <div className="flex justify-between items-center p-2 border-2 border-black text-sm">
                 <span className="font-bold">Total:</span>
                 <span className="font-bold">£{jobSheet.totalAmount.toFixed(2)}</span>
+            </div>
+             <div className="flex justify-between items-center p-2 border border-black">
+                <span>Amount Paid:</span>
+                <span className="font-bold">£{paidAmount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 border-2 border-black bg-gray-200 text-sm">
+                <span className="font-bold">Amount Due:</span>
+                <span className="font-bold">£{dueAmount.toFixed(2)}</span>
             </div>
         </div>
       </div>

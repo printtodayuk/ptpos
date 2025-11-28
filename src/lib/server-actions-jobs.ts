@@ -65,6 +65,8 @@ export async function addJobSheet(
       jobId: newJobId,
       date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
+      paidAmount: 0,
+      dueAmount: validatedData.data.totalAmount,
     };
      if (validatedData.data.tid) {
       dataToSave.tid = validatedData.data.tid;
@@ -253,6 +255,8 @@ export async function exportAllJobSheets(): Promise<any[]> {
                 'Sub-Total': data.subTotal.toFixed(2),
                 'VAT Amount': data.vatAmount.toFixed(2),
                 'Total Amount': data.totalAmount.toFixed(2),
+                'Paid Amount': data.paidAmount.toFixed(2),
+                'Due Amount': data.dueAmount.toFixed(2),
                 'Status': data.status,
                 'Special Note': data.specialNote,
                 'IR Number': data.irNumber,
@@ -294,15 +298,10 @@ export async function addTransactionFromJobSheet(jobSheet: JobSheet, data: z.inf
         ...validatedData.data,
     };
 
+    // The addTransaction function will handle updating the job sheet
     const result = await addTransaction(transactionData);
 
     if (result.success && result.transaction) {
-        const jobSheetRef = doc(db, 'jobSheets', jobSheet.id!);
-        await updateDoc(jobSheetRef, { tid: result.transaction.transactionId });
-
-        revalidatePath('/job-sheet');
-        revalidatePath('/js-report');
-
         return { success: true, transaction: result.transaction };
     }
 
