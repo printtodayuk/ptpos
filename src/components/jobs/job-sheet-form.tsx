@@ -191,7 +191,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="space-y-2">
                     <Label htmlFor="operator">Operator</Label>
                     <Controller name="operator" control={form.control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value} disabled={isPaid}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger><SelectValue placeholder="Select Operator" /></SelectTrigger>
                         <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
                     </Select>
@@ -325,7 +325,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="space-y-2">
                     <Label htmlFor="type">Type</Label>
                     <Controller name="type" control={form.control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value} disabled={isPaid}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>{jobSheetTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
