@@ -79,7 +79,11 @@ export async function addTransaction(
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
             const jsDoc = querySnapshot.docs[0];
-            await updateDoc(jsDoc.ref, { tid: newTransactionId });
+            const updates: { tid: string, status?: 'Paid' } = { tid: newTransactionId };
+            if (validatedData.data.dueAmount === 0) {
+              updates.status = 'Paid';
+            }
+            await updateDoc(jsDoc.ref, updates);
         }
     }
 
@@ -97,7 +101,7 @@ export async function addTransaction(
     }
 
 
-    revalidatePath(`/${validatedData.data.type}`);
+    revalidatePath(`/non-invoicing`);
     revalidatePath('/dashboard');
     revalidatePath('/reporting');
     revalidatePath('/admin');
@@ -141,12 +145,23 @@ export async function updateTransaction(
         jid: validatedData.data.jid || null,
     });
 
-    if (data.jid && data.jid !== originalTransaction.jid) {
+    if (data.jid) {
         const q = query(collection(db, 'jobSheets'), where('jobId', '==', data.jid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
             const jsDoc = querySnapshot.docs[0];
-            await updateDoc(jsDoc.ref, { tid: originalTransaction.transactionId });
+            const updates: { tid?: string, status?: 'Paid' } = {};
+            
+            if(data.jid !== originalTransaction.jid) {
+              updates.tid = originalTransaction.transactionId;
+            }
+
+            if (validatedData.data.dueAmount === 0) {
+              updates.status = 'Paid';
+            }
+            if (Object.keys(updates).length > 0) {
+              await updateDoc(jsDoc.ref, updates);
+            }
         }
     }
 

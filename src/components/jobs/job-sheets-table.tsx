@@ -52,6 +52,8 @@ export function JobSheetsTable({
          return 'bg-yellow-500 hover:bg-yellow-500/80 text-black';
       case 'Delivered':
         return 'bg-green-600 hover:bg-green-600/80 text-white';
+      case 'Paid':
+        return 'bg-green-700 hover:bg-green-700/80 text-white';
       case 'MGH':
         return 'bg-pink-500 hover:bg-pink-500/80 text-white';
       default:
@@ -115,7 +117,7 @@ export function JobSheetsTable({
                     <DropdownMenuItem onSelect={() => onView(js)}>
                       <Eye className="mr-2 h-4 w-4" /> View Details
                     </DropdownMenuItem>
-                     <DropdownMenuItem onSelect={() => onPay(js)}>
+                     <DropdownMenuItem onSelect={() => onPay(js)} disabled={js.status === 'Paid'}>
                       <CreditCard className="mr-2 h-4 w-4" /> Pay Now
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
