@@ -67,9 +67,9 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const [isFetchingJob, startFetchingJobTransition] = useTransition();
   const { toast } = useToast();
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
 
+  const isEditMode = !!transactionToEdit;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(TransactionSchema.omit({ id: true, createdAt: true, transactionId: true })),
@@ -88,8 +88,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
           form.setValue('amount', jobSheet.subTotal);
           form.setValue('vatApplied', jobSheet.vatAmount > 0);
           form.setValue('totalAmount', jobSheet.totalAmount);
-          form.setValue('paidAmount', jobSheet.totalAmount);
-          form.setValue('dueAmount', 0); // Since we default paid amount to total
+          form.setValue('paidAmount', jobSheet.totalAmount); // Default paid to total
           form.setValue('jobDescription', jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', '));
         }
       });
@@ -98,7 +97,6 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
   useEffect(() => {
     if (transactionToEdit) {
-      setIsEditMode(true);
       const valuesToReset = {
         ...transactionToEdit,
         date: new Date(transactionToEdit.date),
@@ -106,11 +104,9 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
       };
       form.reset(valuesToReset);
     } else {
-      setIsEditMode(false);
       form.reset(getFreshDefaultValues(type, lastOperator));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactionToEdit, type, form.reset]);
+  }, [transactionToEdit, type, form, lastOperator]);
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
@@ -149,7 +145,6 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             setLastTransaction(result.transaction);
         }
         form.reset(getFreshDefaultValues(type, lastOperator));
-        setIsEditMode(false);
         onTransactionAdded?.();
       } else {
         toast({
@@ -162,13 +157,12 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   };
 
   const cancelEdit = () => {
-    setIsEditMode(false);
     onTransactionAdded?.(); 
   }
   
-  const formTitle = 'PT Till';
+  const formTitle = type === 'non-invoicing' ? 'PT Till' : 'Xero Transaction';
   const Wrapper = isEditMode ? 'div' : Card;
-  const isLocked = !!debouncedJid && !isEditMode;
+  const isLockedByJid = !!debouncedJid && !isEditMode;
 
   return (
     <>
@@ -207,7 +201,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                           'w-full justify-start text-left font-normal',
                           !field.value && 'text-muted-foreground'
                         )}
-                         disabled={isLocked}
+                         disabled={isLockedByJid || isEditMode}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
@@ -216,7 +210,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={field.value}
+                        selected={field.value as Date}
                         onSelect={field.onChange}
                         locale={enGB}
                         initialFocus
@@ -230,19 +224,19 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="clientName">Client Name</Label>
-              <Input id="clientName" {...form.register('clientName')} readOnly={isLocked} disabled={isLocked} />
+              <Input id="clientName" {...form.register('clientName')} readOnly={isLockedByJid || isEditMode} disabled={isLockedByJid || isEditMode} />
               {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
 
             <div className="space-y-2 lg:col-span-4">
               <Label htmlFor="jobDescription">Job Description</Label>
-              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={isLocked} disabled={isLocked}/>
+              <Textarea id="jobDescription" {...form.register('jobDescription')} readOnly={isLockedByJid || isEditMode} disabled={isLockedByJid || isEditMode}/>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 lg:col-span-4">
               <div className="space-y-2">
                   <Label htmlFor="amount">Amount (£)</Label>
-                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={isLocked} disabled={isLocked} />
+                  <Input id="amount" type="number" step="0.01" {...form.register('amount', {valueAsNumber: true})} readOnly={isLockedByJid || isEditMode} disabled={isLockedByJid || isEditMode} />
                   {form.formState.errors.amount && <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>}
               </div>
 
@@ -258,7 +252,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                               id="vatApplied"
                               checked={field.value}
                               onCheckedChange={field.onChange}
-                              disabled={isLocked}
+                              disabled={isLockedByJid || isEditMode}
                           />
                       )}
                       />
@@ -326,7 +320,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
             </div>
 
           </CardContent>
-          <CardFooter className={cn("justify-end gap-2", isEditMode && "pt-6")}>
+          <CardFooter className={cn("justify-end gap-2", isEditMode ? 'pt-6' : 'pt-0')}>
             {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
             <Button type="submit" disabled={isPending || isFetchingJob}>
               {(isPending || isFetchingJob) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
