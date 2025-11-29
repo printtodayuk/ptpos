@@ -19,6 +19,7 @@ import { format, differenceInSeconds } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
 
 function formatDurationWithSeconds(seconds: number) {
   if (isNaN(seconds) || seconds < 0) return '00:00:00';
@@ -89,7 +90,8 @@ export default function AttendancePage() {
     let currentBreakDuration = 0;
     const currentBreak = timeRecord.breaks.find(b => !b.endTime);
     if (currentBreak) {
-        currentBreakDuration = differenceInSeconds(now, new Date(currentBreak.startTime));
+        const breakStartTime = typeof currentBreak.startTime === 'string' ? new Date(currentBreak.startTime) : currentBreak.startTime;
+        currentBreakDuration = differenceInSeconds(now, breakStartTime);
     }
     
     const totalCompletedBreakDuration = timeRecord.breaks
@@ -135,6 +137,8 @@ export default function AttendancePage() {
           <CardTitle>Operator Attendance</CardTitle>
           <CardDescription>Clock in, clock out, and manage breaks.</CardDescription>
       </CardHeader>
+      
+      <LiveOperatorStatus />
 
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>

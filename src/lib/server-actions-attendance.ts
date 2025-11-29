@@ -19,8 +19,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { differenceInMinutes } from 'date-fns';
 
-import type { TimeRecord, Operator } from '@/lib/types';
-import { TimeRecordSchema, UpdateTimeRecordSchema } from '@/lib/types';
+import type { TimeRecord, Operator, TimeRecordStatus } from '@/lib/types';
+import { TimeRecordSchema, UpdateTimeRecordSchema, operators } from '@/lib/types';
 import { db } from '@/lib/firebase';
 
 function getCurrentDateString() {
@@ -46,9 +46,15 @@ export async function getOperatorStatus(operator: Operator): Promise<TimeRecord 
     .map(doc => ({ id: doc.id, ...doc.data() }))
     .sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
 
-  const activeRecordData = records.find(d => ['clocked-in', 'on-break'].includes(d.status));
+  // Find the most recent record that is not clocked-out, or the most recent clocked-out one if that's all there is
+  const activeRecordData = records.find(d => ['clocked-in', 'on-break'].includes(d.status)) || records[0];
+
 
   if (!activeRecordData) {
+    return null;
+  }
+
+   if (activeRecordData.status === 'clocked-out') {
     return null;
   }
 
@@ -64,6 +70,44 @@ export async function getOperatorStatus(operator: Operator): Promise<TimeRecord 
     })),
   } as TimeRecord;
 }
+
+
+export async function getAllOperatorStatuses(): Promise<Record<Operator, TimeRecordStatus | 'not-clocked-in'>> {
+  const date = getCurrentDateString();
+  
+  const q = query(
+    collection(db, 'timeRecords'),
+    where('date', '==', date)
+  );
+  
+  const querySnapshot = await getDocs(q);
+  const recordsByOperator: Record<string, any[]> = {};
+
+  querySnapshot.docs.forEach(doc => {
+    const data = doc.data();
+    if (!recordsByOperator[data.operator]) {
+      recordsByOperator[data.operator] = [];
+    }
+    recordsByOperator[data.operator].push(data);
+  });
+
+  const statuses: Record<Operator, TimeRecordStatus | 'not-clocked-in'> = {} as any;
+
+  for (const op of operators) {
+    const records = recordsByOperator[op];
+    if (!records || records.length === 0) {
+      statuses[op] = 'not-clocked-in';
+      continue;
+    }
+
+    records.sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
+    const latestRecord = records[0];
+    statuses[op] = latestRecord.status;
+  }
+
+  return statuses;
+}
+
 
 export async function handleClockIn(operator: Operator) {
   const existingRecord = await getOperatorStatus(operator);
