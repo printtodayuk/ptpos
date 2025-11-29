@@ -7,8 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, Download } from 'lucide-react';
-import type { JobSheet, JobSheetStatus, PaymentStatus } from '@/lib/types';
-import { jobSheetStatus, paymentStatuses } from '@/lib/types';
+import type { JobSheet, JobSheetStatus, PaymentStatus, Operator } from '@/lib/types';
+import { jobSheetStatus, paymentStatuses, operators } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { JobSheetsTable } from './job-sheets-table';
 import { JobSheetForm } from './job-sheet-form';
@@ -25,6 +25,7 @@ export function JsReportClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const [jobStatusFilter, setJobStatusFilter] = useState<JobSheetStatus | 'all'>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatus | 'all'>('all');
+  const [operatorFilter, setOperatorFilter] = useState<Operator | 'all'>('all');
   const [results, setResults] = useState<JobSheet[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
@@ -39,21 +40,22 @@ export function JsReportClient() {
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback((term: string, jobStatus: JobSheetStatus | 'all', paymentStatus: PaymentStatus | 'all') => {
+  const performSearch = useCallback((term: string, jobStatus: JobSheetStatus | 'all', paymentStatus: PaymentStatus | 'all', operator: Operator | 'all') => {
     startSearchTransition(async () => {
       const allResults = await searchJobSheets(
         term, 
         true, 
         jobStatus === 'all' ? undefined : jobStatus,
-        paymentStatus === 'all' ? undefined : paymentStatus
+        paymentStatus === 'all' ? undefined : paymentStatus,
+        operator === 'all' ? undefined : operator
       );
       setResults(allResults);
     });
   }, []);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
-  }, [debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, performSearch]);
+    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
+  }, [debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter, performSearch]);
 
   const handleExport = () => {
     startExportTransition(async () => {
@@ -65,7 +67,8 @@ export function JsReportClient() {
       const dataToExport = await exportAllJobSheets(
           debouncedSearchTerm,
           jobStatusFilter === 'all' ? undefined : jobStatusFilter,
-          paymentStatusFilter === 'all' ? undefined : paymentStatusFilter
+          paymentStatusFilter === 'all' ? undefined : paymentStatusFilter,
+          operatorFilter === 'all' ? undefined : operatorFilter
       );
 
       if (dataToExport.length > 0) {
@@ -101,7 +104,7 @@ export function JsReportClient() {
     setIsDeleting(false);
     if (result.success) {
       toast({ title: 'Success', description: 'Job Sheet deleted.' });
-      performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
+      performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -111,18 +114,19 @@ export function JsReportClient() {
   const handleUpdate = () => {
     setIsEditDialogOpen(false);
     setJobSheetToEdit(null);
-    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
+    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
   };
   
   const handlePaymentSuccess = (transaction: Transaction) => {
     setJobSheetToPay(null);
     setLastTransaction(transaction);
     toast({ title: 'Success', description: `Payment recorded. Transaction ID: ${transaction.transactionId}` });
-    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
+    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
   };
 
   const jobStatusFilters: (JobSheetStatus | 'all')[] = ['all', ...jobSheetStatus];
   const paymentStatusFilters: (PaymentStatus | 'all')[] = ['all', ...paymentStatuses];
+  const operatorFilters: (Operator | 'all')[] = ['all', ...operators];
 
 
   return (
@@ -198,7 +202,23 @@ export function JsReportClient() {
             </Button>
           </div>
           
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-4">
+             <div>
+                <span className="text-sm font-medium text-muted-foreground mr-2">Operator:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                    {operatorFilters.map(op => (
+                    <Button
+                        key={op}
+                        variant={operatorFilter === op ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setOperatorFilter(op)}
+                        className="capitalize"
+                    >
+                        {op}
+                    </Button>
+                    ))}
+                </div>
+            </div>
              <div>
                 <span className="text-sm font-medium text-muted-foreground mr-2">Job Status:</span>
                 <div className="flex flex-wrap items-center gap-2">

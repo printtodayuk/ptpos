@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus } from '@/lib/types';
+import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator } from '@/lib/types';
 import { JobSheetSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
@@ -198,7 +198,8 @@ export async function searchJobSheets(
   searchTerm: string, 
   returnAllOnEmpty: boolean = false,
   jobStatus?: JobSheetStatus,
-  paymentStatus?: PaymentStatus
+  paymentStatus?: PaymentStatus,
+  operator?: Operator
 ): Promise<JobSheet[]> {
   try {
     const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
@@ -221,6 +222,9 @@ export async function searchJobSheets(
     if (paymentStatus) {
       jobSheets = jobSheets.filter(js => (js.paymentStatus || 'Unpaid') === paymentStatus);
     }
+    if (operator) {
+      jobSheets = jobSheets.filter(js => js.operator === operator);
+    }
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
@@ -233,12 +237,12 @@ export async function searchJobSheets(
       });
     }
 
-    if (returnAllOnEmpty && !searchTerm && !jobStatus && !paymentStatus) {
+    if (returnAllOnEmpty && !searchTerm && !jobStatus && !paymentStatus && !operator) {
         return jobSheets;
     }
     
     // if any filter is applied, return all matches, otherwise limit to 50
-    if (searchTerm || jobStatus || paymentStatus) {
+    if (searchTerm || jobStatus || paymentStatus || operator) {
       return jobSheets;
     }
 
@@ -264,10 +268,11 @@ export async function deleteJobSheet(id: string) {
 export async function exportAllJobSheets(
   searchTerm?: string,
   jobStatus?: JobSheetStatus,
-  paymentStatus?: PaymentStatus
+  paymentStatus?: PaymentStatus,
+  operator?: Operator
 ): Promise<any[]> {
     try {
-        const jobSheets = await searchJobSheets(searchTerm || '', true, jobStatus, paymentStatus);
+        const jobSheets = await searchJobSheets(searchTerm || '', true, jobStatus, paymentStatus, operator);
 
         if (jobSheets.length === 0) {
             return [];
