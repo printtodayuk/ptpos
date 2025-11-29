@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { ReceiptDialog } from './receipt-dialog';
 import { useDebounce } from '@/hooks/use-debounce';
+import { z } from 'zod';
 
 type TransactionFormProps = {
   type: 'invoicing' | 'non-invoicing';
@@ -41,19 +42,30 @@ type TransactionFormProps = {
   transactionToEdit?: Transaction | null;
 };
 
-const createTransactionSchema = (maxAmount: number | null) => TransactionSchema.omit({ 
+const BaseTransactionSchema = TransactionSchema.omit({ 
     id: true, 
     transactionId: true, 
     createdAt: true 
-}).superRefine((data, ctx) => {
-    if (maxAmount !== null && data.paidAmount > maxAmount) {
-        ctx.addIssue({
-            code: 'custom',
-            message: `Cannot pay more than the due amount of £${maxAmount.toFixed(2)}`,
-            path: ['paidAmount'],
-        });
-    }
 });
+
+const NonInvoicingTransactionSchema = BaseTransactionSchema.extend({
+    jid: z.string().min(1, 'Job ID is required for PT Till transactions.'),
+});
+
+
+const createTransactionSchema = (type: 'invoicing' | 'non-invoicing', maxAmount: number | null) => {
+    const schema = type === 'non-invoicing' ? NonInvoicingTransactionSchema : BaseTransactionSchema;
+
+    return schema.superRefine((data, ctx) => {
+        if (maxAmount !== null && data.paidAmount > maxAmount) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Cannot pay more than the due amount of £${maxAmount.toFixed(2)}`,
+                path: ['paidAmount'],
+            });
+        }
+    });
+}
 
 
 type FormValues = z.infer<ReturnType<typeof createTransactionSchema>>;
@@ -88,7 +100,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
   const isEditMode = !!transactionToEdit;
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(createTransactionSchema(jobSheetDueAmount)),
+    resolver: zodResolver(createTransactionSchema(type, jobSheetDueAmount)),
     defaultValues: getFreshDefaultValues(type, lastOperator),
   });
 
@@ -135,12 +147,11 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     } else {
       form.reset(getFreshDefaultValues(type, lastOperator));
     }
-  }, [transactionToEdit, type, form]);
+  }, [transactionToEdit, type, form, lastOperator]);
   
   const watchedAmount = form.watch('amount');
   const watchedVatApplied = form.watch('vatApplied');
   const watchedPaidAmount = form.watch('paidAmount');
-  const watchedOperator = form.watch('operator');
 
   useEffect(() => {
     const total = watchedVatApplied ? watchedAmount * 1.2 : watchedAmount;
@@ -165,12 +176,6 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
 }, [watchedAmount, watchedVatApplied, watchedPaidAmount, form, jobSheetDueAmount]);
 
   
-  useEffect(() => {
-    if (watchedOperator) {
-      setLastOperator(watchedOperator);
-    }
-  }, [watchedOperator]);
-
 
   const onSubmit = (data: FormValues) => {
     const dataWithPrefix = { ...data };
@@ -195,7 +200,8 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
         }
 
         if (!isEditMode) {
-          form.reset(getFreshDefaultValues(type, lastOperator));
+          const currentOperator = form.getValues('operator');
+          form.reset(getFreshDefaultValues(type, currentOperator as Operator));
         }
 
       } else {
@@ -232,7 +238,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
           <CardContent className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6", isEditMode && "p-0 pt-4")}>
             
              <div className="space-y-2 lg:col-span-1 relative">
-                <Label htmlFor="jid">Job ID (Optional)</Label>
+                <Label htmlFor="jid">Job ID</Label>
                 <div className="flex items-center">
                     <span className="inline-flex h-10 items-center px-3 rounded-l-md border border-r-0 border-input bg-gray-100 text-muted-foreground text-sm">
                         JID
@@ -246,6 +252,7 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                         className="rounded-l-none"
                      />
                 </div>
+                {form.formState.errors.jid && <p className="text-sm text-destructive">{form.formState.errors.jid.message}</p>}
                 {isFetchingJob && <Loader2 className="absolute right-3 top-9 h-4 w-4 animate-spin" />}
             </div>
 
@@ -394,3 +401,5 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
     </>
   );
 }
+
+    
