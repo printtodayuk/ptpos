@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import { format } from 'date-fns';
 import { MoreHorizontal, Printer, CheckCircle, Trash2, Loader2, Ban } from 'lucide-react';
 
@@ -28,6 +28,9 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { markTransactionAsChecked } from '@/lib/server-actions';
 import { ReceiptDialog } from './receipt-dialog';
+import { SimplePagination } from '../ui/pagination';
+
+const ROWS_PER_PAGE = 10;
 
 type TransactionsTableProps = {
   transactions: Transaction[];
@@ -49,15 +52,24 @@ export function TransactionsTable({
   const [transactionToView, setTransactionToView] = useState<Transaction | null>(null);
   const [isPending, startTransition] = useTransition();
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
+  
+  const totalPages = Math.ceil(transactions.length / ROWS_PER_PAGE);
+
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+    return transactions.slice(startIndex, startIndex + ROWS_PER_PAGE);
+  }, [transactions, currentPage]);
+
 
   useEffect(() => {
     onSelectionChange?.(selectedRows);
   }, [selectedRows, onSelectionChange]);
   
   useEffect(() => {
-    // Clear selection when transactions change
     setSelectedRows([]);
+    setCurrentPage(1);
   }, [transactions]);
 
 
@@ -88,6 +100,12 @@ export function TransactionsTable({
       setSelectedRows([]);
     } else {
       setSelectedRows(transactions.map(t => t.id!));
+    }
+  };
+  
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
     }
   };
 
@@ -139,7 +157,7 @@ export function TransactionsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((tx) => (
+            {paginatedTransactions.map((tx) => (
               <TableRow key={tx.id} data-state={selectedRows.includes(tx.id!) ? "selected" : ""}>
                  {selectable && (
                     <TableCell padding="checkbox">
@@ -215,6 +233,11 @@ export function TransactionsTable({
           </TableBody>
         </Table>
       </div>
+      <SimplePagination 
+        currentPage={currentPage} 
+        totalPages={totalPages} 
+        onPageChange={handlePageChange} 
+      />
     </>
   );
 }

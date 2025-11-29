@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
 import { format, differenceInMinutes } from 'date-fns';
 import { Download, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
@@ -15,7 +16,10 @@ import type { TimeRecord } from '@/lib/types';
 import { cn, exportToCsv } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { SimplePagination } from '@/components/ui/pagination';
 
+
+const ROWS_PER_PAGE = 10;
 
 function formatDuration(minutes: number | null | undefined) {
     if (minutes === null || typeof minutes === 'undefined' || isNaN(minutes) || minutes < 0) return '0h 0m';
@@ -29,7 +33,15 @@ export default function AttendanceReportPage() {
     const [isSearching, startSearchTransition] = useTransition();
     const [isExporting, startExportTransition] = useTransition();
     const [date, setDate] = useState<DateRange | undefined>();
+    const [currentPage, setCurrentPage] = useState(1);
     const { toast } = useToast();
+
+    const totalPages = Math.ceil(records.length / ROWS_PER_PAGE);
+
+    const paginatedRecords = useMemo(() => {
+        const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+        return records.slice(startIndex, startIndex + ROWS_PER_PAGE);
+    }, [records, currentPage]);
 
     const performSearch = useCallback((dateRange?: DateRange) => {
         startSearchTransition(async () => {
@@ -39,6 +51,7 @@ export default function AttendanceReportPage() {
                 endDate: endOfDay?.toISOString(),
             });
             setRecords(data);
+            setCurrentPage(1);
         });
     }, []);
 
@@ -64,6 +77,12 @@ export default function AttendanceReportPage() {
             exportToCsv(`time-report_${new Date().toISOString().split('T')[0]}.csv`, dataToExport);
             toast({ title: 'Success', description: 'Report exported successfully.' });
         });
+    };
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
     };
 
     return (
@@ -126,36 +145,44 @@ export default function AttendanceReportPage() {
                                 No records found for the selected period.
                             </div>
                         ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Operator</TableHead>
-                                    <TableHead>Clock In</TableHead>
-                                    <TableHead>Clock Out</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Work Duration</TableHead>
-                                    <TableHead>Break Duration</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {records.map((record) => (
-                                <TableRow key={record.id}>
-                                    <TableCell>{format(record.clockInTime, 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{record.operator}</TableCell>
-                                    <TableCell>{format(record.clockInTime, 'p')}</TableCell>
-                                    <TableCell>{record.clockOutTime ? format(record.clockOutTime, 'p') : 'N/A'}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={record.status === 'clocked-out' ? 'default' : 'secondary'} className={cn(record.status === 'clocked-out' && 'bg-green-500 text-white')}>
-                                            {record.status.replace('-', ' ')}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{formatDuration(record.totalWorkDuration)}</TableCell>
-                                    <TableCell>{formatDuration(record.totalBreakDuration)}</TableCell>
-                                </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                            <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Operator</TableHead>
+                                        <TableHead>Clock In</TableHead>
+                                        <TableHead>Clock Out</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Work Duration</TableHead>
+                                        <TableHead>Break Duration</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {paginatedRecords.map((record) => (
+                                    <TableRow key={record.id}>
+                                        <TableCell>{format(record.clockInTime, 'dd/MM/yyyy')}</TableCell>
+                                        <TableCell>{record.operator}</TableCell>
+                                        <TableCell>{format(record.clockInTime, 'p')}</TableCell>
+                                        <TableCell>{record.clockOutTime ? format(record.clockOutTime, 'p') : 'N/A'}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={record.status === 'clocked-out' ? 'default' : 'secondary'} className={cn(record.status === 'clocked-out' && 'bg-green-500 text-white')}>
+                                                {record.status.replace('-', ' ')}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{formatDuration(record.totalWorkDuration)}</TableCell>
+                                        <TableCell>{formatDuration(record.totalBreakDuration)}</TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            <SimplePagination 
+                                currentPage={currentPage} 
+                                totalPages={totalPages} 
+                                onPageChange={handlePageChange}
+                                className="p-4 border-t"
+                            />
+                            </>
                         )}
                     </div>
                 </CardContent>

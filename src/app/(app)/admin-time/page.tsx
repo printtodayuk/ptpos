@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Loader2, Edit, Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
@@ -18,7 +18,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { PinLock } from '@/components/admin/pin-lock';
 import { EditTimeRecordDialog } from '@/components/admin/edit-time-record-dialog';
+import { SimplePagination } from '@/components/ui/pagination';
 
+
+const ROWS_PER_PAGE = 10;
 
 function formatDuration(minutes: number | null | undefined) {
     if (minutes === null || typeof minutes === 'undefined' || isNaN(minutes) || minutes < 0) return '0h 0m';
@@ -32,6 +35,14 @@ export default function AdminTimePage() {
     const [isSearching, startSearchTransition] = useTransition();
     const [date, setDate] = useState<DateRange | undefined>();
     const [recordToEdit, setRecordToEdit] = useState<TimeRecord | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const totalPages = Math.ceil(records.length / ROWS_PER_PAGE);
+
+    const paginatedRecords = useMemo(() => {
+        const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+        return records.slice(startIndex, startIndex + ROWS_PER_PAGE);
+    }, [records, currentPage]);
 
     const performSearch = useCallback((dateRange?: DateRange) => {
         startSearchTransition(async () => {
@@ -41,6 +52,7 @@ export default function AdminTimePage() {
                 endDate: endOfDay?.toISOString(),
             });
             setRecords(data);
+            setCurrentPage(1);
         });
     }, []);
 
@@ -51,6 +63,12 @@ export default function AdminTimePage() {
     const handleEditSuccess = () => {
         setRecordToEdit(null);
         performSearch(date);
+    };
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
     };
 
     return (
@@ -116,6 +134,7 @@ export default function AdminTimePage() {
                                     No records found for the selected period.
                                 </div>
                             ) : (
+                            <>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -130,7 +149,7 @@ export default function AdminTimePage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {records.map((record) => (
+                                    {paginatedRecords.map((record) => (
                                     <TableRow key={record.id}>
                                         <TableCell>{format(record.clockInTime, 'dd/MM/yyyy')}</TableCell>
                                         <TableCell>{record.operator}</TableCell>
@@ -153,6 +172,13 @@ export default function AdminTimePage() {
                                     ))}
                                 </TableBody>
                             </Table>
+                            <SimplePagination 
+                                currentPage={currentPage} 
+                                totalPages={totalPages} 
+                                onPageChange={handlePageChange}
+                                className="p-4 border-t"
+                            />
+                            </>
                         )}
                         </div>
                     </CardContent>

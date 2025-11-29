@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { MoreHorizontal, Eye, Edit, Trash2, CreditCard } from 'lucide-react';
 
@@ -10,7 +11,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { JobSheet, JobSheetStatus, PaymentStatus } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { SimplePagination } from '../ui/pagination';
 
+const ROWS_PER_PAGE = 10;
 
 type JobSheetsTableProps = {
   jobSheets: JobSheet[];
@@ -27,6 +30,19 @@ export function JobSheetsTable({
   onDelete,
   onPay
 }: JobSheetsTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(jobSheets.length / ROWS_PER_PAGE);
+
+  const paginatedJobSheets = useMemo(() => {
+    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+    return jobSheets.slice(startIndex, startIndex + ROWS_PER_PAGE);
+  }, [jobSheets, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+    }
+  };
 
   if (jobSheets.length === 0) {
     return (
@@ -74,6 +90,7 @@ export function JobSheetsTable({
 
 
   return (
+    <>
     <div className="rounded-lg border-t">
       <Table>
         <TableHeader>
@@ -92,7 +109,7 @@ export function JobSheetsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {jobSheets.map((js) => (
+          {paginatedJobSheets.map((js) => (
             <TableRow key={js.id}>
               <TableCell>
                 <Badge variant="secondary">{js.jobId}</Badge>
@@ -150,5 +167,11 @@ export function JobSheetsTable({
         </TableBody>
       </Table>
     </div>
+    <SimplePagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+    />
+    </>
   );
 }
