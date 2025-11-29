@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { JobSheet, Transaction } from '@/lib/types';
+import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus } from '@/lib/types';
 import { JobSheetSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
@@ -137,7 +137,6 @@ export async function updateJobSheet(
     const dataToUpdate: any = {
         ...validatedData.data,
         date: Timestamp.fromDate(validatedData.data.date as Date),
-        operator: data.operator, // Make sure operator is updated
     };
     if (validatedData.data.tid) {
       dataToUpdate.tid = validatedData.data.tid;
@@ -195,7 +194,12 @@ export async function updateJobSheet(
   }
 }
 
-export async function searchJobSheets(searchTerm: string, returnAllOnEmpty: boolean = false): Promise<JobSheet[]> {
+export async function searchJobSheets(
+  searchTerm: string, 
+  returnAllOnEmpty: boolean = false,
+  jobStatus?: JobSheetStatus,
+  paymentStatus?: PaymentStatus
+): Promise<JobSheet[]> {
   try {
     const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
@@ -211,6 +215,13 @@ export async function searchJobSheets(searchTerm: string, returnAllOnEmpty: bool
       } as JobSheet;
     });
 
+    if (jobStatus) {
+      jobSheets = jobSheets.filter(js => js.status === jobStatus);
+    }
+    if (paymentStatus) {
+      jobSheets = jobSheets.filter(js => (js.paymentStatus || 'Unpaid') === paymentStatus);
+    }
+
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
       jobSheets = jobSheets.filter((js) => {
@@ -222,8 +233,13 @@ export async function searchJobSheets(searchTerm: string, returnAllOnEmpty: bool
       });
     }
 
-    if (returnAllOnEmpty && !searchTerm) {
+    if (returnAllOnEmpty && !searchTerm && !jobStatus && !paymentStatus) {
         return jobSheets;
+    }
+    
+    // if any filter is applied, return all matches, otherwise limit to 50
+    if (searchTerm || jobStatus || paymentStatus) {
+      return jobSheets;
     }
 
     return jobSheets.slice(0, 50);
@@ -245,20 +261,21 @@ export async function deleteJobSheet(id: string) {
     }
 }
 
-export async function exportAllJobSheets(): Promise<any[]> {
+export async function exportAllJobSheets(
+  searchTerm?: string,
+  jobStatus?: JobSheetStatus,
+  paymentStatus?: PaymentStatus
+): Promise<any[]> {
     try {
-        const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
+        const jobSheets = await searchJobSheets(searchTerm || '', true, jobStatus, paymentStatus);
 
-        if (querySnapshot.empty) {
+        if (jobSheets.length === 0) {
             return [];
         }
 
-        const jobSheets = querySnapshot.docs.map(doc => {
-            const data = doc.data() as Omit<JobSheet, 'date' | 'deliveryBy'> & { date: Timestamp, deliveryBy: Timestamp | null, createdAt: Timestamp };
-            
-            const date = data.date ? data.date.toDate() : new Date();
-            const deliveryBy = data.deliveryBy ? data.deliveryBy.toDate() : null;
+        return jobSheets.map(data => {
+            const date = data.date ? new Date(data.date) : new Date();
+            const deliveryBy = data.deliveryBy ? new Date(data.deliveryBy) : null;
 
             return {
                 'Job ID': data.jobId,
@@ -280,7 +297,6 @@ export async function exportAllJobSheets(): Promise<any[]> {
                 'Type': data.type,
             };
         });
-        return jobSheets;
     } catch (e) {
         console.error('Error exporting job sheets:', e);
         return [];
@@ -349,5 +365,3 @@ export async function getJobSheetByJobId(jobId: string): Promise<JobSheet | null
     return null;
   }
 }
-
-    

@@ -1,12 +1,14 @@
+
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
-import { searchJobSheets, exportAllJobSheets } from '@/lib/server-actions-jobs';
+import { searchJobSheets, exportAllJobSheets, deleteJobSheet } from '@/lib/server-actions-jobs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, Download } from 'lucide-react';
-import type { JobSheet } from '@/lib/types';
+import type { JobSheet, JobSheetStatus, PaymentStatus } from '@/lib/types';
+import { jobSheetStatus, paymentStatuses } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { JobSheetsTable } from './job-sheets-table';
 import { JobSheetForm } from './job-sheet-form';
@@ -14,45 +16,64 @@ import { JobSheetViewDialog } from './job-sheet-view-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { deleteJobSheet } from '@/lib/server-actions-jobs';
 import { exportToCsv } from '@/lib/utils';
-
+import { PaymentDialog } from './payment-dialog';
+import { ReceiptDialog } from '../transactions/receipt-dialog';
+import type { Transaction } from '@/lib/types';
 
 export function JsReportClient() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [jobStatusFilter, setJobStatusFilter] = useState<JobSheetStatus | 'all'>('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatus | 'all'>('all');
   const [results, setResults] = useState<JobSheet[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
   const [jobSheetToEdit, setJobSheetToEdit] = useState<JobSheet | null>(null);
   const [jobSheetToView, setJobSheetToView] = useState<JobSheet | null>(null);
+  const [jobSheetToPay, setJobSheetToPay] = useState<JobSheet | null>(null);
   const [jobSheetToDelete, setJobSheetToDelete] = useState<JobSheet | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
 
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback((term: string) => {
+  const performSearch = useCallback((term: string, jobStatus: JobSheetStatus | 'all', paymentStatus: PaymentStatus | 'all') => {
     startSearchTransition(async () => {
-      // Pass true to get all results for the report
-      const allResults = await searchJobSheets(term, true);
+      const allResults = await searchJobSheets(
+        term, 
+        true, 
+        jobStatus === 'all' ? undefined : jobStatus,
+        paymentStatus === 'all' ? undefined : paymentStatus
+      );
       setResults(allResults);
     });
   }, []);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm);
-  }, [debouncedSearchTerm, performSearch]);
+    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
+  }, [debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, performSearch]);
 
   const handleExport = () => {
     startExportTransition(async () => {
-        const dataToExport = await exportAllJobSheets();
-        if (dataToExport.length > 0) {
-            exportToCsv(`job-sheets-report_${new Date().toISOString().split('T')[0]}.csv`, dataToExport);
-            toast({ title: "Success", description: "Job sheets exported successfully." });
-        } else {
-            toast({ variant: "destructive", title: "Nothing to Export", description: "No job sheets found to export." });
-        }
+      if (results.length === 0) {
+        toast({ variant: 'destructive', title: 'Nothing to Export', description: 'No job sheets match the current filters.' });
+        return;
+      }
+      
+      const dataToExport = await exportAllJobSheets(
+          debouncedSearchTerm,
+          jobStatusFilter === 'all' ? undefined : jobStatusFilter,
+          paymentStatusFilter === 'all' ? undefined : paymentStatusFilter
+      );
+
+      if (dataToExport.length > 0) {
+        exportToCsv(`job-sheets-report_${new Date().toISOString().split('T')[0]}.csv`, dataToExport);
+        toast({ title: 'Success', description: 'Job sheets exported successfully.' });
+      } else {
+        toast({ variant: 'destructive', title: 'Nothing to Export', description: 'No job sheets found to export.' });
+      }
     });
   };
 
@@ -63,6 +84,10 @@ export function JsReportClient() {
   
   const handleView = (jobSheet: JobSheet) => {
     setJobSheetToView(jobSheet);
+  };
+  
+  const handlePay = (jobSheet: JobSheet) => {
+    setJobSheetToPay(jobSheet);
   };
 
   const handleDeleteRequest = (jobSheet: JobSheet) => {
@@ -76,7 +101,7 @@ export function JsReportClient() {
     setIsDeleting(false);
     if (result.success) {
       toast({ title: 'Success', description: 'Job Sheet deleted.' });
-      performSearch(debouncedSearchTerm);
+      performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -86,8 +111,19 @@ export function JsReportClient() {
   const handleUpdate = () => {
     setIsEditDialogOpen(false);
     setJobSheetToEdit(null);
-    performSearch(debouncedSearchTerm);
+    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
   };
+  
+  const handlePaymentSuccess = (transaction: Transaction) => {
+    setJobSheetToPay(null);
+    setLastTransaction(transaction);
+    toast({ title: 'Success', description: `Payment recorded. Transaction ID: ${transaction.transactionId}` });
+    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter);
+  };
+
+  const jobStatusFilters: (JobSheetStatus | 'all')[] = ['all', ...jobSheetStatus];
+  const paymentStatusFilters: (PaymentStatus | 'all')[] = ['all', ...paymentStatuses];
+
 
   return (
     <>
@@ -111,6 +147,19 @@ export function JsReportClient() {
         onClose={() => setJobSheetToView(null)}
       />
 
+       <PaymentDialog
+        jobSheet={jobSheetToPay}
+        isOpen={!!jobSheetToPay}
+        onClose={() => setJobSheetToPay(null)}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+      
+      <ReceiptDialog
+        transaction={lastTransaction}
+        isOpen={!!lastTransaction}
+        onClose={() => setLastTransaction(null)}
+      />
+
       <AlertDialog open={!!jobSheetToDelete} onOpenChange={() => setJobSheetToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -131,8 +180,8 @@ export function JsReportClient() {
       </AlertDialog>
       
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
+        <CardContent className="p-4 space-y-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -148,6 +197,42 @@ export function JsReportClient() {
               Export as CSV
             </Button>
           </div>
+          
+          <div className="flex flex-col gap-2">
+             <div>
+                <span className="text-sm font-medium text-muted-foreground mr-2">Job Status:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                    {jobStatusFilters.map(status => (
+                    <Button
+                        key={status}
+                        variant={jobStatusFilter === status ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setJobStatusFilter(status)}
+                        className="capitalize"
+                    >
+                        {status}
+                    </Button>
+                    ))}
+                </div>
+            </div>
+             <div>
+                <span className="text-sm font-medium text-muted-foreground mr-2">Payment Status:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                    {paymentStatusFilters.map(status => (
+                    <Button
+                        key={status}
+                        variant={paymentStatusFilter === status ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setPaymentStatusFilter(status)}
+                        className="capitalize"
+                    >
+                        {status}
+                    </Button>
+                    ))}
+                </div>
+            </div>
+          </div>
+
           {isSearching ? (
             <div className="flex justify-center items-center p-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -158,6 +243,7 @@ export function JsReportClient() {
               onEdit={handleEdit}
               onView={handleView}
               onDelete={handleDeleteRequest}
+              onPay={handlePay}
             />
           )}
         </CardContent>
