@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useSession } from '../auth/session-provider';
 
 type JobSheetFormProps = {
   onJobSheetAdded?: () => void;
@@ -52,8 +53,9 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
 export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const { operator: loggedInOperator } = useSession();
   const [lastJobSheet, setLastJobSheet] = useState<JobSheet | null>(null);
-  const [lastOperator, setLastOperator] = useState<Operator>('PTMGH');
+  const [lastOperator, setLastOperator] = useState<Operator>(loggedInOperator || 'PTMGH');
   const [currentJobSheetId, setCurrentJobSheetId] = useState<string | undefined>(undefined);
 
   const isEditMode = !!jobSheetToEdit;
@@ -61,7 +63,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
   const form = useForm<FormValues>({
     resolver: zodResolver(JobSheetSchema.omit({ id: true, createdAt: true, jobId: true })),
-    defaultValues: getFreshDefaultValues(lastOperator),
+    defaultValues: getFreshDefaultValues(loggedInOperator),
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -83,10 +85,10 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
         });
         setCurrentJobSheetId(jobSheetToEdit.id);
     } else if (!jobSheetToEdit && currentJobSheetId) {
-        form.reset(getFreshDefaultValues(lastOperator));
+        form.reset(getFreshDefaultValues(loggedInOperator));
         setCurrentJobSheetId(undefined);
     }
-  }, [jobSheetToEdit, form, lastOperator, currentJobSheetId]);
+  }, [jobSheetToEdit, form, loggedInOperator, currentJobSheetId]);
 
 
   const watchedJobItems = form.watch('jobItems');
@@ -144,7 +146,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
           toast({ title: 'Success', description: `Job Sheet ${result.jobSheet.jobId} created.` });
         }
         if (!isEditMode) {
-            form.reset(getFreshDefaultValues(lastOperator));
+            form.reset(getFreshDefaultValues(loggedInOperator));
         }
         onJobSheetAdded?.();
       } else {
@@ -191,7 +193,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="space-y-2">
                     <Label htmlFor="operator">Operator</Label>
                     <Controller name="operator" control={form.control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
                         <SelectTrigger><SelectValue placeholder="Select Operator" /></SelectTrigger>
                         <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
                     </Select>
@@ -351,5 +353,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     </>
   );
 }
+
+    
 
     
