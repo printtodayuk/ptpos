@@ -244,14 +244,19 @@ export async function getDashboardStats() {
       where('date', '>=', Timestamp.fromDate(todayStart)),
       where('date', '<=', Timestamp.fromDate(todayEnd))
     );
+    const jobSheetsQuery = query(collection(db, 'jobSheets'));
 
-    const [allTransactionsSnapshot, dailyTransactionsSnapshot] = await Promise.all([
+
+    const [allTransactionsSnapshot, dailyTransactionsSnapshot, jobSheetsSnapshot] = await Promise.all([
       getDocs(allTransactionsQuery),
-      getDocs(dailyTransactionsQuery)
+      getDocs(dailyTransactionsQuery),
+      getDocs(jobSheetsQuery),
     ]);
 
     const allTransactions = allTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
     const dailyTransactions = dailyTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
+    const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
+
 
     const dailyCash = dailyTransactions
       .filter(t => t.paymentMethod === 'Cash')
@@ -274,6 +279,10 @@ export async function getDashboardStats() {
       .filter((t) => t.paymentMethod === 'Card Payment')
       .reduce((sum, t) => sum + t.paidAmount, 0);
     const totalSales = allTransactions.reduce((sum, t) => sum + t.paidAmount, 0);
+    
+    const productionCount = jobSheets.filter(js => js.status === 'Production').length;
+    const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
+    const unpaidCount = jobSheets.filter(js => js.paymentStatus === 'Unpaid').length;
 
     return {
       totalSales,
@@ -284,6 +293,9 @@ export async function getDashboardStats() {
       dailyCash,
       dailyBank,
       dailyCard,
+      productionCount,
+      holdCount,
+      unpaidCount,
     };
   } catch (e) {
     console.error(e);
@@ -296,6 +308,9 @@ export async function getDashboardStats() {
       dailyCash: 0,
       dailyBank: 0,
       dailyCard: 0,
+      productionCount: 0,
+      holdCount: 0,
+      unpaidCount: 0,
     };
   }
 }
