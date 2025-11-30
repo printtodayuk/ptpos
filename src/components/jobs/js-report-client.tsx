@@ -13,13 +13,16 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { JobSheetsTable } from './job-sheets-table';
 import { JobSheetForm } from './job-sheet-form';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { exportToCsv } from '@/lib/utils';
 import { PaymentDialog } from './payment-dialog';
 import { ReceiptDialog } from '../transactions/receipt-dialog';
 import type { Transaction } from '@/lib/types';
+import { Label } from '../ui/label';
+
+const DELETE_PIN = '5206';
 
 export function JsReportClient() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +39,9 @@ export function JsReportClient() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
+  const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
+  const [pin, setPin] = useState('');
+
 
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -95,6 +101,7 @@ export function JsReportClient() {
 
   const handleDeleteRequest = (jobSheet: JobSheet) => {
     setJobSheetToDelete(jobSheet);
+    setIsPinDialogOpen(true);
   };
 
   const confirmDelete = async () => {
@@ -109,6 +116,17 @@ export function JsReportClient() {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
     setJobSheetToDelete(null);
+  };
+  
+  const handlePinSubmit = () => {
+    if (pin !== DELETE_PIN) {
+        toast({ variant: 'destructive', title: 'Incorrect PIN', description: 'The PIN you entered is incorrect.' });
+        setPin('');
+        return;
+    }
+    setIsPinDialogOpen(false);
+    setPin('');
+    confirmDelete();
   };
 
   const handleUpdate = () => {
@@ -164,24 +182,33 @@ export function JsReportClient() {
         onClose={() => setLastTransaction(null)}
       />
 
-      <AlertDialog open={!!jobSheetToDelete} onOpenChange={() => setJobSheetToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the job sheet
-              with ID <span className="font-bold">{jobSheetToDelete?.jobId}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} disabled={isDeleting}>
-              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+       <Dialog open={isPinDialogOpen} onOpenChange={(open) => { if(!open) { setJobSheetToDelete(null); setPin(''); } setIsPinDialogOpen(open);}}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter PIN to Delete Job Sheet</DialogTitle>
+            <DialogDescription>
+              To delete job sheet <span className="font-bold">{jobSheetToDelete?.jobId}</span>, please enter the admin PIN.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label htmlFor="pin">Admin PIN</Label>
+            <Input 
+              id="pin" 
+              type="password" 
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsPinDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handlePinSubmit} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm & Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <Card>
         <CardContent className="p-4 space-y-4">
