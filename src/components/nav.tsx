@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -43,7 +44,7 @@ const navItems = [
 export function Nav() {
   const pathname = usePathname();
   const { setOpenMobile, isMobile } = useSidebar();
-  const { logout } = useSession();
+  const { logout, operator } = useSession();
 
   const handleLinkClick = () => {
     if (isMobile) {
@@ -71,12 +72,12 @@ export function Nav() {
         </SidebarMenuItem>
       ))}
        <SidebarMenuItem>
-          <SidebarMenuButton onClick={logout} className="mt-4" tooltip="Logout">
-              <div>
-                <LogOut />
-                <span>Logout</span>
-              </div>
-            </SidebarMenuButton>
+          <SidebarMenuButton onClick={logout} className="mt-4" tooltip={`Logout ${operator || ''}`}>
+            <>
+              <LogOut />
+              <span>Logout</span>
+            </>
+          </SidebarMenuButton>
         </SidebarMenuItem>
     </SidebarMenu>
   );
