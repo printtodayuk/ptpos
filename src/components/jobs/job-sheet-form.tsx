@@ -135,7 +135,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
       }
       
       const result = isEditMode && jobSheetToEdit?.id
-        ? await updateJobSheet(jobSheetToEdit.id, data)
+        ? await updateJobSheet(jobSheetToEdit.id, data, loggedInOperator!)
         : await addJobSheet(data);
 
       if (result.success && result.jobSheet) {

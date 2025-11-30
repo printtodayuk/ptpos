@@ -21,7 +21,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator, JobSheetHistory } from '@/lib/types';
-import { JobSheetSchema } from '@/lib/types';
+import { JobSheetSchema, operators } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { addTransaction } from './server-actions';
@@ -61,7 +61,7 @@ export async function addJobSheet(
     });
 
     const initialHistoryEntry: JobSheetHistory = {
-        timestamp: serverTimestamp(),
+        timestamp: Timestamp.now(),
         operator: validatedData.data.operator,
         action: 'Created',
         details: `Job sheet created by ${validatedData.data.operator}.`,
@@ -127,13 +127,18 @@ export async function addJobSheet(
 
 export async function updateJobSheet(
   id: string,
-  data: z.infer<typeof UpdateJobSheetSchema>
+  data: z.infer<typeof UpdateJobSheetSchema>,
+  changeOperator: Operator
 ) {
   const validatedData = UpdateJobSheetSchema.safeParse(data);
   if (!validatedData.success) {
     return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
   }
   
+  if (!operators.includes(changeOperator)) {
+      return { success: false, message: 'Invalid operator performing the change.' };
+  }
+
   try {
     const jobSheetRef = doc(db, 'jobSheets', id);
     const originalJobSheetSnap = await getDoc(jobSheetRef);
@@ -149,7 +154,6 @@ export async function updateJobSheet(
     } as JobSheet;
 
     const newHistoryEntries: Omit<JobSheetHistory, 'timestamp'>[] = [];
-    const changeOperator = validatedData.data.operator;
     
     // Compare fields and generate history
     if (originalJobSheet.operator !== validatedData.data.operator) {
