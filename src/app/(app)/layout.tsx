@@ -14,7 +14,27 @@ import {
 import { Logo } from '@/components/logo';
 import { Nav } from '@/components/nav';
 import { PinLock } from '@/components/auth/pin-lock';
-import { SessionProvider } from '@/components/auth/session-provider';
+import { SessionProvider, useSession } from '@/components/auth/session-provider';
+import { Badge } from '@/components/ui/badge';
+
+function AppHeader() {
+  const { operator } = useSession();
+  return (
+    <header className="flex h-14 items-center gap-4 border-b bg-card px-4 sm:px-6">
+      <SidebarTrigger className="md:hidden" />
+      <div className="flex-1 flex items-center gap-4">
+        <h1 className="text-lg font-semibold sm:hidden">Print Today</h1>
+        <h1 className="text-lg font-semibold hidden sm:block">Print Today EPOS</h1>
+        {operator && (
+            <Badge variant="outline" className="text-sm">
+                {operator}
+            </Badge>
+        )}
+      </div>
+    </header>
+  );
+}
+
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   
@@ -40,13 +60,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarFooter>
             </Sidebar>
             <SidebarInset>
-              <header className="flex h-14 items-center gap-4 border-b bg-card px-4 sm:px-6">
-                <SidebarTrigger className="md:hidden" />
-                <div className="flex-1">
-                  <h1 className="text-lg font-semibold sm:hidden">Print Today</h1>
-                  <h1 className="text-lg font-semibold hidden sm:block">Print Today EPOS</h1>
-                </div>
-              </header>
+              <AppHeader />
               <main className="flex-1 flex flex-col p-4 md:p-6 bg-secondary/20">
                 {children}
               </main>
