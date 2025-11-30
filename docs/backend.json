@@ -218,11 +218,30 @@
         "createdAt": {
             "type": "string",
             "format": "date-time"
+        },
+        "history": {
+            "type": "array",
+            "description": "A log of all changes made to the job sheet.",
+            "items": {
+                "$ref": "#/backend/entities/JobSheetHistory"
+            }
         }
       },
       "required": [
         "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "paidAmount", "dueAmount", "status", "paymentStatus", "type"
       ]
+    },
+    "JobSheetHistory": {
+        "title": "Job Sheet History",
+        "type": "object",
+        "description": "Represents a single entry in the history log of a job sheet.",
+        "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "operator": { "type": "string" },
+            "action": { "type": "string", "description": "The action performed (e.g., 'Created', 'Updated')." },
+            "details": { "type": "string", "description": "A detailed description of the change." }
+        },
+        "required": ["timestamp", "operator", "action", "details"]
     },
     "TimeRecord": {
       "$schema": "http://json-schema.org/draft-07/schema#",

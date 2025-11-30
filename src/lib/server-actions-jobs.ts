@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator } from '@/lib/types';
+import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator, JobSheetHistory } from '@/lib/types';
 import { JobSheetSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
@@ -60,6 +60,13 @@ export async function addJobSheet(
       return `JID${String(newCount).padStart(4, '0')}`;
     });
 
+    const initialHistoryEntry: JobSheetHistory = {
+        timestamp: serverTimestamp(),
+        operator: validatedData.data.operator,
+        action: 'Created',
+        details: `Job sheet created by ${validatedData.data.operator}.`,
+    };
+
     const dataToSave: any = {
       ...validatedData.data,
       jobId: newJobId,
@@ -68,6 +75,7 @@ export async function addJobSheet(
       paidAmount: 0,
       dueAmount: validatedData.data.totalAmount,
       paymentStatus: 'Unpaid',
+      history: [initialHistoryEntry],
     };
      if (validatedData.data.tid) {
       dataToSave.tid = validatedData.data.tid;
@@ -132,7 +140,40 @@ export async function updateJobSheet(
     if (!originalJobSheetSnap.exists()) {
         return { success: false, message: 'Job Sheet not found.' };
     }
-    const originalJobSheet = originalJobSheetSnap.data() as JobSheet;
+    
+    const originalData = originalJobSheetSnap.data();
+    const originalJobSheet = {
+        ...originalData,
+        date: (originalData.date as Timestamp).toDate(),
+        deliveryBy: originalData.deliveryBy ? (originalData.deliveryBy as Timestamp).toDate() : null,
+    } as JobSheet;
+
+    const newHistoryEntries: Omit<JobSheetHistory, 'timestamp'>[] = [];
+    const changeOperator = validatedData.data.operator;
+    
+    // Compare fields and generate history
+    if (originalJobSheet.operator !== validatedData.data.operator) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Operator changed from '${originalJobSheet.operator}' to '${validatedData.data.operator}'.` });
+    }
+    if (format(originalJobSheet.date as Date, 'yyyy-MM-dd') !== format(validatedData.data.date as Date, 'yyyy-MM-dd')) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Date changed from '${format(originalJobSheet.date as Date, 'dd/MM/yyyy')}' to '${format(validatedData.data.date as Date, 'dd/MM/yyyy')}'.` });
+    }
+    if (originalJobSheet.status !== validatedData.data.status) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Status changed from '${originalJobSheet.status}' to '${validatedData.data.status}'.` });
+    }
+     if ((originalJobSheet.deliveryBy ? format(originalJobSheet.deliveryBy as Date, 'yyyy-MM-dd') : null) !== (validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'yyyy-MM-dd') : null)) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Delivery date changed from '${originalJobSheet.deliveryBy ? format(originalJobSheet.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}' to '${validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}'.` });
+    }
+    if (originalJobSheet.type !== validatedData.data.type) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Type changed from '${originalJobSheet.type}' to '${validatedData.data.type}'.` });
+    }
+     if (originalJobSheet.tid !== validatedData.data.tid) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Transaction ID changed from '${originalJobSheet.tid || 'none'}' to '${validatedData.data.tid || 'none'}'.` });
+    }
+     if (JSON.stringify(originalJobSheet.jobItems) !== JSON.stringify(validatedData.data.jobItems)) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: 'Job items, quantities, or prices were modified.' });
+    }
+
 
     const dataToUpdate: any = {
         ...validatedData.data,
@@ -148,6 +189,11 @@ export async function updateJobSheet(
         dataToUpdate.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
     } else {
         dataToUpdate.deliveryBy = null;
+    }
+    
+    if (newHistoryEntries.length > 0) {
+        const fullHistoryEntries = newHistoryEntries.map(entry => ({ ...entry, timestamp: serverTimestamp() }));
+        dataToUpdate.history = [...(originalJobSheet.history || []), ...fullHistoryEntries];
     }
     
     // If TID is being added or changed

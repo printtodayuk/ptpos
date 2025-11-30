@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useTransition, useEffect, useCallback } from 'react';
 import { searchJobSheets, deleteJobSheet, addTransactionFromJobSheet } from '@/lib/server-actions-jobs';
@@ -17,6 +18,7 @@ import { ReceiptDialog } from '../transactions/receipt-dialog';
 import type { Transaction } from '@/lib/types';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
+import { JobSheetHistoryDialog } from './job-sheet-history-dialog';
 
 const DELETE_PIN = '5206';
 
@@ -32,6 +34,7 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
   const [jobSheetToView, setJobSheetToView] = useState<JobSheet | null>(null);
   const [jobSheetToPay, setJobSheetToPay] = useState<JobSheet | null>(null);
   const [jobSheetToDelete, setJobSheetToDelete] = useState<JobSheet | null>(null);
+  const [jobSheetToViewHistory, setJobSheetToViewHistory] = useState<JobSheet | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
@@ -59,6 +62,10 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
   
   const handleView = (jobSheet: JobSheet) => {
     setJobSheetToView(jobSheet);
+  };
+
+  const handleViewHistory = (jobSheet: JobSheet) => {
+    setJobSheetToViewHistory(jobSheet);
   };
   
   const handlePay = (jobSheet: JobSheet) => {
@@ -131,6 +138,12 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
         onClose={() => setJobSheetToView(null)}
       />
 
+       <JobSheetHistoryDialog
+        jobSheet={jobSheetToViewHistory}
+        isOpen={!!jobSheetToViewHistory}
+        onClose={() => setJobSheetToViewHistory(null)}
+      />
+
       <PaymentDialog
         jobSheet={jobSheetToPay}
         isOpen={!!jobSheetToPay}
@@ -201,6 +214,7 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
               onView={handleView}
               onDelete={handleDeleteRequest}
               onPay={handlePay}
+              onViewHistory={handleViewHistory}
             />
           )}
         </CardContent>

@@ -21,6 +21,7 @@ import { PaymentDialog } from './payment-dialog';
 import { ReceiptDialog } from '../transactions/receipt-dialog';
 import type { Transaction } from '@/lib/types';
 import { Label } from '../ui/label';
+import { JobSheetHistoryDialog } from './job-sheet-history-dialog';
 
 const DELETE_PIN = '5206';
 
@@ -36,6 +37,7 @@ export function JsReportClient() {
   const [jobSheetToView, setJobSheetToView] = useState<JobSheet | null>(null);
   const [jobSheetToPay, setJobSheetToPay] = useState<JobSheet | null>(null);
   const [jobSheetToDelete, setJobSheetToDelete] = useState<JobSheet | null>(null);
+  const [jobSheetToViewHistory, setJobSheetToViewHistory] = useState<JobSheet | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
@@ -93,6 +95,10 @@ export function JsReportClient() {
   
   const handleView = (jobSheet: JobSheet) => {
     setJobSheetToView(jobSheet);
+  };
+
+  const handleViewHistory = (jobSheet: JobSheet) => {
+    setJobSheetToViewHistory(jobSheet);
   };
   
   const handlePay = (jobSheet: JobSheet) => {
@@ -167,6 +173,12 @@ export function JsReportClient() {
         jobSheet={jobSheetToView}
         isOpen={!!jobSheetToView}
         onClose={() => setJobSheetToView(null)}
+      />
+
+       <JobSheetHistoryDialog
+        jobSheet={jobSheetToViewHistory}
+        isOpen={!!jobSheetToViewHistory}
+        onClose={() => setJobSheetToViewHistory(null)}
       />
 
        <PaymentDialog
@@ -291,6 +303,7 @@ export function JsReportClient() {
               onView={handleView}
               onDelete={handleDeleteRequest}
               onPay={handlePay}
+              onViewHistory={handleViewHistory}
             />
           )}
         </CardContent>

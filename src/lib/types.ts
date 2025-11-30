@@ -47,6 +47,15 @@ const JobItemSchema = z.object({
   vatApplied: z.boolean().default(false),
 });
 
+export const JobSheetHistorySchema = z.object({
+    timestamp: z.any(),
+    operator: z.string(),
+    action: z.string(),
+    details: z.string(),
+});
+export type JobSheetHistory = z.infer<typeof JobSheetHistorySchema>;
+
+
 export const JobSheetSchema = z.object({
   id: z.string().optional(),
   jobId: z.string(),
@@ -68,11 +77,13 @@ export const JobSheetSchema = z.object({
   deliveryBy: z.date().optional().nullable(),
   type: z.enum(jobSheetTypes).default('Invoice'),
   createdAt: z.any().optional(),
+  history: z.array(JobSheetHistorySchema).optional().default([]),
 });
 
-export type JobSheet = Omit<z.infer<typeof JobSheetSchema>, 'date' | 'deliveryBy'> & {
+export type JobSheet = Omit<z.infer<typeof JobSheetSchema>, 'date' | 'deliveryBy' | 'history'> & {
     date: Date | string;
     deliveryBy?: Date | string | null;
+    history?: JobSheetHistory[];
 };
 
 export const ContactSchema = z.object({
