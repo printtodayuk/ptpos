@@ -192,7 +192,7 @@ export async function updateJobSheet(
     }
     
     if (newHistoryEntries.length > 0) {
-        const fullHistoryEntries = newHistoryEntries.map(entry => ({ ...entry, timestamp: serverTimestamp() }));
+        const fullHistoryEntries = newHistoryEntries.map(entry => ({ ...entry, timestamp: Timestamp.now() }));
         dataToUpdate.history = [...(originalJobSheet.history || []), ...fullHistoryEntries];
     }
     
