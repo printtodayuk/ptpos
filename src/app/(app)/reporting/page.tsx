@@ -5,7 +5,7 @@ export default function ReportingPage() {
   return (
     <div className="flex flex-col gap-6">
        <CardHeader className="p-0">
-            <CardTitle>Sales Reporting</CardTitle>
+            <CardTitle>Transactions</CardTitle>
             <CardDescription>Generate reports and export sales data.</CardDescription>
         </CardHeader>
       <ReportClient />

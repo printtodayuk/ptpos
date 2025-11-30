@@ -36,7 +36,7 @@ const navItems = [
   { href: '/contact-list', icon: Contact, label: 'Contact List' },
   { href: '/attendance', icon: Clock, label: 'Attendance'},
   { href: '/attendance-report', icon: Briefcase, label: 'Time Report'},
-  { href: '/reporting', icon: BarChart4, label: 'Reporting' },
+  { href: '/reporting', icon: BarChart4, label: 'Transactions' },
   { href: '/admin', icon: UserCheck, label: 'Admin' },
   { href: '/admin-time', icon: Users, label: 'Admin-Time' },
 ];

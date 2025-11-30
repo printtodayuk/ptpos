@@ -159,14 +159,14 @@ export function ReportClient() {
               <TabsContent value="invoicing" className="m-0 p-0">
                   <TransactionsTable 
                     transactions={invoicingTransactions}
-                    showAdminControls={true}
+                    showAdminControls={false}
                     onTransactionChecked={onTransactionChecked}
                   />
               </TabsContent>
               <TabsContent value="non-invoicing" className="m-0 p-0">
                   <TransactionsTable 
                     transactions={nonInvoicingTransactions}
-                    showAdminControls={true}
+                    showAdminControls={false}
                     onTransactionChecked={onTransactionChecked}
                    />
               </TabsContent>
