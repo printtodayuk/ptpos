@@ -14,6 +14,7 @@ import {
   Clock,
   Briefcase,
   Users,
+  LogOut,
 } from 'lucide-react';
 import React from 'react';
 
@@ -24,6 +25,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+import { useSession } from './auth/session-provider';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -41,6 +43,7 @@ const navItems = [
 export function Nav() {
   const pathname = usePathname();
   const { setOpenMobile, isMobile } = useSidebar();
+  const { logout } = useSession();
 
   const handleLinkClick = () => {
     if (isMobile) {
@@ -67,6 +70,14 @@ export function Nav() {
           </Link>
         </SidebarMenuItem>
       ))}
+       <SidebarMenuItem>
+          <SidebarMenuButton onClick={logout} className="mt-4" tooltip="Logout">
+              <div>
+                <LogOut />
+                <span>Logout</span>
+              </div>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
     </SidebarMenu>
   );
 }
