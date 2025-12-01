@@ -17,9 +17,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TransactionsTable } from '../transactions/transactions-table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { useToast } from '@/hooks/use-toast';
 
 export function ReportClient() {
   const [isPending, startTransition] = useTransition();
+  const [isExporting, startExportTransition] = useTransition();
   const [invoicingTransactions, setInvoicingTransactions] = useState<Transaction[]>([]);
   const [nonInvoicingTransactions, setNonInvoicingTransactions] = useState<Transaction[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -27,6 +29,7 @@ export function ReportClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [date, setDate] = useState<DateRange | undefined>();
+  const { toast } = useToast();
 
   const performSearch = useCallback((term: string, dateRange?: DateRange) => {
     startTransition(async () => {
@@ -46,28 +49,39 @@ export function ReportClient() {
   }, [debouncedSearchTerm, date, performSearch]);
 
   const handleExport = () => {
-    const transactionsToExport = activeTab === 'invoicing' ? invoicingTransactions : nonInvoicingTransactions;
-    if (transactionsToExport.length === 0) return;
+    startExportTransition(async () => {
+      const transactionsToExport = await getReportData({
+        searchTerm: debouncedSearchTerm,
+        startDate: date?.from?.toISOString(),
+        endDate: date?.to?.toISOString(),
+      });
+      
+      if (!transactionsToExport || transactionsToExport.length === 0) {
+        toast({ variant: 'destructive', title: 'Nothing to Export', description: 'No transactions match the current filters.' });
+        return;
+      }
 
-    const filename = `${activeTab}_report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    const dataToExport = transactionsToExport.map(t => ({
-        transactionId: t.transactionId,
-        date: format(new Date(t.date), 'yyyy-MM-dd'),
-        clientName: t.clientName,
-        type: t.type,
-        invoiceNumber: t.invoiceNumber || '',
-        jid: t.jid || '',
-        amount: t.amount.toFixed(2),
-        vatApplied: t.vatApplied,
-        totalAmount: t.totalAmount.toFixed(2),
-        paidAmount: t.paidAmount.toFixed(2),
-        dueAmount: t.dueAmount.toFixed(2),
-        paymentMethod: t.paymentMethod,
-        operator: t.operator,
-        adminChecked: t.adminChecked,
-        checkedBy: t.checkedBy || '',
-    }));
-    exportToCsv(filename, dataToExport);
+      const filename = `transactions_report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      const dataToExport = transactionsToExport.map(t => ({
+          transactionId: t.transactionId,
+          date: format(new Date(t.date), 'yyyy-MM-dd'),
+          clientName: t.clientName,
+          type: t.type,
+          invoiceNumber: t.invoiceNumber || '',
+          jid: t.jid || '',
+          amount: t.amount.toFixed(2),
+          vatApplied: t.vatApplied,
+          totalAmount: t.totalAmount.toFixed(2),
+          paidAmount: t.paidAmount.toFixed(2),
+          dueAmount: t.dueAmount.toFixed(2),
+          paymentMethod: t.paymentMethod,
+          operator: t.operator,
+          adminChecked: t.adminChecked,
+          checkedBy: t.checkedBy || '',
+      }));
+      exportToCsv(filename, dataToExport);
+      toast({ title: 'Success', description: 'Transactions exported successfully.' });
+    });
   };
 
   const hasData = invoicingTransactions.length > 0 || nonInvoicingTransactions.length > 0;
@@ -128,9 +142,9 @@ export function ReportClient() {
                     </PopoverContent>
                 </Popover>
                 {hasData && (
-                    <Button onClick={handleExport} variant="outline" className="w-full sm:w-auto flex-shrink-0">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export View
+                    <Button onClick={handleExport} disabled={isExporting} variant="outline" className="w-full sm:w-auto flex-shrink-0">
+                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        Export CSV
                     </Button>
                 )}
             </div>
