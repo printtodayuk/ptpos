@@ -283,6 +283,8 @@ export async function getDashboardStats() {
     const productionCount = jobSheets.filter(js => js.status === 'Production').length;
     const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
     const unpaidCount = jobSheets.filter(js => js.paymentStatus === 'Unpaid').length;
+    const studioCount = jobSheets.filter(js => js.status === 'Studio').length;
+    const mghCount = jobSheets.filter(js => js.status === 'MGH').length;
 
     return {
       totalSales,
@@ -296,6 +298,8 @@ export async function getDashboardStats() {
       productionCount,
       holdCount,
       unpaidCount,
+      studioCount,
+      mghCount,
     };
   } catch (e) {
     console.error(e);
@@ -311,6 +315,8 @@ export async function getDashboardStats() {
       productionCount: 0,
       holdCount: 0,
       unpaidCount: 0,
+      studioCount: 0,
+      mghCount: 0,
     };
   }
 }

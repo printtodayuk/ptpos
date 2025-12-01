@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats } from "@/lib/server-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { Loader, Ban, ClipboardCheck } from "lucide-react";
+import { Loader, Ban, ClipboardCheck, Paintbrush, Truck } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 
@@ -21,6 +21,8 @@ export default function DashboardPage() {
     productionCount: 0,
     holdCount: 0,
     unpaidCount: 0,
+    studioCount: 0,
+    mghCount: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,10 +59,12 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard title="In Production" value={stats.productionCount} icon={Loader} description="Jobs currently in production" isCurrency={false} />
               <StatCard title="On Hold" value={stats.holdCount} icon={Ban} description="Jobs waiting for action" isCurrency={false} />
               <StatCard title="Unpaid" value={stats.unpaidCount} icon={ClipboardCheck} description="Jobs with outstanding payments" isCurrency={false} />
+              <StatCard title="In Studio" value={stats.studioCount} icon={Paintbrush} description="Jobs in the design phase" isCurrency={false} />
+              <StatCard title="MGH" value={stats.mghCount} icon={Truck} description="Jobs with MGH status" isCurrency={false} />
           </div>
         </CardContent>
       </Card>
