@@ -100,6 +100,7 @@ export function JobSheetsTable({
             <TableHead>Job ID</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Client</TableHead>
+            <TableHead className="hidden md:table-cell">Type</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
             <TableHead className="hidden lg:table-cell">IR Number</TableHead>
             <TableHead className="text-right">Total</TableHead>
@@ -120,6 +121,7 @@ export function JobSheetsTable({
                 {format(new Date(js.date), 'dd/MM/yy')}
               </TableCell>
               <TableCell>{js.clientName}</TableCell>
+              <TableCell className="hidden md:table-cell">{js.type}</TableCell>
               <TableCell className="hidden md:table-cell">{js.operator}</TableCell>
               <TableCell className="hidden lg:table-cell">{js.irNumber}</TableCell>
               <TableCell className="text-right">
