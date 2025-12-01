@@ -18,7 +18,6 @@ import { format, differenceInSeconds } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
 import { useSession } from '@/components/auth/session-provider';
 
 function formatDurationWithSeconds(seconds: number) {
@@ -137,8 +136,6 @@ export default function AttendancePage() {
           <CardTitle>Operator Attendance</CardTitle>
           <CardDescription>Clock in, clock out, and manage breaks.</CardDescription>
       </CardHeader>
-      
-      <LiveOperatorStatus />
       
        <Card className="w-full max-w-2xl mx-auto min-h-[200px]">
         {renderStatus()}

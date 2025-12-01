@@ -7,6 +7,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { Loader, Ban, ClipboardCheck, Paintbrush, Truck } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
+import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -68,6 +69,8 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <LiveOperatorStatus />
     </div>
   );
 }
