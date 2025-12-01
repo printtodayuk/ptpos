@@ -37,6 +37,20 @@ const UpdateTransactionSchema = CreateTransactionSchema.omit({
     checkedBy: true,
 });
 
+async function getNextTransactionId(): Promise<string> {
+    const q = query(collection(db, 'transactions'), orderBy('transactionId', 'desc'), limit(1));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        return 'TID0001';
+    }
+
+    const lastId = querySnapshot.docs[0].data().transactionId as string;
+    const lastNumber = parseInt(lastId.replace('TID', ''), 10);
+    const newNumber = lastNumber + 1;
+    return `TID${String(newNumber).padStart(4, '0')}`;
+}
+
 async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude: string | null = null) {
     const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', '==', jobId), limit(1));
     const jobSheetSnapshot = await getDocs(jobSheetQuery);
@@ -89,17 +103,7 @@ export async function addTransaction(
   }
 
   try {
-    const counterRef = doc(db, 'counters', 'transactions');
-    
-    let newTransaction: Transaction | null = null;
-    
-    const newTransactionId = await runTransaction(db, async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      const currentCount = counterDoc.exists() ? counterDoc.data()?.count : 0;
-      const newCount = (currentCount || 0) + 1;
-      transaction.set(counterRef, { count: newCount }, { merge: true });
-      return `TID${String(newCount).padStart(4, '0')}`;
-    });
+    const newTransactionId = await getNextTransactionId();
     
     const docRef = await addDoc(collection(db, 'transactions'), {
       ...validatedData.data,
@@ -118,6 +122,7 @@ export async function addTransaction(
     const newDocSnap = await getDoc(docRef);
     const newDocData = newDocSnap.data();
 
+    let newTransaction: Transaction | null = null;
     if (newDocData) {
       newTransaction = {
         ...(newDocData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
