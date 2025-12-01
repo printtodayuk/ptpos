@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -37,6 +38,21 @@ const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
     tid: z.string().optional().nullable(),
 });
 
+async function getNextJobId(): Promise<string> {
+    const q = query(collection(db, 'jobSheets'), orderBy('jobId', 'desc'), limit(1));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        return 'JID0001';
+    }
+
+    const lastJobId = querySnapshot.docs[0].data().jobId as string;
+    const lastNumber = parseInt(lastJobId.replace('JID', ''), 10);
+    const newNumber = lastNumber + 1;
+    return `JID${String(newNumber).padStart(4, '0')}`;
+}
+
+
 export async function addJobSheet(
   data: z.infer<typeof CreateJobSheetSchema>
 ) {
@@ -50,15 +66,7 @@ export async function addJobSheet(
   }
 
   try {
-    const counterRef = doc(db, 'counters', 'jobSheets');
-    
-    const newJobId = await runTransaction(db, async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      const currentCount = counterDoc.exists() ? counterDoc.data()?.count : 0;
-      const newCount = (currentCount || 0) + 1;
-      transaction.set(counterRef, { count: newCount }, { merge: true });
-      return `JID${String(newCount).padStart(4, '0')}`;
-    });
+    const newJobId = await getNextJobId();
 
     const initialHistoryEntry: JobSheetHistory = {
         timestamp: Timestamp.now(),
