@@ -60,18 +60,20 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
   });
 
   const watchedPaidAmount = form.watch('paidAmount');
+  
+  const currentDue = jobSheet ? jobSheet.totalAmount - (jobSheet.paidAmount || 0) : 0;
 
   useEffect(() => {
     if (jobSheet && isOpen) {
-      const currentDue = jobSheet.dueAmount;
-      setMaxPayment(currentDue > 0 ? currentDue : 0.01);
+      const correctDue = jobSheet.totalAmount - (jobSheet.paidAmount || 0);
+      setMaxPayment(correctDue > 0 ? correctDue : 0.01);
       const jobDescription = jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', ');
       
       form.reset({
         jid: jobSheet.jobId,
         clientName: jobSheet.clientName,
         totalAmount: jobSheet.totalAmount,
-        paidAmount: currentDue,
+        paidAmount: correctDue,
         dueAmount: 0,
         paymentMethod: 'Cash',
         operator: 'PTMGH',
@@ -80,17 +82,16 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
         date: new Date(),
       });
     }
-  }, [jobSheet, form, isOpen]);
+  }, [jobSheet, isOpen, form]);
 
   useEffect(() => {
-      const currentDue = jobSheet?.dueAmount || 0;
       const paid = isNaN(watchedPaidAmount) ? 0 : watchedPaidAmount;
       const newDue = currentDue - paid;
       
       if (form.getValues('dueAmount') !== newDue) {
         form.setValue('dueAmount', newDue);
       }
-  }, [watchedPaidAmount, form, jobSheet]);
+  }, [watchedPaidAmount, form, currentDue]);
 
 
   const onSubmit = (data: PaymentFormValues) => {
@@ -116,7 +117,6 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
   if (!jobSheet) return null;
   
   const currentTotalPaid = jobSheet.paidAmount || 0;
-  const currentDue = jobSheet.totalAmount - currentTotalPaid;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
