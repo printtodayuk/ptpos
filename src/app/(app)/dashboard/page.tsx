@@ -60,11 +60,11 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <StatCard title="In Production" value={stats.productionCount} icon={Loader} description="Jobs currently in production" isCurrency={false} />
-              <StatCard title="On Hold" value={stats.holdCount} icon={Ban} description="Jobs waiting for action" isCurrency={false} />
-              <StatCard title="Unpaid" value={stats.unpaidCount} icon={ClipboardCheck} description="Jobs with outstanding payments" isCurrency={false} />
-              <StatCard title="In Studio" value={stats.studioCount} icon={Paintbrush} description="Jobs in the design phase" isCurrency={false} />
-              <StatCard title="MGH" value={stats.mghCount} icon={Truck} description="Jobs with MGH status" isCurrency={false} />
+              <StatCard title="In Production" value={stats.productionCount} icon={Loader} description="Jobs currently in production" isCurrency={false} className="bg-orange-500/10 border-orange-500 text-orange-700" />
+              <StatCard title="On Hold" value={stats.holdCount} icon={Ban} description="Jobs waiting for action" isCurrency={false} className="bg-red-500/10 border-red-500 text-red-700" />
+              <StatCard title="Unpaid" value={stats.unpaidCount} icon={ClipboardCheck} description="Jobs with outstanding payments" isCurrency={false} className="bg-yellow-500/10 border-yellow-500 text-yellow-700" />
+              <StatCard title="In Studio" value={stats.studioCount} icon={Paintbrush} description="Jobs in the design phase" isCurrency={false} className="bg-blue-500/10 border-blue-500 text-blue-700" />
+              <StatCard title="MGH" value={stats.mghCount} icon={Truck} description="Jobs with MGH status" isCurrency={false} className="bg-pink-500/10 border-pink-500 text-pink-700" />
           </div>
         </CardContent>
       </Card>
