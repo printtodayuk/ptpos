@@ -66,7 +66,7 @@ export function JobSheetsTable({
         return 'bg-destructive hover:bg-destructive/80 text-destructive-foreground';
       case 'Ready Pickup':
         return 'bg-purple-500 hover:bg-purple-500/80 text-white';
-      case 'DPD':
+      case 'Parcel Compare':
          return 'bg-yellow-500 hover:bg-yellow-500/80 text-black';
       case 'Delivered':
         return 'bg-green-600 hover:bg-green-600/80 text-white';
