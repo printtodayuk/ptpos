@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -423,7 +424,12 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(1000));
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    if (paymentMethod) {
+      constraints.push(where('paymentMethod', '==', paymentMethod));
+    }
+
+    const q = query(collection(db, 'transactions'), ...constraints);
     const querySnapshot = await getDocs(q);
 
     let transactions = querySnapshot.docs.map((doc) => {
@@ -435,10 +441,6 @@ export async function searchTransactions(
         createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
-
-    if (paymentMethod) {
-      transactions = transactions.filter(t => t.paymentMethod === paymentMethod);
-    }
     
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
@@ -450,8 +452,33 @@ export async function searchTransactions(
         return tidMatch || clientMatch || jobMatch || jidMatch;
       });
     }
+    
+    const limitedTransactions = transactions.slice(0, 50);
 
-    return transactions.slice(0, searchTerm || paymentMethod ? 1000 : 50);
+    // Fetch related job sheets for the limited transactions
+    const jobSheetPromises = limitedTransactions
+      .filter(tx => tx.jid)
+      .map(tx => {
+        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', '==', tx.jid), limit(1));
+        return getDocs(jobSheetQuery).then(snapshot => {
+          if (!snapshot.empty) {
+            const jobSheetData = snapshot.docs[0].data() as JobSheet;
+            return {
+              jid: tx.jid,
+              invoiceNumber: jobSheetData.invoiceNumber || jobSheetData.irNumber || '',
+            };
+          }
+          return null;
+        });
+      });
+
+    const jobSheets = (await Promise.all(jobSheetPromises)).filter(Boolean) as { jid: string, invoiceNumber: string }[];
+    const jobSheetMap = new Map(jobSheets.map(js => [js.jid, js.invoiceNumber]));
+    
+    return limitedTransactions.map(tx => ({
+      ...tx,
+      invoiceNumber: tx.invoiceNumber || (tx.jid ? jobSheetMap.get(tx.jid) || '' : ''),
+    }));
 
   } catch (e) {
     console.error('Error searching transactions: ', e);
