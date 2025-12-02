@@ -395,7 +395,6 @@ export async function getReportData({ searchTerm, startDate, endDate }: { search
     if (searchTerm) {
         const lowercasedTerm = searchTerm.toLowerCase();
         
-        // Check if the search term is a date
         const searchDate = parseISO(searchTerm);
         const isDateSearch = isValid(searchDate);
 
@@ -413,6 +412,30 @@ export async function getReportData({ searchTerm, startDate, endDate }: { search
         });
     }
     
+    // Augment with Job Sheet data
+    const jids = transactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
+    if (jids.length > 0) {
+        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', [...new Set(jids)]));
+        const jobSheetsSnapshot = await getDocs(jobSheetQuery);
+        const jobSheetMap = new Map<string, JobSheet>();
+        jobSheetsSnapshot.docs.forEach(doc => {
+            const data = doc.data() as JobSheet;
+            jobSheetMap.set(data.jobId, data);
+        });
+
+        return transactions.map(tx => {
+            if (tx.jid && jobSheetMap.has(tx.jid)) {
+                const jobSheet = jobSheetMap.get(tx.jid)!;
+                return {
+                    ...tx,
+                    invoiceNumber: tx.invoiceNumber || jobSheet.invoiceNumber || jobSheet.irNumber || '',
+                };
+            }
+            return tx;
+        });
+    }
+
+
     return transactions;
   } catch (e) {
     console.error(e);
@@ -425,10 +448,15 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    // 1. Fetch all transactions and filter them in memory.
-    const allTransactionsQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-    const allTransactionsSnapshot = await getDocs(allTransactionsQuery);
-    let transactions = allTransactionsSnapshot.docs.map(doc => {
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    if (paymentMethod) {
+        constraints.push(where('paymentMethod', '==', paymentMethod));
+    }
+
+    const q = query(collection(db, 'transactions'), ...constraints);
+    let querySnapshot = await getDocs(q);
+
+    let transactions = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
             ...data,
@@ -438,10 +466,6 @@ export async function searchTransactions(
         } as Transaction;
     });
 
-    // 2. Apply filters (paymentMethod, searchTerm)
-    if (paymentMethod) {
-        transactions = transactions.filter(t => t.paymentMethod === paymentMethod);
-    }
     if (searchTerm) {
         const lowercasedTerm = searchTerm.toLowerCase();
         transactions = transactions.filter((t) => {
@@ -453,13 +477,13 @@ export async function searchTransactions(
         });
     }
 
-    // 3. Limit the results
     const limitedTransactions = transactions.slice(0, 50);
 
-    // 4. Fetch related job sheets only for the filtered and limited transactions
     const jids = limitedTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
     if (jids.length > 0) {
-        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', jids));
+        // Use new Set to avoid issues with 'in' queries having duplicate values
+        const uniqueJids = [...new Set(jids)];
+        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', uniqueJids));
         const jobSheetsSnapshot = await getDocs(jobSheetQuery);
         const jobSheetMap = new Map<string, JobSheet>();
         jobSheetsSnapshot.docs.forEach(doc => {
@@ -467,7 +491,6 @@ export async function searchTransactions(
             jobSheetMap.set(data.jobId, data);
         });
 
-        // 5. Augment transactions with invoice numbers
         return limitedTransactions.map(tx => {
             if (tx.jid && jobSheetMap.has(tx.jid)) {
                 const jobSheet = jobSheetMap.get(tx.jid)!;
