@@ -250,19 +250,19 @@ export async function getDashboardStats() {
       where('date', '>=', Timestamp.fromDate(todayStart)),
       where('date', '<=', Timestamp.fromDate(todayEnd))
     );
+    
+    // Fetch all job sheets once
     const jobSheetsQuery = query(collection(db, 'jobSheets'));
+    const jobSheetsSnapshot = await getDocs(jobSheetsQuery);
+    const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
 
-
-    const [allTransactionsSnapshot, dailyTransactionsSnapshot, jobSheetsSnapshot] = await Promise.all([
+    const [allTransactionsSnapshot, dailyTransactionsSnapshot] = await Promise.all([
       getDocs(allTransactionsQuery),
       getDocs(dailyTransactionsQuery),
-      getDocs(jobSheetsQuery),
     ]);
 
     const allTransactions = allTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
     const dailyTransactions = dailyTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
-    const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
-
 
     const dailyCash = dailyTransactions
       .filter(t => t.paymentMethod === 'Cash')
@@ -286,6 +286,7 @@ export async function getDashboardStats() {
       .reduce((sum, t) => sum + t.paidAmount, 0);
     const totalSales = allTransactions.reduce((sum, t) => sum + t.paidAmount, 0);
     
+    // Process job sheets counts locally
     const productionCount = jobSheets.filter(js => js.status === 'Production').length;
     const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
     const unpaidCount = jobSheets.filter(js => js.paymentStatus === 'Unpaid').length;
@@ -424,61 +425,62 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
-    if (paymentMethod) {
-      constraints.push(where('paymentMethod', '==', paymentMethod));
-    }
-
-    const q = query(collection(db, 'transactions'), ...constraints);
-    const querySnapshot = await getDocs(q);
-
-    let transactions = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        ...data,
-        id: doc.id,
-        date: (data.date as Timestamp).toDate(),
-        createdAt: (data.createdAt as Timestamp)?.toDate(),
-      } as Transaction;
+    // 1. Fetch all transactions and filter them in memory.
+    const allTransactionsQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+    const allTransactionsSnapshot = await getDocs(allTransactionsQuery);
+    let transactions = allTransactionsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            ...data,
+            id: doc.id,
+            date: (data.date as Timestamp).toDate(),
+            createdAt: (data.createdAt as Timestamp)?.toDate(),
+        } as Transaction;
     });
-    
-    if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      transactions = transactions.filter((t) => {
-        const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
-        const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
-        const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-        const jidMatch = t.jid?.toLowerCase().includes(lowercasedTerm);
-        return tidMatch || clientMatch || jobMatch || jidMatch;
-      });
+
+    // 2. Apply filters (paymentMethod, searchTerm)
+    if (paymentMethod) {
+        transactions = transactions.filter(t => t.paymentMethod === paymentMethod);
     }
-    
+    if (searchTerm) {
+        const lowercasedTerm = searchTerm.toLowerCase();
+        transactions = transactions.filter((t) => {
+            const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
+            const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
+            const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
+            const jidMatch = t.jid?.toLowerCase().includes(lowercasedTerm);
+            return tidMatch || clientMatch || jobMatch || jidMatch;
+        });
+    }
+
+    // 3. Limit the results
     const limitedTransactions = transactions.slice(0, 50);
 
-    // Fetch related job sheets for the limited transactions
-    const jobSheetPromises = limitedTransactions
-      .filter(tx => tx.jid)
-      .map(tx => {
-        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', '==', tx.jid), limit(1));
-        return getDocs(jobSheetQuery).then(snapshot => {
-          if (!snapshot.empty) {
-            const jobSheetData = snapshot.docs[0].data() as JobSheet;
-            return {
-              jid: tx.jid,
-              invoiceNumber: jobSheetData.invoiceNumber || jobSheetData.irNumber || '',
-            };
-          }
-          return null;
+    // 4. Fetch related job sheets only for the filtered and limited transactions
+    const jids = limitedTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
+    if (jids.length > 0) {
+        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', jids));
+        const jobSheetsSnapshot = await getDocs(jobSheetQuery);
+        const jobSheetMap = new Map<string, JobSheet>();
+        jobSheetsSnapshot.docs.forEach(doc => {
+            const data = doc.data() as JobSheet;
+            jobSheetMap.set(data.jobId, data);
         });
-      });
 
-    const jobSheets = (await Promise.all(jobSheetPromises)).filter(Boolean) as { jid: string, invoiceNumber: string }[];
-    const jobSheetMap = new Map(jobSheets.map(js => [js.jid, js.invoiceNumber]));
-    
-    return limitedTransactions.map(tx => ({
-      ...tx,
-      invoiceNumber: tx.invoiceNumber || (tx.jid ? jobSheetMap.get(tx.jid) || '' : ''),
-    }));
+        // 5. Augment transactions with invoice numbers
+        return limitedTransactions.map(tx => {
+            if (tx.jid && jobSheetMap.has(tx.jid)) {
+                const jobSheet = jobSheetMap.get(tx.jid)!;
+                return {
+                    ...tx,
+                    invoiceNumber: tx.invoiceNumber || jobSheet.invoiceNumber || jobSheet.irNumber || '',
+                };
+            }
+            return tx;
+        });
+    }
+
+    return limitedTransactions;
 
   } catch (e) {
     console.error('Error searching transactions: ', e);
