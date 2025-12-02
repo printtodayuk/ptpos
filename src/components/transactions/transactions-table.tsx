@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useTransition, useMemo } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Printer, CheckCircle, Trash2, Loader2, Ban } from 'lucide-react';
+import { MoreHorizontal, Printer, CheckCircle, Trash2, Loader2, Ban, Edit } from 'lucide-react';
 
 import {
   Table,
@@ -35,6 +35,7 @@ const ROWS_PER_PAGE = 10;
 type TransactionsTableProps = {
   transactions: Transaction[];
   onDelete?: (transaction: Transaction) => void;
+  onEdit?: (transaction: Transaction) => void;
   onTransactionChecked?: () => void;
   showAdminControls?: boolean;
   selectable?: boolean;
@@ -43,7 +44,8 @@ type TransactionsTableProps = {
 
 export function TransactionsTable({ 
   transactions, 
-  onDelete, 
+  onDelete,
+  onEdit,
   onTransactionChecked, 
   showAdminControls = false,
   selectable = false,
@@ -213,6 +215,9 @@ export function TransactionsTable({
                       </DropdownMenuItem>
                       {showAdminControls && (
                         <>
+                          <DropdownMenuItem onSelect={() => onEdit?.(tx)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => handleCheck(tx.id!)} disabled={isPending || tx.adminChecked}>
                             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : tx.adminChecked ? <Ban className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}

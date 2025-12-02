@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useTransition } from 'react';
 import { searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, Trash2, CheckCircle } from 'lucide-react';
+import { Loader2, Search, Trash2, CheckCircle, Edit } from 'lucide-react';
 import type { Transaction, PaymentMethod } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { PinLock } from '@/components/admin/pin-lock';
+import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog';
 
 export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +37,7 @@ export default function AdminPage() {
   const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [isBulkActionPending, startBulkActionTransition] = useTransition();
@@ -62,6 +64,10 @@ export default function AdminPage() {
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
   };
+  
+  const handleEditRequest = (transaction: Transaction) => {
+    setTransactionToEdit(transaction);
+  };
 
   const confirmDelete = async () => {
     if (!transactionToDelete) return;
@@ -80,6 +86,11 @@ export default function AdminPage() {
   };
 
   const onTransactionChecked = () => {
+    performSearch();
+  };
+  
+  const handleUpdateSuccess = () => {
+    setTransactionToEdit(null);
     performSearch();
   };
 
@@ -141,6 +152,13 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditTransactionDialog
+        transaction={transactionToEdit}
+        isOpen={!!transactionToEdit}
+        onClose={() => setTransactionToEdit(null)}
+        onSuccess={handleUpdateSuccess}
+      />
       
       <AlertDialog open={!!bulkAction} onOpenChange={() => setBulkAction(null)}>
         <AlertDialogContent>
@@ -232,6 +250,7 @@ export default function AdminPage() {
                 <TransactionsTable
                   transactions={results}
                   onDelete={handleDeleteRequest}
+                  onEdit={handleEditRequest}
                   onTransactionChecked={onTransactionChecked}
                   showAdminControls={true}
                   selectable={true}
