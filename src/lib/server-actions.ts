@@ -448,59 +448,64 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
-    if (paymentMethod) {
-        constraints.push(where('paymentMethod', '==', paymentMethod));
-    }
+    // 1. Initial query to get all transactions ordered by creation date.
+    // We cannot add a `where` clause for searchTerm here as it's a text search on multiple fields.
+    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
 
-    const q = query(collection(db, 'transactions'), ...constraints);
-    let querySnapshot = await getDocs(q);
-
-    let transactions = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            ...data,
-            id: doc.id,
-            date: (data.date as Timestamp).toDate(),
-            createdAt: (data.createdAt as Timestamp)?.toDate(),
-        } as Transaction;
+    let allTransactions = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
+      } as Transaction;
     });
 
-    if (searchTerm) {
-        const lowercasedTerm = searchTerm.toLowerCase();
-        transactions = transactions.filter((t) => {
-            const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
-            const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
-            const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
-            const jidMatch = t.jid?.toLowerCase().includes(lowercasedTerm);
-            return tidMatch || clientMatch || jobMatch || jidMatch;
-        });
+    // 2. In-memory filtering based on payment method and search term.
+    let filteredTransactions = allTransactions;
+
+    if (paymentMethod) {
+      filteredTransactions = filteredTransactions.filter(t => t.paymentMethod === paymentMethod);
     }
 
-    const limitedTransactions = transactions.slice(0, 50);
+    if (searchTerm) {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      filteredTransactions = filteredTransactions.filter((t) => {
+        const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
+        const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
+        const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
+        const jidMatch = t.jid?.toLowerCase().includes(lowercasedTerm);
+        return tidMatch || clientMatch || jobMatch || jidMatch;
+      });
+    }
 
+    // 3. Limit results to 50 for performance on the client.
+    const limitedTransactions = filteredTransactions.slice(0, 50);
+
+    // 4. Augment the limited results with invoice numbers from job sheets.
     const jids = limitedTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
     if (jids.length > 0) {
-        // Use new Set to avoid issues with 'in' queries having duplicate values
-        const uniqueJids = [...new Set(jids)];
-        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', uniqueJids));
-        const jobSheetsSnapshot = await getDocs(jobSheetQuery);
-        const jobSheetMap = new Map<string, JobSheet>();
-        jobSheetsSnapshot.docs.forEach(doc => {
-            const data = doc.data() as JobSheet;
-            jobSheetMap.set(data.jobId, data);
-        });
+      const uniqueJids = [...new Set(jids)];
+      const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', uniqueJids));
+      const jobSheetsSnapshot = await getDocs(jobSheetQuery);
+      const jobSheetMap = new Map<string, JobSheet>();
+      jobSheetsSnapshot.docs.forEach(doc => {
+        const data = doc.data() as JobSheet;
+        jobSheetMap.set(data.jobId, data);
+      });
 
-        return limitedTransactions.map(tx => {
-            if (tx.jid && jobSheetMap.has(tx.jid)) {
-                const jobSheet = jobSheetMap.get(tx.jid)!;
-                return {
-                    ...tx,
-                    invoiceNumber: tx.invoiceNumber || jobSheet.invoiceNumber || jobSheet.irNumber || '',
-                };
-            }
-            return tx;
-        });
+      return limitedTransactions.map(tx => {
+        if (tx.jid && jobSheetMap.has(tx.jid)) {
+          const jobSheet = jobSheetMap.get(tx.jid)!;
+          return {
+            ...tx,
+            invoiceNumber: tx.invoiceNumber || jobSheet.invoiceNumber || jobSheet.irNumber || '',
+          };
+        }
+        return tx;
+      });
     }
 
     return limitedTransactions;
