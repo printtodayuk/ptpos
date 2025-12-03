@@ -5,7 +5,9 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { enGB } from 'date-fns/locale';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -15,6 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { type JobSheet, type Transaction, operators, paymentMethods } from '@/lib/types';
 import { addTransactionFromJobSheet } from '@/lib/server-actions-jobs';
+import { Popover, PopoverContent, PopoverTrigger } from './../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { cn } from '@/lib/utils';
 
 
 const createPaymentFormSchema = (maxAmount: number) => z.object({
@@ -178,7 +183,41 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
                 )}
               />
             </div>
-            <div className="space-y-2">
+             <div className="space-y-2">
+              <Label htmlFor="date">Payment Date</Label>
+              <Controller
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !field.value && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={field.value as Date}
+                        onSelect={field.onChange}
+                        locale={enGB}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              />
+            </div>
+          </div>
+          
+           <div className="space-y-2">
               <Label htmlFor="operator">Operator</Label>
               <Controller
                 control={form.control}
@@ -197,7 +236,6 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
                 )}
               />
             </div>
-          </div>
 
           <div className="space-y-2">
               <Label htmlFor="reference">Reference (Optional)</Label>
