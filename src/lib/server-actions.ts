@@ -458,13 +458,13 @@ export async function getReportData({ searchTerm, startDate, endDate }: { search
 }
 
 export async function searchTransactions(
-  searchTerm: string,
+  searchTerm?: string,
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
     const constraints: QueryConstraint[] = [];
     
-    if (paymentMethod && paymentMethod !== 'all') {
+    if (paymentMethod) {
         constraints.push(where('paymentMethod', '==', paymentMethod));
     }
     constraints.push(orderBy('createdAt', 'desc'));
