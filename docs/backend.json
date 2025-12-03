@@ -7,6 +7,7 @@
       "description": "Represents a customer's contact information.",
       "properties": {
         "name": { "type": "string", "description": "Customer's full name." },
+        "companyName": { "type": "string", "description": "Customer's company name." },
         "street": { "type": "string", "description": "Street address." },
         "city": { "type": "string", "description": "City." },
         "state": { "type": "string", "description": "State or province." },
@@ -361,3 +362,5 @@
     "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information, including payment status. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance."
   }
 }
+
+    

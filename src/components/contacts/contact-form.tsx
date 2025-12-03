@@ -23,6 +23,7 @@ export function ContactForm() {
     resolver: zodResolver(ContactSchema.omit({ id: true, createdAt: true })),
     defaultValues: {
       name: '',
+      companyName: '',
       street: '',
       city: '',
       state: '',
@@ -65,11 +66,17 @@ export function ContactForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="name">Full Name</Label>
-        <Input id="name" {...form.register('name')} />
-        {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
-      </div>
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input id="name" {...form.register('name')} />
+                {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="companyName">Company Name (Optional)</Label>
+                <Input id="companyName" {...form.register('companyName')} />
+             </div>
+       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -111,3 +118,5 @@ export function ContactForm() {
     </form>
   );
 }
+
+    

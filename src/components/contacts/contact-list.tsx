@@ -35,6 +35,7 @@ export function ContactList() {
 
     const textToCopy = [
       contact.name,
+      contact.companyName,
       contact.phone,
       contact.email,
       addressParts || '',
@@ -52,6 +53,7 @@ export function ContactList() {
     const lowercasedTerm = debouncedSearchTerm.toLowerCase();
     return contacts.filter(contact => 
       contact.name.toLowerCase().includes(lowercasedTerm) ||
+      (contact.companyName && contact.companyName.toLowerCase().includes(lowercasedTerm)) ||
       contact.phone.toLowerCase().includes(lowercasedTerm)
     );
   }, [contacts, debouncedSearchTerm]);
@@ -64,7 +66,7 @@ export function ContactList() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                 type="text"
-                placeholder="Search by name or phone number..."
+                placeholder="Search by name, company or phone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10"
@@ -95,7 +97,10 @@ export function ContactList() {
               <TableBody>
                 {filteredContacts.map((contact) => (
                   <TableRow key={contact.id}>
-                    <TableCell className="font-medium">{contact.name}</TableCell>
+                    <TableCell className="font-medium">
+                        <div>{contact.name}</div>
+                        {contact.companyName && <div className="text-xs text-muted-foreground">{contact.companyName}</div>}
+                    </TableCell>
                     <TableCell>
                       <div>{contact.phone}</div>
                       <div className="text-muted-foreground text-xs">{contact.email}</div>
@@ -130,3 +135,5 @@ export function ContactList() {
     </Card>
   );
 }
+
+    

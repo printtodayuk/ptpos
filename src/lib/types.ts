@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 
 export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK'] as const;
@@ -91,6 +92,7 @@ export type JobSheet = Omit<z.infer<typeof JobSheetSchema>, 'date' | 'deliveryBy
 export const ContactSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required.'),
+  companyName: z.string().optional(),
   street: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -140,3 +142,5 @@ export const UpdateTimeRecordSchema = z.object({
         endTime: z.date().nullable(),
     })).default([]),
 });
+
+    
