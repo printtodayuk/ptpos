@@ -292,6 +292,11 @@ export async function getDashboardStats() {
     const unpaidCount = jobSheets.filter(js => js.paymentStatus === 'Unpaid').length;
     const studioCount = jobSheets.filter(js => js.status === 'Studio').length;
     const mghCount = jobSheets.filter(js => js.status === 'MGH').length;
+    const cancelCount = jobSheets.filter(js => js.status === 'Cancel').length;
+    const readyPickupCount = jobSheets.filter(js => js.status === 'Ready Pickup').length;
+    const parcelCompareCount = jobSheets.filter(js => js.status === 'Parcel Compare').length;
+    const deliveredCount = jobSheets.filter(js => js.status === 'Delivered').length;
+
 
     return {
       totalSales,
@@ -307,6 +312,10 @@ export async function getDashboardStats() {
       unpaidCount,
       studioCount,
       mghCount,
+      cancelCount,
+      readyPickupCount,
+      parcelCompareCount,
+      deliveredCount,
     };
   } catch (e) {
     console.error(e);
@@ -324,6 +333,10 @@ export async function getDashboardStats() {
       unpaidCount: 0,
       studioCount: 0,
       mghCount: 0,
+      cancelCount: 0,
+      readyPickupCount: 0,
+      parcelCompareCount: 0,
+      deliveredCount: 0,
     };
   }
 }
@@ -448,9 +461,12 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    // 1. Initial query to get all transactions ordered by creation date.
-    // We cannot add a `where` clause for searchTerm here as it's a text search on multiple fields.
-    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    if (paymentMethod) {
+        constraints.push(where('paymentMethod', '==', paymentMethod));
+    }
+    
+    const q = query(collection(db, 'transactions'), ...constraints);
     const querySnapshot = await getDocs(q);
 
     let allTransactions = querySnapshot.docs.map(doc => {
@@ -463,12 +479,7 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    // 2. In-memory filtering based on payment method and search term.
     let filteredTransactions = allTransactions;
-
-    if (paymentMethod) {
-      filteredTransactions = filteredTransactions.filter(t => t.paymentMethod === paymentMethod);
-    }
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
@@ -481,10 +492,8 @@ export async function searchTransactions(
       });
     }
 
-    // 3. Limit results to 50 for performance on the client.
     const limitedTransactions = filteredTransactions.slice(0, 50);
 
-    // 4. Augment the limited results with invoice numbers from job sheets.
     const jids = limitedTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
     if (jids.length > 0) {
       const uniqueJids = [...new Set(jids)];
