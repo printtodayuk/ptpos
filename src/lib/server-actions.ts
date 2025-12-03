@@ -462,16 +462,13 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    let initialQuery;
     const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
     
-    let baseQuery = collection(db, 'transactions');
-
-    if (paymentMethod) {
+    if (paymentMethod && paymentMethod !== 'all') {
         constraints.push(where('paymentMethod', '==', paymentMethod));
     }
     
-    initialQuery = query(baseQuery, ...constraints);
+    const initialQuery = query(collection(db, 'transactions'), ...constraints);
     
     const querySnapshot = await getDocs(initialQuery);
 
