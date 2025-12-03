@@ -18,7 +18,10 @@ import {
   deleteDoc,
   where,
   writeBatch,
-  QueryConstraint
+  QueryConstraint,
+  getCountFromServer,
+  getAggregateFromServer,
+  sum
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -244,48 +247,38 @@ export async function getDashboardStats() {
     const todayStart = startOfDay(new Date());
     const todayEnd = endOfDay(new Date());
 
-    const allTransactionsQuery = query(collection(db, 'transactions'));
+    const allTransactionsQuery = collection(db, 'transactions');
     const dailyTransactionsQuery = query(
-      collection(db, 'transactions'),
-      where('date', '>=', Timestamp.fromDate(todayStart)),
-      where('date', '<=', Timestamp.fromDate(todayEnd))
+        allTransactionsQuery,
+        where('date', '>=', Timestamp.fromDate(todayStart)),
+        where('date', '<=', Timestamp.fromDate(todayEnd))
     );
-    
-    // Fetch all job sheets once
-    const jobSheetsQuery = query(collection(db, 'jobSheets'));
-    const jobSheetsSnapshot = await getDocs(jobSheetsQuery);
-    const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
+    const jobSheetsQuery = collection(db, 'jobSheets');
 
-    const [allTransactionsSnapshot, dailyTransactionsSnapshot] = await Promise.all([
-      getDocs(allTransactionsQuery),
-      getDocs(dailyTransactionsQuery),
+    const [
+        totalInputsSnap,
+        dailyCashSnap,
+        dailyBankSnap,
+        dailyCardSnap,
+        totalSalesSnap,
+        cashAmountSnap,
+        bankAmountSnap,
+        cardAmountSnap,
+        jobSheetsSnapshot, // Fetch all job sheets once
+    ] = await Promise.all([
+        getCountFromServer(allTransactionsQuery),
+        getAggregateFromServer(query(dailyTransactionsQuery, where('paymentMethod', '==', 'Cash')), { dailyCash: sum('paidAmount') }),
+        getAggregateFromServer(query(dailyTransactionsQuery, where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'])), { dailyBank: sum('paidAmount') }),
+        getAggregateFromServer(query(dailyTransactionsQuery, where('paymentMethod', '==', 'Card Payment')), { dailyCard: sum('paidAmount') }),
+        getAggregateFromServer(allTransactionsQuery, { totalSales: sum('paidAmount') }),
+        getAggregateFromServer(query(allTransactionsQuery, where('paymentMethod', '==', 'Cash')), { cashAmount: sum('paidAmount') }),
+        getAggregateFromServer(query(allTransactionsQuery, where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'])), { bankAmount: sum('paidAmount') }),
+        getAggregateFromServer(query(allTransactionsQuery, where('paymentMethod', '==', 'Card Payment')), { cardAmount: sum('paidAmount') }),
+        getDocs(jobSheetsQuery),
     ]);
 
-    const allTransactions = allTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
-    const dailyTransactions = dailyTransactionsSnapshot.docs.map(doc => doc.data() as Transaction);
+    const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
 
-    const dailyCash = dailyTransactions
-      .filter(t => t.paymentMethod === 'Cash')
-      .reduce((sum, t) => sum + t.paidAmount, 0);
-    const dailyBank = dailyTransactions
-      .filter(t => t.paymentMethod === 'Bank Transfer' || t.paymentMethod === 'ST Bank Transfer' || t.paymentMethod === 'AIR Bank Transfer')
-      .reduce((sum, t) => sum + t.paidAmount, 0);
-    const dailyCard = dailyTransactions
-      .filter(t => t.paymentMethod === 'Card Payment')
-      .reduce((sum, t) => sum + t.paidAmount, 0);
-
-    const totalInputs = allTransactions.length;
-    const cashAmount = allTransactions
-      .filter((t) => t.paymentMethod === 'Cash')
-      .reduce((sum, t) => sum + t.paidAmount, 0);
-    const bankAmount = allTransactions
-      .filter((t) => t.paymentMethod === 'Bank Transfer' || t.paymentMethod === 'ST Bank Transfer' || t.paymentMethod === 'AIR Bank Transfer')
-      .reduce((sum, t) => sum + t.paidAmount, 0);
-    const cardAmount = allTransactions
-      .filter((t) => t.paymentMethod === 'Card Payment')
-      .reduce((sum, t) => sum + t.paidAmount, 0);
-    const totalSales = allTransactions.reduce((sum, t) => sum + t.paidAmount, 0);
-    
     // Process job sheets counts locally
     const productionCount = jobSheets.filter(js => js.status === 'Production').length;
     const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
@@ -299,14 +292,14 @@ export async function getDashboardStats() {
 
 
     return {
-      totalSales,
-      totalInputs,
-      cashAmount,
-      bankAmount,
-      cardAmount,
-      dailyCash,
-      dailyBank,
-      dailyCard,
+      totalSales: totalSalesSnap.data().totalSales,
+      totalInputs: totalInputsSnap.data().count,
+      cashAmount: cashAmountSnap.data().cashAmount,
+      bankAmount: bankAmountSnap.data().bankAmount,
+      cardAmount: cardAmountSnap.data().cardAmount,
+      dailyCash: dailyCashSnap.data().dailyCash,
+      dailyBank: dailyBankSnap.data().dailyBank,
+      dailyCard: dailyCardSnap.data().dailyCard,
       productionCount,
       holdCount,
       unpaidCount,
@@ -318,7 +311,7 @@ export async function getDashboardStats() {
       deliveredCount,
     };
   } catch (e) {
-    console.error(e);
+    console.error('Error fetching dashboard stats:', e);
     return {
       totalSales: 0,
       totalInputs: 0,
@@ -340,6 +333,7 @@ export async function getDashboardStats() {
     };
   }
 }
+
 
 
 export async function getPendingTransactions(): Promise<Transaction[]> {
@@ -383,7 +377,13 @@ export async function markTransactionAsChecked(id: string) {
 
 export async function getReportData({ searchTerm, startDate, endDate }: { searchTerm?: string, startDate?: string, endDate?: string }): Promise<Transaction[]> {
   try {
-    const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    const constraints: QueryConstraint[] = [orderBy('date', 'desc')];
+    if (startDate && endDate) {
+        constraints.push(where('date', '>=', Timestamp.fromDate(new Date(startDate))));
+        constraints.push(where('date', '<=', Timestamp.fromDate(new Date(endDate))));
+    }
+
+    const q = query(collection(db, 'transactions'), ...constraints);
     const querySnapshot = await getDocs(q);
     
     let transactions = querySnapshot.docs.map((doc) => {
@@ -395,16 +395,7 @@ export async function getReportData({ searchTerm, startDate, endDate }: { search
         createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
-
-    if (startDate && endDate) {
-      const start = startOfDay(new Date(startDate));
-      const end = endOfDay(new Date(endDate));
-      transactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        return transactionDate >= start && transactionDate <= end;
-      });
-    }
-
+    
     if (searchTerm) {
         const lowercasedTerm = searchTerm.toLowerCase();
         
@@ -428,14 +419,24 @@ export async function getReportData({ searchTerm, startDate, endDate }: { search
     // Augment with Job Sheet data
     const jids = transactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
     if (jids.length > 0) {
-        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', [...new Set(jids)]));
-        const jobSheetsSnapshot = await getDocs(jobSheetQuery);
-        const jobSheetMap = new Map<string, JobSheet>();
-        jobSheetsSnapshot.docs.forEach(doc => {
-            const data = doc.data() as JobSheet;
-            jobSheetMap.set(data.jobId, data);
-        });
+        const uniqueJids = [...new Set(jids)];
+        // Firestore 'in' queries are limited to 30 items. We need to chunk.
+        const jidChunks = [];
+        for (let i = 0; i < uniqueJids.length; i += 30) {
+            jidChunks.push(uniqueJids.slice(i, i + 30));
+        }
 
+        const jobSheetMap = new Map<string, JobSheet>();
+        
+        for (const chunk of jidChunks) {
+            const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', chunk));
+            const jobSheetsSnapshot = await getDocs(jobSheetQuery);
+            jobSheetsSnapshot.docs.forEach(doc => {
+                const data = doc.data() as JobSheet;
+                jobSheetMap.set(data.jobId, data);
+            });
+        }
+        
         return transactions.map(tx => {
             if (tx.jid && jobSheetMap.has(tx.jid)) {
                 const jobSheet = jobSheetMap.get(tx.jid)!;
@@ -461,13 +462,18 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
+    let initialQuery;
     const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    
+    let baseQuery = collection(db, 'transactions');
+
     if (paymentMethod) {
         constraints.push(where('paymentMethod', '==', paymentMethod));
     }
     
-    const q = query(collection(db, 'transactions'), ...constraints);
-    const querySnapshot = await getDocs(q);
+    initialQuery = query(baseQuery, ...constraints);
+    
+    const querySnapshot = await getDocs(initialQuery);
 
     let allTransactions = querySnapshot.docs.map(doc => {
       const data = doc.data();
