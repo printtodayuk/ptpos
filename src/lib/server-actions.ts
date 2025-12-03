@@ -462,11 +462,12 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    const constraints: QueryConstraint[] = [];
     
     if (paymentMethod && paymentMethod !== 'all') {
         constraints.push(where('paymentMethod', '==', paymentMethod));
     }
+    constraints.push(orderBy('createdAt', 'desc'));
     
     const initialQuery = query(collection(db, 'transactions'), ...constraints);
     
