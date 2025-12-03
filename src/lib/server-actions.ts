@@ -462,16 +462,8 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const constraints: QueryConstraint[] = [];
-    
-    if (paymentMethod) {
-        constraints.push(where('paymentMethod', '==', paymentMethod));
-    }
-    constraints.push(orderBy('createdAt', 'desc'));
-    
-    const initialQuery = query(collection(db, 'transactions'), ...constraints);
-    
-    const querySnapshot = await getDocs(initialQuery);
+    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
 
     let allTransactions = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -483,11 +475,13 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    let filteredTransactions = allTransactions;
+    if (paymentMethod) {
+      allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
+    }
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
-      filteredTransactions = filteredTransactions.filter((t) => {
+      allTransactions = allTransactions.filter((t) => {
         const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
         const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
         const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
@@ -496,7 +490,7 @@ export async function searchTransactions(
       });
     }
 
-    const limitedTransactions = filteredTransactions.slice(0, 50);
+    const limitedTransactions = allTransactions.slice(0, 50);
 
     const jids = limitedTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
     if (jids.length > 0) {
