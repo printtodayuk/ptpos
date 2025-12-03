@@ -462,7 +462,25 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+    let q;
+    if (paymentMethod) {
+        if (paymentMethod === 'Bank Transfer') {
+            q = query(
+                collection(db, 'transactions'),
+                where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer']),
+                orderBy('date', 'desc')
+            );
+        } else {
+            q = query(
+                collection(db, 'transactions'),
+                where('paymentMethod', '==', paymentMethod),
+                orderBy('date', 'desc')
+            );
+        }
+    } else {
+        q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    }
+
     const querySnapshot = await getDocs(q);
 
     let allTransactions = querySnapshot.docs.map(doc => {
@@ -474,10 +492,6 @@ export async function searchTransactions(
         createdAt: (data.createdAt as Timestamp)?.toDate(),
       } as Transaction;
     });
-
-    if (paymentMethod) {
-      allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
-    }
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
