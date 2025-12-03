@@ -73,7 +73,7 @@ export function ContactForm() {
                 {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
             </div>
              <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name (Optional)</Label>
+                <Label htmlFor="companyName">Company Name</Label>
                 <Input id="companyName" {...form.register('companyName')} />
              </div>
        </div>
