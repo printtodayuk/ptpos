@@ -33,7 +33,6 @@ import { EditTransactionDialog } from '@/components/transactions/edit-transactio
 
 export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'all'>('all');
   const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -49,17 +48,16 @@ export default function AdminPage() {
   const performSearch = useCallback(() => {
     startSearchTransition(async () => {
       const allResults = await searchTransactions(
-        debouncedSearchTerm,
-        paymentMethodFilter === 'all' ? undefined : paymentMethodFilter
+        debouncedSearchTerm
       );
       setResults(allResults);
       setSelectedTransactions([]); // Clear selection on new search
     });
-  }, [debouncedSearchTerm, paymentMethodFilter]);
+  }, [debouncedSearchTerm]);
 
   useEffect(() => {
     performSearch();
-  }, [debouncedSearchTerm, paymentMethodFilter, performSearch]);
+  }, [debouncedSearchTerm, performSearch]);
 
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
@@ -130,8 +128,6 @@ export default function AdminPage() {
     });
   };
 
-  const paymentFilters: (PaymentMethod | 'all')[] = ['all', 'Bank Transfer', 'Card Payment', 'Cash'];
-
   return (
     <PinLock>
       <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
@@ -188,7 +184,7 @@ export default function AdminPage() {
           <CardHeader>
              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
-                    <CardTitle>Search & Filter Transactions</CardTitle>
+                    <CardTitle>Search Transactions</CardTitle>
                     <CardDescription className="mt-1">
                         Search by ID, client, or description. Leave blank to see all.
                     </CardDescription>
@@ -225,19 +221,6 @@ export default function AdminPage() {
                     className="w-full pl-10"
                   />
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">Filter by payment:</span>
-                {paymentFilters.map(method => (
-                  <Button
-                    key={method}
-                    variant={paymentMethodFilter === method ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPaymentMethodFilter(method)}
-                  >
-                    {method === 'all' ? 'All' : method.split(' ')[0]}
-                  </Button>
-                ))}
               </div>
             </div>
 

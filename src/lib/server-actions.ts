@@ -475,21 +475,23 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    // Apply payment method filter first
+    let filteredTransactions = allTransactions;
+
+    // Apply payment method filter
     if (paymentMethod) {
       if (paymentMethod === 'Bank Transfer') {
-        allTransactions = allTransactions.filter(t => 
+        filteredTransactions = filteredTransactions.filter(t => 
           ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod)
         );
       } else {
-        allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
+        filteredTransactions = filteredTransactions.filter(t => t.paymentMethod === paymentMethod);
       }
     }
 
     // Then apply search term filter
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
-      allTransactions = allTransactions.filter((t) => {
+      filteredTransactions = filteredTransactions.filter((t) => {
         const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
         const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
         const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
@@ -499,7 +501,7 @@ export async function searchTransactions(
     }
 
     // Augment with invoice numbers
-    const jids = allTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
+    const jids = filteredTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
     if (jids.length > 0) {
       const uniqueJids = [...new Set(jids)];
       const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', uniqueJids));
@@ -510,7 +512,7 @@ export async function searchTransactions(
         jobSheetMap.set(data.jobId, data);
       });
 
-      return allTransactions.map(tx => {
+      return filteredTransactions.map(tx => {
         if (tx.jid && jobSheetMap.has(tx.jid)) {
           const jobSheet = jobSheetMap.get(tx.jid)!;
           return {
@@ -522,7 +524,7 @@ export async function searchTransactions(
       });
     }
 
-    return allTransactions;
+    return filteredTransactions;
   } catch (e) {
     console.error('Error searching transactions: ', e);
     return [];
