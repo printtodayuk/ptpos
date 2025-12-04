@@ -462,26 +462,8 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    let q;
-    if (paymentMethod) {
-        if (paymentMethod === 'Bank Transfer') {
-            q = query(
-                collection(db, 'transactions'),
-                where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer']),
-                orderBy('date', 'desc')
-            );
-        } else {
-            q = query(
-                collection(db, 'transactions'),
-                where('paymentMethod', '==', paymentMethod),
-                orderBy('date', 'desc')
-            );
-        }
-    } else {
-        q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
-    }
-
-    const querySnapshot = await getDocs(q);
+    const baseQuery = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    const querySnapshot = await getDocs(baseQuery);
 
     let allTransactions = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -493,6 +475,18 @@ export async function searchTransactions(
       } as Transaction;
     });
 
+    // Apply payment method filter first
+    if (paymentMethod) {
+      if (paymentMethod === 'Bank Transfer') {
+        allTransactions = allTransactions.filter(t => 
+          ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod)
+        );
+      } else {
+        allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
+      }
+    }
+
+    // Then apply search term filter
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
       allTransactions = allTransactions.filter((t) => {
@@ -504,20 +498,19 @@ export async function searchTransactions(
       });
     }
 
-    const limitedTransactions = allTransactions.slice(0, 50);
-
-    const jids = limitedTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
+    // Augment with invoice numbers
+    const jids = allTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
     if (jids.length > 0) {
       const uniqueJids = [...new Set(jids)];
       const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', uniqueJids));
       const jobSheetsSnapshot = await getDocs(jobSheetQuery);
       const jobSheetMap = new Map<string, JobSheet>();
-      jobSheetsSnapshot.docs.forEach(doc => {
+      jobSheetsSnapshot.forEach(doc => {
         const data = doc.data() as JobSheet;
         jobSheetMap.set(data.jobId, data);
       });
 
-      return limitedTransactions.map(tx => {
+      return allTransactions.map(tx => {
         if (tx.jid && jobSheetMap.has(tx.jid)) {
           const jobSheet = jobSheetMap.get(tx.jid)!;
           return {
@@ -529,8 +522,7 @@ export async function searchTransactions(
       });
     }
 
-    return limitedTransactions;
-
+    return allTransactions;
   } catch (e) {
     console.error('Error searching transactions: ', e);
     return [];
