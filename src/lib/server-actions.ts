@@ -462,18 +462,7 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    let q: QueryConstraint[] = [];
-    
-    if (paymentMethod) {
-        if (paymentMethod === 'Bank Transfer') {
-            q.push(where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer']));
-        } else {
-            q.push(where('paymentMethod', '==', paymentMethod));
-        }
-    }
-
-    const finalQuery = query(collection(db, 'transactions'), ...q, orderBy('createdAt', 'desc'));
-    
+    const finalQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(finalQuery);
 
     let allTransactions = querySnapshot.docs.map(doc => {
@@ -486,6 +475,18 @@ export async function searchTransactions(
       } as Transaction;
     });
 
+    // Apply payment method filter in code
+    if (paymentMethod) {
+        if (paymentMethod === 'Bank Transfer') {
+            allTransactions = allTransactions.filter(t => 
+                ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod)
+            );
+        } else {
+            allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
+        }
+    }
+
+    // Apply search term filter in code
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
       allTransactions = allTransactions.filter((t) => {
@@ -599,3 +600,5 @@ export async function bulkMarkAsChecked(ids: string[]) {
         return { success: false, message: 'An error occurred during bulk update.' };
     }
 }
+
+    
