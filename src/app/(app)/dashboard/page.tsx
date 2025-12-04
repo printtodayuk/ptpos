@@ -5,24 +5,15 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats } from "@/lib/server-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { Loader, Ban, ClipboardCheck, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, PackageX } from "lucide-react";
+import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, PackageX } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
-    totalSales: 0,
-    totalInputs: 0,
-    bankAmount: 0,
-    cardAmount: 0,
-    cashAmount: 0,
-    dailyCash: 0,
-    dailyBank: 0,
-    dailyCard: 0,
     productionCount: 0,
     holdCount: 0,
-    unpaidCount: 0,
     studioCount: 0,
     mghCount: 0,
     cancelCount: 0,
@@ -75,20 +66,6 @@ export default function DashboardPage() {
               <StatCard title="MGH" value={stats.mghCount} icon={ThumbsDown} description="Jobs with MGH status" isCurrency={false} className="bg-pink-500/10 border-pink-500 text-pink-700" />
               <StatCard title="Cancelled" value={stats.cancelCount} icon={PackageX} description="Jobs that have been cancelled" isCurrency={false} className="bg-gray-500/10 border-gray-500 text-gray-700" />
           </div>
-        </CardContent>
-      </Card>
-
-       <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Financials</CardTitle>
-           <CardDescription>
-             An overview of payments.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard title="Unpaid Job Sheets" value={stats.unpaidCount} icon={ClipboardCheck} description="Jobs with outstanding payments" isCurrency={false} className="bg-yellow-500/10 border-yellow-500 text-yellow-700" />
-           </div>
         </CardContent>
       </Card>
 

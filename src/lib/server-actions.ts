@@ -1,5 +1,6 @@
 
 
+
 'use server';
 
 import {
@@ -244,45 +245,13 @@ export async function getTransactions(
 
 export async function getDashboardStats() {
   try {
-    const todayStart = startOfDay(new Date());
-    const todayEnd = endOfDay(new Date());
-
-    const allTransactionsQuery = collection(db, 'transactions');
-    const dailyTransactionsQuery = query(
-        allTransactionsQuery,
-        where('date', '>=', Timestamp.fromDate(todayStart)),
-        where('date', '<=', Timestamp.fromDate(todayEnd))
-    );
     const jobSheetsQuery = collection(db, 'jobSheets');
-
-    const [
-        totalInputsSnap,
-        dailyCashSnap,
-        dailyBankSnap,
-        dailyCardSnap,
-        totalSalesSnap,
-        cashAmountSnap,
-        bankAmountSnap,
-        cardAmountSnap,
-        jobSheetsSnapshot, // Fetch all job sheets once
-    ] = await Promise.all([
-        getCountFromServer(allTransactionsQuery),
-        getAggregateFromServer(query(dailyTransactionsQuery, where('paymentMethod', '==', 'Cash')), { dailyCash: sum('paidAmount') }),
-        getAggregateFromServer(query(dailyTransactionsQuery, where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'])), { dailyBank: sum('paidAmount') }),
-        getAggregateFromServer(query(dailyTransactionsQuery, where('paymentMethod', '==', 'Card Payment')), { dailyCard: sum('paidAmount') }),
-        getAggregateFromServer(allTransactionsQuery, { totalSales: sum('paidAmount') }),
-        getAggregateFromServer(query(allTransactionsQuery, where('paymentMethod', '==', 'Cash')), { cashAmount: sum('paidAmount') }),
-        getAggregateFromServer(query(allTransactionsQuery, where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'])), { bankAmount: sum('paidAmount') }),
-        getAggregateFromServer(query(allTransactionsQuery, where('paymentMethod', '==', 'Card Payment')), { cardAmount: sum('paidAmount') }),
-        getDocs(jobSheetsQuery),
-    ]);
+    const jobSheetsSnapshot = await getDocs(jobSheetsQuery);
 
     const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
 
-    // Process job sheets counts locally
     const productionCount = jobSheets.filter(js => js.status === 'Production').length;
     const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
-    const unpaidCount = jobSheets.filter(js => js.paymentStatus === 'Unpaid').length;
     const studioCount = jobSheets.filter(js => js.status === 'Studio').length;
     const mghCount = jobSheets.filter(js => js.status === 'MGH').length;
     const cancelCount = jobSheets.filter(js => js.status === 'Cancel').length;
@@ -290,19 +259,9 @@ export async function getDashboardStats() {
     const parcelCompareCount = jobSheets.filter(js => js.status === 'Parcel Compare').length;
     const deliveredCount = jobSheets.filter(js => js.status === 'Delivered').length;
 
-
     return {
-      totalSales: totalSalesSnap.data().totalSales,
-      totalInputs: totalInputsSnap.data().count,
-      cashAmount: cashAmountSnap.data().cashAmount,
-      bankAmount: bankAmountSnap.data().bankAmount,
-      cardAmount: cardAmountSnap.data().cardAmount,
-      dailyCash: dailyCashSnap.data().dailyCash,
-      dailyBank: dailyBankSnap.data().dailyBank,
-      dailyCard: dailyCardSnap.data().dailyCard,
       productionCount,
       holdCount,
-      unpaidCount,
       studioCount,
       mghCount,
       cancelCount,
@@ -313,17 +272,8 @@ export async function getDashboardStats() {
   } catch (e) {
     console.error('Error fetching dashboard stats:', e);
     return {
-      totalSales: 0,
-      totalInputs: 0,
-      cashAmount: 0,
-      bankAmount: 0,
-      cardAmount: 0,
-      dailyCash: 0,
-      dailyBank: 0,
-      dailyCard: 0,
       productionCount: 0,
       holdCount: 0,
-      unpaidCount: 0,
       studioCount: 0,
       mghCount: 0,
       cancelCount: 0,
@@ -462,7 +412,6 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    // 1. Fetch all recent transactions
     const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500));
     const querySnapshot = await getDocs(q);
 
@@ -478,13 +427,12 @@ export async function searchTransactions(
 
     // 2. Filter in code
     if (paymentMethod) {
-      if (paymentMethod === 'Bank Transfer') {
-        allTransactions = allTransactions.filter(t => 
-            ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod)
-        );
-      } else {
-        allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
-      }
+        allTransactions = allTransactions.filter(t => {
+            if (paymentMethod === 'Bank Transfer') {
+                return ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod);
+            }
+            return t.paymentMethod === paymentMethod;
+        });
     }
 
     if (searchTerm) {
