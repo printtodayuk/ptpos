@@ -5,9 +5,10 @@ import Image from 'next/image';
 
 type JobSheetViewProps = {
   jobSheet: JobSheet;
+  hideTotals?: boolean;
 };
 
-export function JobSheetView({ jobSheet }: JobSheetViewProps) {
+export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps) {
   if (!jobSheet) return null;
 
   const jobSheetTitle = jobSheet.type === 'Quotation' ? 'QUOTATION' : 'JOB SHEET';
@@ -105,28 +106,30 @@ export function JobSheetView({ jobSheet }: JobSheetViewProps) {
             <h3 className="font-bold mb-1">SPECIAL NOTE</h3>
             <p className="whitespace-pre-wrap min-h-[80px]">{jobSheet.specialNote}</p>
         </div>
-        <div className="flex flex-col gap-px">
-            <div className="flex justify-between items-center p-2 border border-black">
-                <span>Sub Total:</span>
-                <span className="font-bold">£{jobSheet.subTotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 border border-black">
-                <span>VAT (20%):</span>
-                <span className="font-bold">£{jobSheet.vatAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 border-2 border-black text-sm">
-                <span className="font-bold">Total:</span>
-                <span className="font-bold">£{jobSheet.totalAmount.toFixed(2)}</span>
-            </div>
-             <div className="flex justify-between items-center p-2 border border-black">
-                <span>Amount Paid:</span>
-                <span className="font-bold">£{paidAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 border-2 border-black bg-gray-200 text-sm">
-                <span className="font-bold">Amount Due:</span>
-                <span className="font-bold">£{dueAmount.toFixed(2)}</span>
-            </div>
-        </div>
+        {!hideTotals && (
+          <div className="flex flex-col gap-px">
+              <div className="flex justify-between items-center p-2 border border-black">
+                  <span>Sub Total:</span>
+                  <span className="font-bold">£{jobSheet.subTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 border border-black">
+                  <span>VAT (20%):</span>
+                  <span className="font-bold">£{jobSheet.vatAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 border-2 border-black text-sm">
+                  <span className="font-bold">Total:</span>
+                  <span className="font-bold">£{jobSheet.totalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 border border-black">
+                  <span>Amount Paid:</span>
+                  <span className="font-bold">£{paidAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 border-2 border-black bg-gray-200 text-sm">
+                  <span className="font-bold">Amount Due:</span>
+                  <span className="font-bold">£{dueAmount.toFixed(2)}</span>
+              </div>
+          </div>
+        )}
       </div>
       
       {/* Footer */}

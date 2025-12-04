@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Eye, Edit, Trash2, CreditCard, History } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, CreditCard, History, Printer } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ type JobSheetsTableProps = {
   onDelete: (jobSheet: JobSheet) => void;
   onPay: (jobSheet: JobSheet) => void;
   onViewHistory: (jobSheet: JobSheet) => void;
+  onPrint: (jobSheet: JobSheet) => void;
 };
 
 export function JobSheetsTable({ 
@@ -30,7 +31,8 @@ export function JobSheetsTable({
   onEdit,
   onDelete,
   onPay,
-  onViewHistory
+  onViewHistory,
+  onPrint
 }: JobSheetsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(jobSheets.length / ROWS_PER_PAGE);
@@ -152,6 +154,9 @@ export function JobSheetsTable({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={() => onView(js)}>
                       <Eye className="mr-2 h-4 w-4" /> View Details
+                    </DropdownMenuItem>
+                     <DropdownMenuItem onSelect={() => onPrint(js)}>
+                      <Printer className="mr-2 h-4 w-4" /> Print
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => onViewHistory(js)}>
                         <History className="mr-2 h-4 w-4" /> View History
