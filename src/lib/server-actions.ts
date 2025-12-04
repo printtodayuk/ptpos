@@ -462,8 +462,9 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const finalQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(finalQuery);
+    // 1. Fetch all recent transactions
+    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500));
+    const querySnapshot = await getDocs(q);
 
     let allTransactions = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -475,18 +476,17 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    // Apply payment method filter in code
+    // 2. Filter in code
     if (paymentMethod) {
-        if (paymentMethod === 'Bank Transfer') {
-            allTransactions = allTransactions.filter(t => 
-                ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod)
-            );
-        } else {
-            allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
-        }
+      if (paymentMethod === 'Bank Transfer') {
+        allTransactions = allTransactions.filter(t => 
+            ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod)
+        );
+      } else {
+        allTransactions = allTransactions.filter(t => t.paymentMethod === paymentMethod);
+      }
     }
 
-    // Apply search term filter in code
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
       allTransactions = allTransactions.filter((t) => {
