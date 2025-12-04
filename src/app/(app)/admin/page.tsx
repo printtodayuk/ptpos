@@ -57,7 +57,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     performSearch();
-  }, [debouncedSearchTerm, performSearch]);
+  }, [performSearch]);
 
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
