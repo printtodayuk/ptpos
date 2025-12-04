@@ -45,19 +45,17 @@ export default function AdminPage() {
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback(() => {
+  const performSearch = useCallback((term: string) => {
     startSearchTransition(async () => {
-      const allResults = await searchTransactions(
-        debouncedSearchTerm
-      );
+      const allResults = await searchTransactions(term);
       setResults(allResults);
       setSelectedTransactions([]); // Clear selection on new search
     });
-  }, [debouncedSearchTerm]);
+  }, []);
 
   useEffect(() => {
-    performSearch();
-  }, [performSearch]);
+    performSearch(debouncedSearchTerm);
+  }, [debouncedSearchTerm, performSearch]);
 
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
@@ -76,7 +74,7 @@ export default function AdminPage() {
 
     if (result.success) {
       toast({ title: 'Success', description: 'Transaction deleted successfully.' });
-      performSearch();
+      performSearch(debouncedSearchTerm);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -84,12 +82,12 @@ export default function AdminPage() {
   };
 
   const onTransactionChecked = () => {
-    performSearch();
+    performSearch(debouncedSearchTerm);
   };
   
   const handleUpdateSuccess = () => {
     setTransactionToEdit(null);
-    performSearch();
+    performSearch(debouncedSearchTerm);
   };
 
   const handleSelectionChange = (ids: string[]) => {
@@ -119,7 +117,7 @@ export default function AdminPage() {
 
         if (result?.success) {
             toast({ title: 'Success', description: result.message });
-            performSearch();
+            performSearch(debouncedSearchTerm);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: result?.message || 'An error occurred.' });
         }
