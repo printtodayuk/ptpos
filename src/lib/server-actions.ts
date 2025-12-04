@@ -462,8 +462,18 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const baseQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(baseQuery);
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    if (paymentMethod) {
+        // Handle combined bank transfer methods
+        if (paymentMethod === 'Bank Transfer') {
+             constraints.push(where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer']));
+        } else {
+             constraints.push(where('paymentMethod', '==', paymentMethod));
+        }
+    }
+    
+    const q = query(collection(db, 'transactions'), ...constraints);
+    const querySnapshot = await getDocs(q);
 
     let allTransactions = querySnapshot.docs.map(doc => {
       const data = doc.data();

@@ -4,8 +4,9 @@
 import { useEffect, useState, useCallback, useTransition } from 'react';
 import { searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, Trash2, CheckCircle, Edit } from 'lucide-react';
+import { Loader2, Search, Trash2, CheckCircle, Edit, Filter } from 'lucide-react';
 import type { Transaction, PaymentMethod } from '@/lib/types';
+import { paymentMethods } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,13 +27,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { PinLock } from '@/components/admin/pin-lock';
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog';
 
+const filterablePaymentMethods: ('All' | PaymentMethod)[] = ['All', ...paymentMethods];
+
 export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<'All' | PaymentMethod>('All');
   const [results, setResults] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -45,17 +53,17 @@ export default function AdminPage() {
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback((term: string) => {
+  const performSearch = useCallback((term: string, payment: 'All' | PaymentMethod) => {
     startSearchTransition(async () => {
-      const allResults = await searchTransactions(term);
+      const allResults = await searchTransactions(term, payment === 'All' ? undefined : payment);
       setResults(allResults);
       setSelectedTransactions([]); // Clear selection on new search
     });
   }, []);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm);
-  }, [debouncedSearchTerm, performSearch]);
+    performSearch(debouncedSearchTerm, paymentFilter);
+  }, [debouncedSearchTerm, paymentFilter, performSearch]);
 
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
@@ -74,7 +82,7 @@ export default function AdminPage() {
 
     if (result.success) {
       toast({ title: 'Success', description: 'Transaction deleted successfully.' });
-      performSearch(debouncedSearchTerm);
+      performSearch(debouncedSearchTerm, paymentFilter);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -82,12 +90,12 @@ export default function AdminPage() {
   };
 
   const onTransactionChecked = () => {
-    performSearch(debouncedSearchTerm);
+    performSearch(debouncedSearchTerm, paymentFilter);
   };
   
   const handleUpdateSuccess = () => {
     setTransactionToEdit(null);
-    performSearch(debouncedSearchTerm);
+    performSearch(debouncedSearchTerm, paymentFilter);
   };
 
   const handleSelectionChange = (ids: string[]) => {
@@ -117,7 +125,7 @@ export default function AdminPage() {
 
         if (result?.success) {
             toast({ title: 'Success', description: result.message });
-            performSearch(debouncedSearchTerm);
+            performSearch(debouncedSearchTerm, paymentFilter);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: result?.message || 'An error occurred.' });
         }
@@ -207,19 +215,36 @@ export default function AdminPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row items-center gap-2">
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="e.g. TID0002, John Doe, Flyer Design..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10"
-                  />
-                </div>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="e.g. TID0002, John Doe, Flyer Design..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10"
+                />
               </div>
+               <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                        <Filter className="mr-2 h-4 w-4" />
+                        <span>Filter by: {paymentFilter}</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Payment Method</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as 'All' | PaymentMethod)}>
+                        {filterablePaymentMethods.map((method) => (
+                            <DropdownMenuRadioItem key={method} value={method}>
+                                {method}
+                            </DropdownMenuRadioItem>
+                        ))}
+                    </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="mt-4">
