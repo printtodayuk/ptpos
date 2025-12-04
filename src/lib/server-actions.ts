@@ -462,7 +462,7 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const baseQuery = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    const baseQuery = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(baseQuery);
 
     let allTransactions = querySnapshot.docs.map(doc => {
@@ -475,23 +475,9 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    let filteredTransactions = allTransactions;
-
-    // Apply payment method filter
-    if (paymentMethod) {
-      if (paymentMethod === 'Bank Transfer') {
-        filteredTransactions = filteredTransactions.filter(t => 
-          ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod)
-        );
-      } else {
-        filteredTransactions = filteredTransactions.filter(t => t.paymentMethod === paymentMethod);
-      }
-    }
-
-    // Then apply search term filter
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
-      filteredTransactions = filteredTransactions.filter((t) => {
+      allTransactions = allTransactions.filter((t) => {
         const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
         const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
         const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
@@ -500,31 +486,7 @@ export async function searchTransactions(
       });
     }
 
-    // Augment with invoice numbers
-    const jids = filteredTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
-    if (jids.length > 0) {
-      const uniqueJids = [...new Set(jids)];
-      const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', uniqueJids));
-      const jobSheetsSnapshot = await getDocs(jobSheetQuery);
-      const jobSheetMap = new Map<string, JobSheet>();
-      jobSheetsSnapshot.forEach(doc => {
-        const data = doc.data() as JobSheet;
-        jobSheetMap.set(data.jobId, data);
-      });
-
-      return filteredTransactions.map(tx => {
-        if (tx.jid && jobSheetMap.has(tx.jid)) {
-          const jobSheet = jobSheetMap.get(tx.jid)!;
-          return {
-            ...tx,
-            invoiceNumber: tx.invoiceNumber || jobSheet.invoiceNumber || jobSheet.irNumber || '',
-          };
-        }
-        return tx;
-      });
-    }
-
-    return filteredTransactions;
+    return allTransactions;
   } catch (e) {
     console.error('Error searching transactions: ', e);
     return [];
