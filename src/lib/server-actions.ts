@@ -1,6 +1,7 @@
 
 
 
+
 'use server';
 
 import {
@@ -412,10 +413,17 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500));
+    let allTransactions: Transaction[] = [];
+    // To get around Firestore query limitations, we fetch broadly and filter in code.
+    // This is less efficient on large datasets but more reliable for complex filters.
+    const q = query(
+      collection(db, 'transactions'),
+      orderBy('createdAt', 'desc'),
+      limit(500)
+    );
     const querySnapshot = await getDocs(q);
 
-    let allTransactions = querySnapshot.docs.map(doc => {
+    allTransactions = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,
@@ -425,19 +433,18 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    // 2. Filter in code
+    // Apply filtering in code
+    let filteredTransactions = allTransactions;
+
     if (paymentMethod) {
-        allTransactions = allTransactions.filter(t => {
-            if (paymentMethod === 'Bank Transfer') {
-                return ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(t.paymentMethod);
-            }
-            return t.paymentMethod === paymentMethod;
-        });
+      filteredTransactions = filteredTransactions.filter(
+        (t) => t.paymentMethod === paymentMethod
+      );
     }
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
-      allTransactions = allTransactions.filter((t) => {
+      filteredTransactions = filteredTransactions.filter((t) => {
         const tidMatch = t.transactionId?.toLowerCase().includes(lowercasedTerm);
         const clientMatch = t.clientName?.toLowerCase().includes(lowercasedTerm);
         const jobMatch = t.jobDescription?.toLowerCase().includes(lowercasedTerm);
@@ -446,7 +453,7 @@ export async function searchTransactions(
       });
     }
 
-    return allTransactions;
+    return filteredTransactions;
   } catch (e) {
     console.error('Error searching transactions: ', e);
     return [];
@@ -549,4 +556,59 @@ export async function bulkMarkAsChecked(ids: string[]) {
     }
 }
 
+export async function getTillStats() {
+    try {
+        const todayStart = startOfDay(new Date());
+        const todayEnd = endOfDay(new Date());
+
+        const allTillQuery = query(
+            collection(db, 'transactions'),
+            where('type', '==', 'non-invoicing')
+        );
+        
+        const allTillSnapshot = await getDocs(allTillQuery);
+
+        let dailySales = 0;
+        let cashTotal = 0;
+        let cardTotal = 0;
+        let bankTotal = 0;
+
+        allTillSnapshot.forEach(doc => {
+            const transaction = doc.data() as Transaction;
+            const transactionDate = (transaction.date as Timestamp).toDate();
+
+            // Daily sales calculation
+            if (transactionDate >= todayStart && transactionDate <= todayEnd) {
+                dailySales += transaction.paidAmount;
+            }
+
+            // Totals by payment method
+            if (transaction.paymentMethod === 'Cash') {
+                cashTotal += transaction.paidAmount;
+            } else if (transaction.paymentMethod === 'Card Payment') {
+                cardTotal += transaction.paidAmount;
+            } else if (transaction.paymentMethod === 'Bank Transfer' || transaction.paymentMethod === 'ST Bank Transfer' || transaction.paymentMethod === 'AIR Bank Transfer') {
+                bankTotal += transaction.paidAmount;
+            }
+        });
+
+        return {
+            success: true,
+            dailySales,
+            cashTotal,
+            cardTotal,
+            bankTotal,
+        };
+
+    } catch (e) {
+        console.error("Error fetching till stats: ", e);
+        return {
+            success: false,
+            dailySales: 0,
+            cashTotal: 0,
+            cardTotal: 0,
+            bankTotal: 0,
+        };
+    }
+}
     
