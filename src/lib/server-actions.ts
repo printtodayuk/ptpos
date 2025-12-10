@@ -2,6 +2,7 @@
 
 
 
+
 'use server';
 
 import {
@@ -259,6 +260,7 @@ export async function getDashboardStats() {
     const readyPickupCount = jobSheets.filter(js => js.status === 'Ready Pickup').length;
     const parcelCompareCount = jobSheets.filter(js => js.status === 'Parcel Compare').length;
     const deliveredCount = jobSheets.filter(js => js.status === 'Delivered').length;
+    const osCount = jobSheets.filter(js => js.status === 'OS').length;
 
     return {
       productionCount,
@@ -269,6 +271,7 @@ export async function getDashboardStats() {
       readyPickupCount,
       parcelCompareCount,
       deliveredCount,
+      osCount,
     };
   } catch (e) {
     console.error('Error fetching dashboard stats:', e);
@@ -281,6 +284,7 @@ export async function getDashboardStats() {
       readyPickupCount: 0,
       parcelCompareCount: 0,
       deliveredCount: 0,
+      osCount: 0,
     };
   }
 }

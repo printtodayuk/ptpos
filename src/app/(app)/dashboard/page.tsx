@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats } from "@/lib/server-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, PackageX } from "lucide-react";
+import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, PackageX, Wand } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
@@ -20,6 +20,7 @@ export default function DashboardPage() {
     readyPickupCount: 0,
     parcelCompareCount: 0,
     deliveredCount: 0,
+    osCount: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -64,6 +65,7 @@ export default function DashboardPage() {
               <StatCard title="Parcel Compare" value={stats.parcelCompareCount} icon={PackageCheck} description="Jobs awaiting shipping label" isCurrency={false} className="bg-yellow-500/10 border-yellow-500 text-yellow-700" />
               <StatCard title="Delivered" value={stats.deliveredCount} icon={Truck} description="Jobs completed and delivered" isCurrency={false} className="bg-green-500/10 border-green-500 text-green-700" />
               <StatCard title="MGH" value={stats.mghCount} icon={ThumbsDown} description="Jobs with MGH status" isCurrency={false} className="bg-pink-500/10 border-pink-500 text-pink-700" />
+              <StatCard title="OS" value={stats.osCount} icon={Wand} description="Jobs with OS status" isCurrency={false} className="bg-indigo-500/10 border-indigo-500 text-indigo-700" />
               <StatCard title="Cancelled" value={stats.cancelCount} icon={PackageX} description="Jobs that have been cancelled" isCurrency={false} className="bg-gray-500/10 border-gray-500 text-gray-700" />
           </div>
         </CardContent>

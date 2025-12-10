@@ -74,6 +74,8 @@ export function JobSheetsTable({
         return 'bg-green-600 hover:bg-green-600/80 text-white';
       case 'MGH':
         return 'bg-pink-500 hover:bg-pink-500/80 text-white';
+      case 'OS':
+        return 'bg-indigo-500 hover:bg-indigo-500/80 text-white';
       default:
         return 'bg-gray-500 hover:bg-gray-500/80 text-white';
     }
