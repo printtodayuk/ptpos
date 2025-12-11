@@ -23,6 +23,7 @@ import type { Transaction } from '@/lib/types';
 import { Label } from '../ui/label';
 import { JobSheetHistoryDialog } from './job-sheet-history-dialog';
 import { JobSheetPrintDialog } from './job-sheet-print-dialog';
+import { DeliveryNoteDialog } from './delivery-note-dialog';
 
 const DELETE_PIN = '5206';
 
@@ -40,6 +41,7 @@ export function JsReportClient() {
   const [jobSheetToPay, setJobSheetToPay] = useState<JobSheet | null>(null);
   const [jobSheetToDelete, setJobSheetToDelete] = useState<JobSheet | null>(null);
   const [jobSheetToViewHistory, setJobSheetToViewHistory] = useState<JobSheet | null>(null);
+  const [jobSheetForDN, setJobSheetForDN] = useState<JobSheet | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
@@ -101,6 +103,10 @@ export function JsReportClient() {
 
   const handlePrint = (jobSheet: JobSheet) => {
     setJobSheetToPrint(jobSheet);
+  };
+  
+  const handleDeliveryNote = (jobSheet: JobSheet) => {
+    setJobSheetForDN(jobSheet);
   };
 
   const handleViewHistory = (jobSheet: JobSheet) => {
@@ -185,6 +191,12 @@ export function JsReportClient() {
         jobSheet={jobSheetToPrint}
         isOpen={!!jobSheetToPrint}
         onClose={() => setJobSheetToPrint(null)}
+      />
+
+      <DeliveryNoteDialog
+        jobSheet={jobSheetForDN}
+        isOpen={!!jobSheetForDN}
+        onClose={() => setJobSheetForDN(null)}
       />
 
        <JobSheetHistoryDialog
@@ -317,6 +329,7 @@ export function JsReportClient() {
               onPay={handlePay}
               onViewHistory={handleViewHistory}
               onPrint={handlePrint}
+              onDeliveryNote={handleDeliveryNote}
             />
           )}
         </CardContent>
