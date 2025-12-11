@@ -11,7 +11,7 @@ type JobSheetViewProps = {
 export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps) {
   if (!jobSheet) return null;
 
-  const jobSheetTitle = jobSheet.type === 'Quotation' ? 'QUOTATION' : 'JOB SHEET';
+  const jobSheetTitle = jobSheet.type === 'Quotation' ? 'QUOTATION' : 'PURCHASE ORDER';
   const paidAmount = jobSheet.paidAmount || 0;
   const dueAmount = jobSheet.totalAmount - paidAmount;
 
