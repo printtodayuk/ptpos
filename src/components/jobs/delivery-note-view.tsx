@@ -1,8 +1,8 @@
-
 'use client';
 
 import type { JobSheet } from '@/lib/types';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 type DeliveryNoteViewProps = {
   jobSheet: JobSheet;
@@ -18,6 +18,22 @@ export function DeliveryNoteView({ jobSheet }: DeliveryNoteViewProps) {
     >
       <div>
         {/* Header */}
+        <div className="flex justify-between items-start pb-2 border-b border-black mb-2">
+           <div className="w-1/2">
+             <Image 
+              src="https://ssl.prcdn.com/uk/branddemand/T1Q/Logo%20for%20Signature.png?1700078679"
+              alt="Print Today Logo"
+              width={120}
+              height={40}
+            />
+          </div>
+          <div className="w-1/2 text-right text-[10px]">
+              <p>75 Green Street, London E7 8JF</p>
+              <p>07969559746</p>
+              <p>info@printtodayuk.com</p>
+          </div>
+        </div>
+
         <div className="flex justify-between items-start pb-2 border-b border-black mb-2">
           <div>
             <p className="font-bold text-sm">DELIVERY NOTE</p>
