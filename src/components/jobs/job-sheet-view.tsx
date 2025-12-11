@@ -1,4 +1,6 @@
 
+'use client';
+
 import type { JobSheet } from '@/lib/types';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -11,7 +13,7 @@ type JobSheetViewProps = {
 export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps) {
   if (!jobSheet) return null;
 
-  const jobSheetTitle = jobSheet.type === 'Quotation' ? 'QUOTATION' : 'PURCHASE ORDER';
+  const jobSheetTitle = 'Purchase Order';
   const paidAmount = jobSheet.paidAmount || 0;
   const dueAmount = jobSheet.totalAmount - paidAmount;
 
@@ -74,8 +76,12 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
             <tr className="bg-gray-200">
               <th className="border border-black p-2 text-left w-[60%]">DESCRIPTION</th>
               <th className="border border-black p-2 text-right">QTY</th>
-              <th className="border border-black p-2 text-right">PRICE</th>
-              <th className="border border-black p-2 text-right">AMOUNT</th>
+              {!hideTotals && (
+                <>
+                  <th className="border border-black p-2 text-right">PRICE</th>
+                  <th className="border border-black p-2 text-right">AMOUNT</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -83,8 +89,12 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
               <tr key={index}>
                 <td className="border border-black p-2 align-top">{item.description}</td>
                 <td className="border border-black p-2 text-right align-top">{item.quantity}</td>
-                <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
-                <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
+                {!hideTotals && (
+                    <>
+                        <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
+                        <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
+                    </>
+                )}
               </tr>
             ))}
              {/* Add empty rows to fill space */}
@@ -92,8 +102,12 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
                 <tr key={`empty-${index}`}>
                     <td className="border border-black p-2 h-8">&nbsp;</td>
                     <td className="border border-black p-2">&nbsp;</td>
-                    <td className="border border-black p-2">&nbsp;</td>
-                    <td className="border border-black p-2">&nbsp;</td>
+                    {!hideTotals && (
+                        <>
+                            <td className="border border-black p-2">&nbsp;</td>
+                            <td className="border border-black p-2">&nbsp;</td>
+                        </>
+                    )}
                 </tr>
             ))}
           </tbody>
@@ -102,10 +116,12 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
 
        {/* Totals and Special Notes */}
       <div className="mt-4 grid grid-cols-2 gap-4 text-xs">
-        <div className="border border-black p-2">
-            <h3 className="font-bold mb-1">SPECIAL NOTE</h3>
-            <p className="whitespace-pre-wrap min-h-[80px]">{jobSheet.specialNote}</p>
-        </div>
+        {!hideTotals && (
+            <div className="border border-black p-2">
+                <h3 className="font-bold mb-1">SPECIAL NOTE</h3>
+                <p className="whitespace-pre-wrap min-h-[80px]">{jobSheet.specialNote}</p>
+            </div>
+        )}
         {!hideTotals && (
           <div className="flex flex-col gap-px">
               <div className="flex justify-between items-center p-2 border border-black">
@@ -129,6 +145,11 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
                   <span className="font-bold">£{dueAmount.toFixed(2)}</span>
               </div>
           </div>
+        )}
+         {hideTotals && (
+            <div className="col-span-2 text-center text-muted-foreground">
+                Internal Production Copy - Not for customer
+            </div>
         )}
       </div>
       
