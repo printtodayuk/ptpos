@@ -119,7 +119,11 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
         {!hideTotals && (
             <div className="border border-black p-2">
                 <h3 className="font-bold mb-1">SPECIAL NOTE</h3>
-                <p className="whitespace-pre-wrap min-h-[80px]">{jobSheet.specialNote}</p>
+                <p className="whitespace-pre-wrap min-h-[80px]">
+                    {jobSheet.specialNote}
+                    {"\n\n"}
+                    <span className="font-bold">Make sure all artworks are approved by the client before proceeding to production.</span>
+                </p>
             </div>
         )}
         {!hideTotals && (
@@ -145,11 +149,6 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
                   <span className="font-bold">£{dueAmount.toFixed(2)}</span>
               </div>
           </div>
-        )}
-         {hideTotals && (
-            <div className="col-span-2 text-center text-muted-foreground">
-                Internal Production Copy - Not for customer
-            </div>
         )}
       </div>
       
