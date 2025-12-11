@@ -3,6 +3,7 @@
 
 
 
+
 'use server';
 
 import {
@@ -253,6 +254,7 @@ export async function getDashboardStats() {
     const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
 
     const productionCount = jobSheets.filter(js => js.status === 'Production').length;
+    const finishingCount = jobSheets.filter(js => js.status === 'Finishing').length;
     const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
     const studioCount = jobSheets.filter(js => js.status === 'Studio').length;
     const mghCount = jobSheets.filter(js => js.status === 'MGH').length;
@@ -264,6 +266,7 @@ export async function getDashboardStats() {
 
     return {
       productionCount,
+      finishingCount,
       holdCount,
       studioCount,
       mghCount,
@@ -277,6 +280,7 @@ export async function getDashboardStats() {
     console.error('Error fetching dashboard stats:', e);
     return {
       productionCount: 0,
+      finishingCount: 0,
       holdCount: 0,
       studioCount: 0,
       mghCount: 0,
