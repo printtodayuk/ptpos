@@ -13,7 +13,7 @@ type JobSheetViewProps = {
 export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps) {
   if (!jobSheet) return null;
 
-  const jobSheetTitle = 'Purchase Order';
+  const jobSheetTitle = hideTotals ? 'Job Sheet' : 'Purchase Order';
   const paidAmount = jobSheet.paidAmount || 0;
   const dueAmount = jobSheet.totalAmount - paidAmount;
 
@@ -121,8 +121,6 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
                 <h3 className="font-bold mb-1">SPECIAL NOTE</h3>
                 <p className="whitespace-pre-wrap min-h-[80px]">
                     {jobSheet.specialNote}
-                    {"\n\n"}
-                    <span className="font-bold">Make sure all artworks are approved by the client before proceeding to production.</span>
                 </p>
             </div>
         )}
