@@ -66,11 +66,11 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
 
   const watchedPaidAmount = form.watch('paidAmount');
   
-  const currentDue = jobSheet ? jobSheet.totalAmount - (jobSheet.paidAmount || 0) : 0;
+  const currentDue = jobSheet ? parseFloat((jobSheet.totalAmount - (jobSheet.paidAmount || 0)).toFixed(2)) : 0;
 
   useEffect(() => {
     if (jobSheet && isOpen) {
-      const correctDue = jobSheet.totalAmount - (jobSheet.paidAmount || 0);
+      const correctDue = parseFloat((jobSheet.totalAmount - (jobSheet.paidAmount || 0)).toFixed(2));
       setMaxPayment(correctDue > 0 ? correctDue : 0.01);
       const jobDescription = jobSheet.jobItems.map(item => `${item.quantity}x ${item.description}`).join(', ');
       

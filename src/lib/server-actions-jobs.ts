@@ -428,3 +428,50 @@ export async function getJobSheetByJobId(jobId: string): Promise<JobSheet | null
     return null;
   }
 }
+
+export async function getDashboardStats() {
+  try {
+    const jobSheetsQuery = collection(db, 'jobSheets');
+    const jobSheetsSnapshot = await getDocs(jobSheetsQuery);
+
+    const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
+
+    const productionCount = jobSheets.filter(js => js.status === 'Production').length;
+    const finishingCount = jobSheets.filter(js => js.status === 'Finishing').length;
+    const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
+    const studioCount = jobSheets.filter(js => js.status === 'Studio').length;
+    const mghCount = jobSheets.filter(js => js.status === 'MGH').length;
+    const cancelCount = jobSheets.filter(js => js.status === 'Cancel').length;
+    const readyPickupCount = jobSheets.filter(js => js.status === 'Ready Pickup').length;
+    const parcelCompareCount = jobSheets.filter(js => js.status === 'Parcel Compare').length;
+    const deliveredCount = jobSheets.filter(js => js.status === 'Delivered').length;
+    const osCount = jobSheets.filter(js => js.status === 'OS').length;
+
+    return {
+      productionCount,
+      finishingCount,
+      holdCount,
+      studioCount,
+      mghCount,
+      cancelCount,
+      readyPickupCount,
+      parcelCompareCount,
+      deliveredCount,
+      osCount,
+    };
+  } catch (e) {
+    console.error('Error fetching dashboard stats:', e);
+    return {
+      productionCount: 0,
+      finishingCount: 0,
+      holdCount: 0,
+      studioCount: 0,
+      mghCount: 0,
+      cancelCount: 0,
+      readyPickupCount: 0,
+      parcelCompareCount: 0,
+      deliveredCount: 0,
+      osCount: 0,
+    };
+  }
+}

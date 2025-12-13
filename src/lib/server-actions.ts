@@ -81,10 +81,10 @@ async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude
         }
     });
 
-    const newDueAmount = jobSheetData.totalAmount - totalPaid;
+    const newDueAmount = parseFloat((jobSheetData.totalAmount - totalPaid).toFixed(2));
     
     let newPaymentStatus: PaymentStatus = 'Unpaid';
-    if (newDueAmount <= 0.001) { // Use a small tolerance for float comparison
+    if (newDueAmount <= 0) {
         newPaymentStatus = 'Paid';
     } else if (totalPaid > 0) {
         newPaymentStatus = 'Partially Paid';
