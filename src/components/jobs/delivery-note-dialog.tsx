@@ -44,13 +44,21 @@ export function DeliveryNoteDialog({ jobSheet, isOpen, onClose }: DeliveryNoteDi
                   size: 4in 6in; 
                   margin: 0; 
                 }
-                body { 
+                body, html { 
                   margin: 0;
+                  padding: 0;
+                  width: 100%;
+                  height: 100%;
                   -webkit-print-color-adjust: exact;
                   image-rendering: high-quality;
+                  box-sizing: border-box;
                 }
               }
               body { font-family: sans-serif; } 
+              #delivery-note-to-print {
+                  height: 100%;
+                  box-sizing: border-box;
+              }
               table { width: 100%; border-collapse: collapse; } 
               th, td { border: 1px solid black; padding: 4px; text-align: left; } 
               .font-bold { font-weight: bold; } 
