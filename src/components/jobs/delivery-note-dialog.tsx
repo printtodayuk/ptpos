@@ -19,22 +19,80 @@ export function DeliveryNoteDialog({ jobSheet, isOpen, onClose }: DeliveryNoteDi
 
   const handlePrint = () => {
     if (!viewRef.current) return;
+
     const printContent = viewRef.current.innerHTML;
-    const printWindow = window.open('', '_blank', 'height=600,width=400');
-    if (printWindow) {
-      printWindow.document.write('<html><head><title>Print Delivery Note</title>');
-      printWindow.document.write('<style>@media print { @page { size: 4in 6in; margin: 0; } body { margin: 0; -webkit-print-color-adjust: exact; image-rendering: high-quality; } } body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid black; padding: 4px; text-align: left; } .font-bold { font-weight: bold; } .text-sm { font-size: 0.875rem; } .text-xs { font-size: 0.75rem; } .text-\\[10px\\] { font-size: 10px; } .p-4 { padding: 1rem; } .border { border: 1px solid black; } .space-y-2 > * + * { margin-top: 0.5rem; } .w-\\[4in\\] { width: 4in; } .h-\\[6in\\] { height: 6in; } .flex { display: flex; } .flex-col { flex-direction: column; } .justify-between { justify-content: space-between; } .whitespace-pre-wrap { white-space: pre-wrap; } .border-b { border-bottom-width: 1px; } .pb-2 { padding-bottom: 0.5rem; } .mb-2 { margin-bottom: 0.5rem; } .items-start { align-items: flex-start; } .w-1\\/2 { width: 50%; } .text-right { text-align: right; } img { max-width: 100%; height: auto; } .bg-gray-200 { background-color: #E5E7EB; } .align-top { vertical-align: top; } </style>');
-      printWindow.document.write('</head><body>');
-      printWindow.document.write(printContent);
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 250);
+    
+    // Create an iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      // Inject necessary styles for printing
+      iframeDoc.write(`
+        <html>
+          <head>
+            <title>Print Delivery Note</title>
+            <style>
+              @media print {
+                @page { 
+                  size: 4in 6in; 
+                  margin: 0; 
+                }
+                body { 
+                  margin: 0;
+                  -webkit-print-color-adjust: exact;
+                  image-rendering: high-quality;
+                }
+              }
+              body { font-family: sans-serif; } 
+              table { width: 100%; border-collapse: collapse; } 
+              th, td { border: 1px solid black; padding: 4px; text-align: left; } 
+              .font-bold { font-weight: bold; } 
+              .text-sm { font-size: 0.875rem; } 
+              .text-xs { font-size: 0.75rem; } 
+              .text-\\[10px\\] { font-size: 10px; } 
+              .p-4 { padding: 1rem; } 
+              .border { border: 1px solid black; } 
+              .space-y-2 > * + * { margin-top: 0.5rem; } 
+              .w-\\[4in\\] { width: 4in; } 
+              .h-\\[6in\\] { height: 6in; } 
+              .flex { display: flex; } 
+              .flex-col { flex-direction: column; } 
+              .justify-between { justify-content: space-between; } 
+              .whitespace-pre-wrap { white-space: pre-wrap; } 
+              .border-b { border-bottom-width: 1px; } 
+              .pb-2 { padding-bottom: 0.5rem; } 
+              .mb-2 { margin-bottom: 0.25rem; } 
+              .items-start { align-items: flex-start; } 
+              .w-1\\/2 { width: 50%; } 
+              .text-right { text-align: right; } 
+              img { max-width: 100%; height: auto; } 
+              .bg-gray-200 { background-color: #E5E7EB; } 
+              .align-top { vertical-align: top; }
+            </style>
+          </head>
+          <body>
+            ${printContent}
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
     }
+    
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
   };
+
 
   if (!jobSheet) return null;
 
