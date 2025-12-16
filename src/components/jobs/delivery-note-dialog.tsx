@@ -5,8 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { DeliveryNoteView } from './delivery-note-view';
 import type { JobSheet } from '@/lib/types';
-import { Printer } from 'lucide-react';
-import React from 'react';
+import { Printer, Download, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 type DeliveryNoteDialogProps = {
   jobSheet: JobSheet | null;
@@ -16,6 +18,7 @@ type DeliveryNoteDialogProps = {
 
 export function DeliveryNoteDialog({ jobSheet, isOpen, onClose }: DeliveryNoteDialogProps) {
   const viewRef = React.useRef<HTMLDivElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handlePrint = () => {
     if (!viewRef.current) return;
@@ -100,6 +103,34 @@ export function DeliveryNoteDialog({ jobSheet, isOpen, onClose }: DeliveryNoteDi
       document.body.removeChild(iframe);
     }, 1000);
   };
+  
+  const handleSavePdf = async () => {
+    if (!viewRef.current || !jobSheet) return;
+    setIsSaving(true);
+    
+    const canvas = await html2canvas(viewRef.current, { 
+      scale: 2, // Use a higher scale for better quality capture
+      useCORS: true,
+      backgroundColor: '#ffffff'
+    });
+    
+    // Use JPEG with quality setting to reduce file size
+    const imgData = canvas.toDataURL('image/jpeg', 0.7); 
+    
+    const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'in',
+        format: [4, 6]
+    });
+    
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`DN-${jobSheet.jobId}.pdf`);
+
+    setIsSaving(false);
+  };
 
 
   if (!jobSheet) return null;
@@ -119,6 +150,10 @@ export function DeliveryNoteDialog({ jobSheet, isOpen, onClose }: DeliveryNoteDi
           <Button type="button" onClick={handlePrint} className="flex-1">
             <Printer className="mr-2 h-4 w-4" />
             Print
+          </Button>
+          <Button type="button" variant="secondary" onClick={handleSavePdf} disabled={isSaving} className="flex-1">
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Save as PDF
           </Button>
         </DialogFooter>
       </DialogContent>
