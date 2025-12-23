@@ -4,6 +4,7 @@
 
 
 
+
 'use server';
 
 import {
@@ -422,8 +423,6 @@ export async function searchTransactions(
 ): Promise<Transaction[]> {
   try {
     let allTransactions: Transaction[] = [];
-    // To get around Firestore query limitations, we fetch broadly and filter in code.
-    // This is less efficient on large datasets but more reliable for complex filters.
     const q = query(
       collection(db, 'transactions'),
       orderBy('createdAt', 'desc'),
@@ -441,7 +440,6 @@ export async function searchTransactions(
       } as Transaction;
     });
 
-    // Apply filtering in code
     let filteredTransactions = allTransactions;
 
     if (paymentMethod) {
@@ -459,6 +457,37 @@ export async function searchTransactions(
         const jidMatch = t.jid?.toLowerCase().includes(lowercasedTerm);
         return tidMatch || clientMatch || jobMatch || jidMatch;
       });
+    }
+    
+    const jids = filteredTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
+    if (jids.length > 0) {
+        const uniqueJids = [...new Set(jids)];
+        const jidChunks = [];
+        for (let i = 0; i < uniqueJids.length; i += 30) {
+            jidChunks.push(uniqueJids.slice(i, i + 30));
+        }
+
+        const jobSheetMap = new Map<string, JobSheet>();
+        
+        for (const chunk of jidChunks) {
+            const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', chunk));
+            const jobSheetsSnapshot = await getDocs(jobSheetQuery);
+            jobSheetsSnapshot.docs.forEach(doc => {
+                const data = doc.data() as JobSheet;
+                jobSheetMap.set(data.jobId, data);
+            });
+        }
+        
+        return filteredTransactions.map(tx => {
+            if (tx.jid && jobSheetMap.has(tx.jid)) {
+                const jobSheet = jobSheetMap.get(tx.jid)!;
+                return {
+                    ...tx,
+                    invoiceNumber: tx.invoiceNumber || jobSheet.irNumber || '',
+                };
+            }
+            return tx;
+        });
     }
 
     return filteredTransactions;
