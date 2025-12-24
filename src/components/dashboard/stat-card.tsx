@@ -25,7 +25,7 @@ export function StatCard({ title, value, icon: Icon, description, loading, isCur
           <Skeleton className="h-6 w-6" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="text-xl font-bold">
             <Skeleton className="h-8 w-32" />
           </div>
           {description && <p className="text-xs text-muted-foreground mt-1">
@@ -47,7 +47,7 @@ export function StatCard({ title, value, icon: Icon, description, loading, isCur
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{formattedValue}</div>
+        <div className="text-xl font-bold">{formattedValue}</div>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>
