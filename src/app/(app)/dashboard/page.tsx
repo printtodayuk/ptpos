@@ -9,6 +9,7 @@ import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, Pack
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
+import { Calendar } from '@/components/ui/calendar';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -24,6 +25,8 @@ export default function DashboardPage() {
     osCount: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [ukDate, setUkDate] = useState<Date | undefined>(new Date());
+  const [bdDate, setBdDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     setIsLoading(true);
@@ -70,6 +73,35 @@ export default function DashboardPage() {
               <StatCard title="OS" value={stats.osCount} icon={Wand} description="Jobs with OS status" isCurrency={false} className="bg-indigo-500/10 border-indigo-500 text-indigo-700" />
               <StatCard title="Cancelled" value={stats.cancelCount} icon={PackageX} description="Jobs that have been cancelled" isCurrency={false} className="bg-gray-500/10 border-gray-500 text-gray-700" />
           </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle className="text-xl">Office Calendars</CardTitle>
+            <CardDescription>
+                Note: Bank and government holidays are not automatically highlighted.
+            </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-8 md:grid-cols-2">
+            <div className="flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-2">UK Calendar</h3>
+                <Calendar
+                    mode="single"
+                    selected={ukDate}
+                    onSelect={setUkDate}
+                    className="rounded-md border"
+                />
+            </div>
+            <div className="flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-2">Bangladesh Calendar</h3>
+                <Calendar
+                    mode="single"
+                    selected={bdDate}
+                    onSelect={setBdDate}
+                    className="rounded-md border"
+                />
+            </div>
         </CardContent>
       </Card>
 
