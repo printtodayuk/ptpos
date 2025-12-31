@@ -139,7 +139,7 @@ export function QuotationView({ quotation }: QuotationViewProps) {
       <div className="mt-8 text-xs">
           <div className="border-t border-black pt-2">
               <h4 className="font-bold mb-1">Terms:</h4>
-              <p>This quotation is valid for 30 days. Prices are based on current costs and may change after the validity period. A 60% deposit is required to confirm the order.</p>
+              <p>This quotation is valid for 14 days. Prices are based on current costs and may change after the validity period. A 100% deposit is required to confirm the order.</p>
           </div>
           <div className="mt-4 text-center">
               <p>Thank you for your business!</p>
