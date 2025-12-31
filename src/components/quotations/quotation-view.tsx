@@ -19,9 +19,9 @@ export function QuotationView({ quotation }: QuotationViewProps) {
   return (
     <div 
       id="quotation-to-print" 
-      className="font-sans text-sm text-black bg-white p-8 w-[210mm] min-h-[297mm] mx-auto relative"
+      className="font-sans text-sm text-black bg-white p-8 w-[210mm] min-h-[297mm] mx-auto flex flex-col justify-between"
     >
-      <div className="relative" style={{ zIndex: 1 }}>
+      <div>
         {/* Header */}
         <div className="flex justify-between items-start pb-4 border-b-2 border-black">
           <div className="w-1/3">
@@ -133,19 +133,19 @@ export function QuotationView({ quotation }: QuotationViewProps) {
               </div>
           </div>
         </div>
-        
-        {/* Footer */}
-        <div className="mt-8 text-xs absolute bottom-8 left-8 right-8">
-            <div className="border-t border-black pt-2">
-                <h4 className="font-bold mb-1">Terms:</h4>
-                <p>This quotation is valid for 30 days. Prices are based on current costs and may change after the validity period. A 60% deposit is required to confirm the order.</p>
-            </div>
-            <div className="mt-4 text-center">
-                <p>Thank you for your business!</p>
-                <p className="text-[10px] pt-1">Powered by Today AI</p>
-                <p className="text-[10px]">Developed by Faz | RemotizedIT</p>
-            </div>
-        </div>
+      </div>
+      
+      {/* Footer */}
+      <div className="mt-8 text-xs">
+          <div className="border-t border-black pt-2">
+              <h4 className="font-bold mb-1">Terms:</h4>
+              <p>This quotation is valid for 30 days. Prices are based on current costs and may change after the validity period. A 60% deposit is required to confirm the order.</p>
+          </div>
+          <div className="mt-4 text-center">
+              <p>Thank you for your business!</p>
+              <p className="text-[10px] pt-1">Powered by Today AI</p>
+              <p className="text-[10px]">Developed by Faz | RemotizedIT</p>
+          </div>
       </div>
     </div>
   );
