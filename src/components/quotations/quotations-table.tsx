@@ -91,7 +91,9 @@ export function QuotationsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedQuotations.map((q) => (
+          {paginatedQuotations.map((q) => {
+            const isLocked = !!q.jid;
+            return (
             <TableRow key={q.id}>
               <TableCell>
                 <Badge variant="secondary">{q.quotationId}</Badge>
@@ -128,11 +130,11 @@ export function QuotationsTable({
                     <DropdownMenuItem onSelect={() => onViewHistory(q)}>
                         <History className="mr-2 h-4 w-4" /> View History
                     </DropdownMenuItem>
-                     <DropdownMenuItem onSelect={() => onCreateJob(q)}>
+                     <DropdownMenuItem onSelect={() => onCreateJob(q)} disabled={isLocked}>
                         <FilePlus className="mr-2 h-4 w-4" /> Create Job
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => onEdit(q)}>
+                    <DropdownMenuItem onSelect={() => onEdit(q)} disabled={isLocked}>
                       <Edit className="mr-2 h-4 w-4" /> Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => onDelete(q)} className="text-destructive focus:text-destructive">
@@ -142,7 +144,7 @@ export function QuotationsTable({
                 </DropdownMenu>
               </TableCell>
             </TableRow>
-          ))}
+          )})}
         </TableBody>
       </Table>
     </div>

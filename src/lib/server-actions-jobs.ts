@@ -21,7 +21,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator, JobSheetHistory } from '@/lib/types';
+import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator, JobSheetHistory, Quotation } from '@/lib/types';
 import { JobSheetSchema, operators } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
@@ -313,10 +313,44 @@ export async function searchJobSheets(
 
 export async function deleteJobSheet(id: string) {
     if (!id) return { success: false, message: 'Job Sheet ID is required.' };
+    
+    const jobSheetRef = doc(db, 'jobSheets', id);
     try {
-        await deleteDoc(doc(db, 'jobSheets', id));
+        const jobSheetSnap = await getDoc(jobSheetRef);
+        if (!jobSheetSnap.exists()) {
+            return { success: false, message: 'Job Sheet not found.' };
+        }
+        const jobSheetData = jobSheetSnap.data() as JobSheet;
+        const jobId = jobSheetData.jobId;
+
+        // Find and unlock the original quotation if it exists
+        const quotationQuery = query(collection(db, 'quotations'), where('jid', '==', jobId), limit(1));
+        const quotationSnapshot = await getDocs(quotationQuery);
+        
+        if (!quotationSnapshot.empty) {
+            const quotationDoc = quotationSnapshot.docs[0];
+            const quotationRef = quotationDoc.ref;
+            const quotationData = quotationDoc.data() as Quotation;
+
+            const historyEntry = {
+                timestamp: Timestamp.now(),
+                operator: 'System', 
+                action: 'Unlocked',
+                details: `Linked Job Sheet ${jobId} was deleted. Quotation is now unlocked and editable.`,
+            };
+
+            await updateDoc(quotationRef, {
+                jid: null,
+                status: 'Hold',
+                history: [...(quotationData.history || []), historyEntry],
+            });
+        }
+
+        await deleteDoc(jobSheetRef);
+        
         revalidatePath('/job-sheet');
         revalidatePath('/js-report');
+        revalidatePath('/quotation-report');
         return { success: true, message: 'Job sheet deleted successfully.' };
     } catch (error) {
         return { success: false, message: error instanceof Error ? error.message : 'An unexpected error occurred.' };
