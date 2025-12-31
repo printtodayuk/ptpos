@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useTransition, useEffect, useCallback } from 'react';
-import { searchQuotations, deleteQuotation } from '@/lib/server-actions-quotations';
+import { searchQuotations, deleteQuotation, createJobSheetFromQuotation } from '@/lib/server-actions-quotations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Loader2, Search } from 'lucide-react';
@@ -26,6 +26,7 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<Quotation[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
+  const [isCreatingJob, startCreateJobTransition] = useTransition();
   const [quotationToEdit, setQuotationToEdit] = useState<Quotation | null>(null);
   const [quotationToView, setQuotationToView] = useState<Quotation | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
@@ -65,6 +66,26 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
   const handleDeleteRequest = (quotation: Quotation) => {
     setQuotationToDelete(quotation);
     setIsPinDialogOpen(true);
+  };
+
+  const handleCreateJob = (quotation: Quotation) => {
+    if (isCreatingJob) return;
+    startCreateJobTransition(async () => {
+        const result = await createJobSheetFromQuotation(quotation.id!);
+        if (result.success && result.jobSheet) {
+            toast({
+                title: 'Job Created!',
+                description: `Job Sheet ${result.jobSheet.jobId} has been created from Quotation ${quotation.quotationId}.`,
+            });
+            performSearch(debouncedSearchTerm);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: result.message || 'Failed to create job sheet.',
+            });
+        }
+    });
   };
 
   const confirmDelete = async () => {
@@ -184,6 +205,7 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
               onView={handleView}
               onDelete={handleDeleteRequest}
               onViewHistory={handleViewHistory}
+              onCreateJob={handleCreateJob}
             />
           )}
         </CardContent>

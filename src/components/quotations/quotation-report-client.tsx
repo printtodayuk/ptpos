@@ -101,6 +101,7 @@ export function QuotationReportClient() {
   };
   
   const handleCreateJob = (quotation: Quotation) => {
+    if (isCreatingJob) return;
     startCreateJobTransition(async () => {
         const result = await createJobSheetFromQuotation(quotation.id!);
         if (result.success && result.jobSheet) {
