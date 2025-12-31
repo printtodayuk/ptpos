@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -409,7 +410,7 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             totalAmount: quotationData.totalAmount,
             status: 'Hold' as const,
             specialNote: `Converted from Quotation ${quotationData.quotationId}. \n\n${quotationData.specialNote || ''}`,
-            irNumber: quotationData.jid, // Use JID from quotation as IR number
+            irNumber: quotationData.jid || '', // Use JID from quotation as IR number, default to empty string
             deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as string) : null,
             type: 'Invoice' as const,
         };
