@@ -12,7 +12,7 @@ export default function QuotationPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <QuotationForm onQuotationAdded={handleQuotationUpdate} />
+      <QuotationForm key={key} onQuotationAdded={handleQuotationUpdate} />
       <SearchQuotations key={key} onQuotationUpdated={handleQuotationUpdate} />
     </div>
   );

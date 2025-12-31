@@ -55,8 +55,6 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   const { toast } = useToast();
   const { operator: loggedInOperator } = useSession();
   const [lastQuotation, setLastQuotation] = useState<Quotation | null>(null);
-  const [lastOperator, setLastOperator] = useState<Operator>(loggedInOperator || 'PTMGH');
-  const [currentQuotationId, setCurrentQuotationId] = useState<string | undefined>(undefined);
 
   const isEditMode = !!quotationToEdit;
   const isPaid = false; // Quotations don't have payments
@@ -72,7 +70,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   });
 
   useEffect(() => {
-    if (quotationToEdit && quotationToEdit.id !== currentQuotationId) {
+    if (isEditMode && quotationToEdit) {
         const deliveryByDate = quotationToEdit.deliveryBy ? new Date(quotationToEdit.deliveryBy) : undefined;
         form.reset({
             ...quotationToEdit,
@@ -83,12 +81,10 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
             clientDetails: quotationToEdit.clientDetails || '',
             tid: quotationToEdit.tid || '',
         });
-        setCurrentQuotationId(quotationToEdit.id);
-    } else if (!quotationToEdit && currentQuotationId) {
+    } else {
         form.reset(getFreshDefaultValues(loggedInOperator));
-        setCurrentQuotationId(undefined);
     }
-  }, [quotationToEdit, form, loggedInOperator, currentQuotationId]);
+  }, [quotationToEdit, isEditMode, form, loggedInOperator]);
 
 
   const watchedJobItems = form.watch('jobItems');
@@ -129,10 +125,6 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
-      const operator = form.getValues('operator');
-      if (operator) {
-        setLastOperator(operator as Operator);
-      }
       
       const result = isEditMode && quotationToEdit?.id
         ? await updateQuotation(quotationToEdit.id, data, loggedInOperator!)
