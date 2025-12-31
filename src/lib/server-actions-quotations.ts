@@ -20,10 +20,12 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { Quotation, Transaction, JobSheetStatus as QuotationStatus, PaymentStatus, Operator, QuotationHistory } from '@/lib/types';
+import type { Quotation, Transaction, JobSheetStatus as QuotationStatus, PaymentStatus, Operator, QuotationHistory, JobSheet } from '@/lib/types';
 import { QuotationSchema, operators } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
+import { addJobSheet } from './server-actions-jobs';
+
 
 const CreateQuotationSchema = QuotationSchema.omit({
   id: true,
@@ -344,7 +346,7 @@ export async function exportAllQuotations(
                 'Total Amount': data.totalAmount.toFixed(2),
                 'Status': data.status,
                 'Special Note': data.specialNote,
-                'IR Number': data.irNumber,
+                'JID': data.jid,
                 'Delivery By': deliveryBy ? format(deliveryBy, 'yyyy-MM-dd') : 'N/A',
                 'Type': data.type,
             };
@@ -379,4 +381,54 @@ export async function getQuotationByQuotationId(quotationId: string): Promise<Qu
     console.error('Error fetching quotation by ID:', error);
     return null;
   }
+}
+
+export async function createJobSheetFromQuotation(quotationId: string): Promise<{success: boolean, message: string, jobSheet?: JobSheet}> {
+    if (!quotationId) {
+        return { success: false, message: 'Quotation ID is required.' };
+    }
+
+    try {
+        const quotationRef = doc(db, 'quotations', quotationId);
+        const quotationSnap = await getDoc(quotationRef);
+
+        if (!quotationSnap.exists()) {
+            return { success: false, message: 'Quotation not found.' };
+        }
+
+        const quotationData = quotationSnap.data() as Quotation;
+
+        const jobSheetData = {
+            date: new Date(),
+            operator: quotationData.operator,
+            clientName: quotationData.clientName,
+            clientDetails: quotationData.clientDetails,
+            jobItems: quotationData.jobItems,
+            subTotal: quotationData.subTotal,
+            vatAmount: quotationData.vatAmount,
+            totalAmount: quotationData.totalAmount,
+            status: 'Hold' as const,
+            specialNote: `Converted from Quotation ${quotationData.quotationId}. \n\n${quotationData.specialNote || ''}`,
+            irNumber: quotationData.jid, // Use JID from quotation as IR number
+            deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as string) : null,
+            type: 'Invoice' as const,
+        };
+        
+        const result = await addJobSheet(jobSheetData);
+
+        if (result.success && result.jobSheet) {
+            await updateDoc(quotationRef, {
+                status: 'Approved',
+                jid: result.jobSheet.jobId,
+            });
+            revalidatePath('/quotation-report');
+            return { success: true, message: `Job Sheet ${result.jobSheet.jobId} created successfully.`, jobSheet: result.jobSheet };
+        } else {
+            return { success: false, message: result.message || 'Failed to create Job Sheet.' };
+        }
+
+    } catch (error) {
+        console.error('Error creating job sheet from quotation:', error);
+        return { success: false, message: 'An unexpected error occurred.' };
+    }
 }

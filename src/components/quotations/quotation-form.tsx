@@ -44,7 +44,7 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   totalAmount: 0,
   status: 'Hold',
   specialNote: '',
-  irNumber: '',
+  jid: '',
   deliveryBy: undefined,
   type: 'Quotation',
   tid: '',
@@ -78,7 +78,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
             ...quotationToEdit,
             date: new Date(quotationToEdit.date),
             deliveryBy: deliveryByDate,
-            irNumber: quotationToEdit.irNumber || '',
+            jid: quotationToEdit.jid || '',
             specialNote: quotationToEdit.specialNote || '',
             clientDetails: quotationToEdit.clientDetails || '',
             tid: quotationToEdit.tid || '',
@@ -296,7 +296,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
                 </div>
 
 
-                {/* Row 5: Status, IR Number, etc */}
+                {/* Row 5: Status, JID, etc */}
                 <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
                     <Controller name="status" control={form.control} render={({ field }) => (
@@ -307,8 +307,8 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
                     )} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="irNumber">IR Number</Label>
-                    <Input id="irNumber" {...form.register('irNumber')} />
+                    <Label htmlFor="jid">JID</Label>
+                    <Input id="jid" {...form.register('jid')} />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="deliveryBy">Delivery By</Label>

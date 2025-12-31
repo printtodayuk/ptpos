@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Eye, Edit, Trash2, History } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, History, FilePlus } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ type QuotationsTableProps = {
   onEdit: (quotation: Quotation) => void;
   onDelete: (quotation: Quotation) => void;
   onViewHistory: (quotation: Quotation) => void;
+  onCreateJob: (quotation: Quotation) => void;
 };
 
 export function QuotationsTable({ 
@@ -28,7 +29,8 @@ export function QuotationsTable({
   onView,
   onEdit,
   onDelete,
-  onViewHistory
+  onViewHistory,
+  onCreateJob,
 }: QuotationsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(quotations.length / ROWS_PER_PAGE);
@@ -80,7 +82,7 @@ export function QuotationsTable({
             <TableHead>Client</TableHead>
             <TableHead className="hidden md:table-cell">Type</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
-            <TableHead className="hidden lg:table-cell">IR Number</TableHead>
+            <TableHead className="hidden lg:table-cell">JID</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead>
@@ -100,7 +102,7 @@ export function QuotationsTable({
               <TableCell>{q.clientName}</TableCell>
               <TableCell className="hidden md:table-cell">{q.type}</TableCell>
               <TableCell className="hidden md:table-cell">{q.operator}</TableCell>
-              <TableCell className="hidden lg:table-cell">{q.irNumber}</TableCell>
+              <TableCell className="hidden lg:table-cell">{q.jid}</TableCell>
               <TableCell className="text-right">
                 £{q.totalAmount.toFixed(2)}
               </TableCell>
@@ -125,6 +127,9 @@ export function QuotationsTable({
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => onViewHistory(q)}>
                         <History className="mr-2 h-4 w-4" /> View History
+                    </DropdownMenuItem>
+                     <DropdownMenuItem onSelect={() => onCreateJob(q)}>
+                        <FilePlus className="mr-2 h-4 w-4" /> Create Job
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => onEdit(q)}>

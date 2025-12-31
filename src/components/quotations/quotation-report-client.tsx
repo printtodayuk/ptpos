@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
-import { searchQuotations, exportAllQuotations, deleteQuotation } from '@/lib/server-actions-quotations';
+import { searchQuotations, exportAllQuotations, deleteQuotation, createJobSheetFromQuotation } from '@/lib/server-actions-quotations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ export function QuotationReportClient() {
   const [results, setResults] = useState<Quotation[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
+  const [isCreatingJob, startCreateJobTransition] = useTransition();
   const [quotationToEdit, setQuotationToEdit] = useState<Quotation | null>(null);
   const [quotationToView, setQuotationToView] = useState<Quotation | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
@@ -96,6 +98,25 @@ export function QuotationReportClient() {
   const handleDeleteRequest = (quotation: Quotation) => {
     setQuotationToDelete(quotation);
     setIsPinDialogOpen(true);
+  };
+  
+  const handleCreateJob = (quotation: Quotation) => {
+    startCreateJobTransition(async () => {
+        const result = await createJobSheetFromQuotation(quotation.id!);
+        if (result.success && result.jobSheet) {
+            toast({
+                title: 'Job Created!',
+                description: `Job Sheet ${result.jobSheet.jobId} has been created from Quotation ${quotation.quotationId}.`,
+            });
+            performSearch(debouncedSearchTerm, quotationStatusFilter, operatorFilter);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: result.message || 'Failed to create job sheet.',
+            });
+        }
+    });
   };
 
   const confirmDelete = async () => {
@@ -254,6 +275,7 @@ export function QuotationReportClient() {
               onView={handleView}
               onDelete={handleDeleteRequest}
               onViewHistory={handleViewHistory}
+              onCreateJob={handleCreateJob}
             />
           )}
         </CardContent>

@@ -117,7 +117,7 @@ export const QuotationSchema = z.object({
   status: z.enum(quotationStatus),
   paymentStatus: z.enum(paymentStatuses).default('Unpaid'),
   specialNote: z.string().optional().nullable(),
-  irNumber: z.string().optional().nullable(),
+  jid: z.string().optional().nullable(),
   deliveryBy: z.date().optional().nullable(),
   type: z.enum(jobSheetTypes).default('Quotation'),
   createdAt: z.any().optional(),
@@ -185,5 +185,3 @@ export const UpdateTimeRecordSchema = z.object({
         endTime: z.date().nullable(),
     })).default([]),
 });
-
-

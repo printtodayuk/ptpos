@@ -65,7 +65,7 @@ export function QuotationView({ quotation, hideTotals = false }: QuotationViewPr
               <strong>Date:</strong> {format(new Date(quotation.date), 'dd/MM/yyyy')}
           </div>
           <div className="border border-black p-2">
-              <strong>IR No:</strong> {quotation.irNumber}
+              <strong>JID:</strong> {quotation.jid}
           </div>
           <div className="border border-black p-2">
               <strong>Operator:</strong> {quotation.operator}

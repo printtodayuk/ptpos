@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Contact": {
@@ -310,9 +311,9 @@
           "type": "string",
           "description": "Any special notes for the quotation."
         },
-        "irNumber": {
+        "jid": {
           "type": "string",
-          "description": "The IR number associated with the quotation."
+          "description": "The Job ID (JID) associated with the quotation if a job has been created from it."
         },
         "deliveryBy": {
             "type": "string",
