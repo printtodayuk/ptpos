@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addQuotation, updateQuotation } from '@/lib/server-actions-quotations';
-import { QuotationSchema, operators, jobSheetStatus as quotationStatus, type Quotation, type Operator, jobSheetTypes as quotationTypes, jobSheetStatus as quotationStatuses } from '@/lib/types';
+import { QuotationSchema, operators, quotationStatus, type Quotation, type Operator, jobSheetTypes as quotationTypes } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { QuotationViewDialog } from './quotation-view-dialog';
@@ -302,7 +302,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
                     <Controller name="status" control={form.control} render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>{quotationStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                        <SelectContent>{quotationStatus.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                     </Select>
                     )} />
                 </div>

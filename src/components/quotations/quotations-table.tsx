@@ -8,7 +8,7 @@ import { MoreHorizontal, Eye, Edit, Trash2, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import type { Quotation, JobSheetStatus as QuotationStatus } from '@/lib/types';
+import type { Quotation, QuotationStatus } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { SimplePagination } from '../ui/pagination';
@@ -54,26 +54,16 @@ export function QuotationsTable({
 
   const getStatusClass = (status: QuotationStatus): string => {
     switch (status) {
-      case 'Hold':
-        return 'bg-red-500 hover:bg-red-500/80 text-white';
-      case 'Studio':
+      case 'Sent':
         return 'bg-blue-500 hover:bg-blue-500/80 text-white';
-      case 'Production':
-        return 'bg-orange-500 hover:bg-orange-500/80 text-white';
-      case 'Finishing':
-        return 'bg-teal-500 hover:bg-teal-500/80 text-white';
-      case 'Cancel':
-        return 'bg-destructive hover:bg-destructive/80 text-destructive-foreground';
-      case 'Ready Pickup':
-        return 'bg-purple-500 hover:bg-purple-500/80 text-white';
-      case 'Parcel Compare':
-         return 'bg-yellow-500 hover:bg-yellow-500/80 text-black';
-      case 'Delivered':
+      case 'Hold':
+        return 'bg-yellow-500 hover:bg-yellow-500/80 text-black';
+      case 'WFR':
+         return 'bg-purple-500 hover:bg-purple-500/80 text-white';
+      case 'Approved':
         return 'bg-green-600 hover:bg-green-600/80 text-white';
-      case 'MGH':
-        return 'bg-pink-500 hover:bg-pink-500/80 text-white';
-      case 'OS':
-        return 'bg-indigo-500 hover:bg-indigo-500/80 text-white';
+      case 'Declined':
+        return 'bg-destructive hover:bg-destructive/80 text-destructive-foreground';
       default:
         return 'bg-gray-500 hover:bg-gray-500/80 text-white';
     }

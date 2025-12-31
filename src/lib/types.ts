@@ -6,7 +6,7 @@ export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK'
 export type Operator = (typeof operators)[number];
 
 export const paymentMethods = ['Bank Transfer', 'Card Payment', 'Cash', 'ST Bank Transfer', 'AIR Bank Transfer'] as const;
-export type PaymentMethod = typeof paymentMethods[number];
+export type PaymentMethod = (typeof paymentMethods)[number];
 
 export const TransactionSchema = z.object({
   id: z.string().optional(),
@@ -37,6 +37,8 @@ export type Transaction = Omit<z.infer<typeof TransactionSchema>, 'date'> & {
 
 export const jobSheetStatus = ['Hold', 'Studio', 'Production', 'Finishing', 'Cancel', 'Ready Pickup', 'Parcel Compare', 'Delivered', 'MGH', 'OS'] as const;
 export type JobSheetStatus = (typeof jobSheetStatus)[number];
+export const quotationStatus = ['Sent', 'Hold', 'WFR', 'Approved', 'Declined'] as const;
+export type QuotationStatus = (typeof quotationStatus)[number];
 export const jobSheetTypes = ['Invoice', 'Quotation', 'N/A', 'STR', 'AIR'] as const;
 export type JobSheetType = (typeof jobSheetTypes)[number];
 export const paymentStatuses = ['Unpaid', 'Partially Paid', 'Paid'] as const;
@@ -112,7 +114,7 @@ export const QuotationSchema = z.object({
   totalAmount: z.number(),
   paidAmount: z.number().default(0),
   dueAmount: z.number().default(0),
-  status: z.enum(jobSheetStatus),
+  status: z.enum(quotationStatus),
   paymentStatus: z.enum(paymentStatuses).default('Unpaid'),
   specialNote: z.string().optional().nullable(),
   irNumber: z.string().optional().nullable(),
@@ -122,10 +124,11 @@ export const QuotationSchema = z.object({
   history: z.array(QuotationHistorySchema).optional().default([]),
 });
 
-export type Quotation = Omit<z.infer<typeof QuotationSchema>, 'date' | 'deliveryBy' | 'history'> & {
+export type Quotation = Omit<z.infer<typeof QuotationSchema>, 'date' | 'deliveryBy' | 'history' | 'status'> & {
     date: Date | string;
     deliveryBy?: Date | string | null;
     history?: QuotationHistory[];
+    status: QuotationStatus;
 };
 
 
@@ -182,4 +185,5 @@ export const UpdateTimeRecordSchema = z.object({
         endTime: z.date().nullable(),
     })).default([]),
 });
+
 
