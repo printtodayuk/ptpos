@@ -1,5 +1,4 @@
 
-
 import { z } from 'zod';
 
 export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK'] as const;
@@ -103,7 +102,7 @@ export type QuotationHistory = z.infer<typeof QuotationHistorySchema>;
 
 export const QuotationSchema = z.object({
   id: z.string().optional(),
-  quotationId: z.string(),
+  quotationId: z.string().optional(),
   invoiceNumber: z.string().optional(),
   tid: z.string().optional().nullable(),
   date: z.union([z.date(), z.string()]),

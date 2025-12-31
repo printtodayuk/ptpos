@@ -416,7 +416,7 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             irNumber: null,
             deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null,
             type: 'Invoice' as const,
-            invoiceNumber: null, // Explicitly set to null
+            invoiceNumber: null,
         };
         
         const result = await addJobSheet(jobSheetDataForCreation);
@@ -435,6 +435,7 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
                 history: [...(quotationData.history || []), historyEntry],
             });
             revalidatePath('/quotation-report');
+            revalidatePath('/quotation');
             return { success: true, message: `Job Sheet ${result.jobSheet.jobId} created successfully.`, jobSheet: result.jobSheet };
         } else {
             return { success: false, message: result.message || 'Failed to create Job Sheet.' };
