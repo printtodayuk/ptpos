@@ -416,6 +416,7 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             irNumber: null,
             deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null,
             type: 'Invoice' as const,
+            invoiceNumber: quotationData.invoiceNumber,
         };
         
         const result = await addJobSheet(jobSheetDataForCreation);
