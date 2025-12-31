@@ -6,6 +6,7 @@
 
 
 
+
 'use server';
 
 import {
@@ -250,17 +251,14 @@ export async function getTransactions(
 
 export async function getDashboardStats() {
   try {
-    // Fetch all job sheets
     const jobSheetsQuery = collection(db, 'jobSheets');
     const jobSheetsSnapshot = await getDocs(jobSheetsQuery);
     const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
 
-    // Fetch all quotations
     const quotationsQuery = collection(db, 'quotations');
     const quotationsSnapshot = await getDocs(quotationsQuery);
     const quotations = quotationsSnapshot.docs.map(doc => doc.data() as Quotation);
 
-    // Process Job Sheet Stats
     const productionCount = jobSheets.filter(js => js.status === 'Production').length;
     const finishingCount = jobSheets.filter(js => js.status === 'Finishing').length;
     const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
@@ -272,7 +270,6 @@ export async function getDashboardStats() {
     const deliveredCount = jobSheets.filter(js => js.status === 'Delivered').length;
     const osCount = jobSheets.filter(js => js.status === 'OS').length;
     
-    // Process Quotation Stats
     const sentCount = quotations.filter(q => q.status === 'Sent').length;
     const quotationHoldCount = quotations.filter(q => q.status === 'Hold').length;
     const wfrCount = quotations.filter(q => q.status === 'WFR').length;

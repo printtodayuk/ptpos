@@ -398,7 +398,6 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
         }
 
         const quotationData = quotationSnap.data() as Quotation;
-        const deliveryByDate = quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null;
         
         const jobSheetDataForCreation = {
             date: new Date(),
@@ -415,17 +414,24 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             paymentStatus: 'Unpaid' as const,
             specialNote: `Converted from Quotation ${quotationData.quotationId}.\n\n${quotationData.specialNote || ''}`,
             irNumber: null,
-            deliveryBy: deliveryByDate,
+            deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null,
             type: 'Invoice' as const,
-            history: [],
         };
         
         const result = await addJobSheet(jobSheetDataForCreation);
 
         if (result.success && result.jobSheet) {
+            const historyEntry: QuotationHistory = {
+                timestamp: Timestamp.now(),
+                operator: quotationData.operator,
+                action: 'Converted',
+                details: `Converted to Job Sheet ${result.jobSheet.jobId}.`,
+            };
+            
             await updateDoc(quotationRef, {
                 status: 'Approved',
                 jid: result.jobSheet.jobId,
+                history: [...(quotationData.history || []), historyEntry],
             });
             revalidatePath('/quotation-report');
             return { success: true, message: `Job Sheet ${result.jobSheet.jobId} created successfully.`, jobSheet: result.jobSheet };
