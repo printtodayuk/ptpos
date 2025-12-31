@@ -244,6 +244,114 @@
         },
         "required": ["timestamp", "operator", "action", "details"]
     },
+    "Quotation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Quotation",
+      "type": "object",
+      "description": "Represents a quotation with multiple items.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the quotation document."
+        },
+        "quotationId": {
+          "type": "string",
+          "description": "Auto-incrementing quotation ID (e.g., QU0001)."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date of the quotation creation."
+        },
+        "operator": {
+          "type": "string",
+          "description": "Username of the operator who created the quotation."
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "clientDetails": {
+            "type": "string",
+            "description": "Additional details about the client (address, phone, etc.)."
+        },
+        "jobItems": {
+          "type": "array",
+          "description": "A list of individual items in the quotation.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "vatApplied": { "type": "boolean" }
+            },
+            "required": ["description", "quantity", "price", "vatApplied"]
+          }
+        },
+        "subTotal": {
+          "type": "number",
+          "description": "The sum of all item prices."
+        },
+        "vatAmount": {
+            "type": "number",
+            "description": "The calculated VAT amount."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount including VAT."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Hold", "Studio", "Production", "Cancel", "Ready Pickup", "DPD", "Delivered", "MGH"],
+          "description": "The current status of the quotation."
+        },
+        "specialNote": {
+          "type": "string",
+          "description": "Any special notes for the quotation."
+        },
+        "irNumber": {
+          "type": "string",
+          "description": "The IR number associated with the quotation."
+        },
+        "deliveryBy": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date the quotation is scheduled for delivery."
+        },
+        "type": {
+            "type": "string",
+            "enum": ["Invoice", "Quotation", "N/A", "STR", "AIR"],
+            "description": "The type of the document."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "history": {
+            "type": "array",
+            "description": "A log of all changes made to the quotation.",
+            "items": {
+                "$ref": "#/backend/entities/QuotationHistory"
+            }
+        }
+      },
+      "required": [
+        "quotationId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "status", "type"
+      ]
+    },
+    "QuotationHistory": {
+        "title": "Quotation History",
+        "type": "object",
+        "description": "Represents a single entry in the history log of a quotation.",
+        "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "operator": { "type": "string" },
+            "action": { "type": "string", "description": "The action performed (e.g., 'Created', 'Updated')." },
+            "details": { "type": "string", "description": "A detailed description of the change." }
+        },
+        "required": ["timestamp", "operator", "action", "details"]
+    },
     "TimeRecord": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Time Record",
@@ -305,7 +413,7 @@
           "params": [
             {
               "name": "counterId",
-              "description": "The name of the counter (e.g., 'transactions', 'jobSheets')."
+              "description": "The name of the counter (e.g., 'transactions', 'jobSheets', 'quotations')."
             }
           ]
         }
@@ -322,6 +430,22 @@
             {
               "name": "jobSheetId",
               "description": "Unique identifier for the job sheet document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/quotations/{quotationId}",
+        "definition": {
+          "entityName": "Quotation",
+          "schema": {
+            "$ref": "#/backend/entities/Quotation"
+          },
+          "description": "Stores all quotation data.",
+          "params": [
+            {
+              "name": "quotationId",
+              "description": "Unique identifier for the quotation document."
             }
           ]
         }
@@ -359,8 +483,6 @@
         }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions and job sheets in a reliable way. A 'jobSheets' collection stores detailed job information, including payment status. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, and quotations in a reliable way. A 'jobSheets' collection stores detailed job information, including payment status. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance."
   }
 }
-
-    

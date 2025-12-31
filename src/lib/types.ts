@@ -16,7 +16,7 @@ export const TransactionSchema = z.object({
   date: z.union([z.date(), z.string()]),
   clientName: z.string().min(1, 'Client name is required'),
   jobDescription: z.string().optional().nullable(),
-  jid: z.string().optional().nullable(), // Job ID
+  jid: z.string().optional().nullable(), // Job ID or Quotation ID
   amount: z.coerce.number().positive('Amount must be positive'),
   vatApplied: z.boolean(),
   totalAmount: z.number(),
@@ -89,6 +89,46 @@ export type JobSheet = Omit<z.infer<typeof JobSheetSchema>, 'date' | 'deliveryBy
     history?: JobSheetHistory[];
 };
 
+export const QuotationHistorySchema = z.object({
+    timestamp: z.any(),
+    operator: z.string(),
+    action: z.string(),
+    details: z.string(),
+});
+export type QuotationHistory = z.infer<typeof QuotationHistorySchema>;
+
+export const QuotationSchema = z.object({
+  id: z.string().optional(),
+  quotationId: z.string(),
+  invoiceNumber: z.string().optional(),
+  tid: z.string().optional().nullable(),
+  date: z.union([z.date(), z.string()]),
+  operator: z.enum(operators),
+  clientName: z.string().min(1, 'Client name is required.'),
+  clientDetails: z.string().optional().nullable(),
+  jobItems: z.array(JobItemSchema).min(1, 'At least one item is required.'),
+  subTotal: z.number(),
+  vatAmount: z.number(),
+  totalAmount: z.number(),
+  paidAmount: z.number().default(0),
+  dueAmount: z.number().default(0),
+  status: z.enum(jobSheetStatus),
+  paymentStatus: z.enum(paymentStatuses).default('Unpaid'),
+  specialNote: z.string().optional().nullable(),
+  irNumber: z.string().optional().nullable(),
+  deliveryBy: z.date().optional().nullable(),
+  type: z.enum(jobSheetTypes).default('Quotation'),
+  createdAt: z.any().optional(),
+  history: z.array(QuotationHistorySchema).optional().default([]),
+});
+
+export type Quotation = Omit<z.infer<typeof QuotationSchema>, 'date' | 'deliveryBy' | 'history'> & {
+    date: Date | string;
+    deliveryBy?: Date | string | null;
+    history?: QuotationHistory[];
+};
+
+
 export const ContactSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Name is required.'),
@@ -143,4 +183,3 @@ export const UpdateTimeRecordSchema = z.object({
     })).default([]),
 });
 
-    

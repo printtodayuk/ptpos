@@ -16,6 +16,7 @@ import {
   Briefcase,
   Users,
   LogOut,
+  MessageSquareQuote,
 } from 'lucide-react';
 import React from 'react';
 
@@ -32,6 +33,8 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/job-sheet', icon: ClipboardList, label: 'Job Sheet' },
   { href: '/js-report', icon: FileSpreadsheet, label: 'JS Report' },
+  { href: '/quotation', icon: MessageSquareQuote, label: 'Quotation' },
+  { href: '/quotation-report', icon: FileText, label: 'Quotation Report' },
   { href: '/non-invoicing', icon: File, label: 'PT Till' },
   { href: '/contact-list', icon: Contact, label: 'Contact List' },
   { href: '/attendance', icon: Clock, label: 'Attendance'},
