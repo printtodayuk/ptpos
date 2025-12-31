@@ -13,7 +13,7 @@ import type { Operator } from '@/lib/types';
 
 const OPERATOR_PINS: Record<Operator, string> = {
     'PTMGH': '7044',
-    'PTM': '2589',
+    'PTM': '1414',
     'PTRK': '1593',
     'PTASAD': '2563',
     'PTASH': '6969',
