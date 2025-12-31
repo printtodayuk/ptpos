@@ -7,10 +7,9 @@ import Image from 'next/image';
 
 type QuotationViewProps = {
   quotation: Quotation;
-  hideTotals?: boolean;
 };
 
-export function QuotationView({ quotation, hideTotals = false }: QuotationViewProps) {
+export function QuotationView({ quotation }: QuotationViewProps) {
   if (!quotation) return null;
 
   const quotationTitle = 'Quotation';
@@ -22,18 +21,6 @@ export function QuotationView({ quotation, hideTotals = false }: QuotationViewPr
       id="quotation-to-print" 
       className="font-sans text-sm text-black bg-white p-8 w-[210mm] min-h-[297mm] mx-auto relative"
     >
-       {!hideTotals && (
-        <div 
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={{ zIndex: 0 }}
-        >
-            <span 
-                className="text-[120px] font-bold text-gray-200 opacity-50 transform -rotate-45"
-            >
-                Internal Only
-            </span>
-        </div>
-      )}
       <div className="relative" style={{ zIndex: 1 }}>
         {/* Header */}
         <div className="flex justify-between items-start pb-4 border-b-2 border-black">
@@ -89,12 +76,8 @@ export function QuotationView({ quotation, hideTotals = false }: QuotationViewPr
               <tr className="bg-gray-200">
                 <th className="border border-black p-2 text-left w-[60%]">DESCRIPTION</th>
                 <th className="border border-black p-2 text-right">QTY</th>
-                {!hideTotals && (
-                  <>
-                    <th className="border border-black p-2 text-right">PRICE</th>
-                    <th className="border border-black p-2 text-right">AMOUNT</th>
-                  </>
-                )}
+                <th className="border border-black p-2 text-right">PRICE</th>
+                <th className="border border-black p-2 text-right">AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -102,12 +85,8 @@ export function QuotationView({ quotation, hideTotals = false }: QuotationViewPr
                 <tr key={index}>
                   <td className="border border-black p-2 align-top">{item.description}</td>
                   <td className="border border-black p-2 text-right align-top">{item.quantity}</td>
-                  {!hideTotals && (
-                      <>
-                          <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
-                          <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
-                      </>
-                  )}
+                  <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
+                  <td className="border border-black p-2 text-right align-top">£{(item.price * item.quantity).toFixed(2)}</td>
                 </tr>
               ))}
               {/* Add empty rows to fill space */}
@@ -115,12 +94,8 @@ export function QuotationView({ quotation, hideTotals = false }: QuotationViewPr
                   <tr key={`empty-${index}`}>
                       <td className="border border-black p-2 h-8">&nbsp;</td>
                       <td className="border border-black p-2">&nbsp;</td>
-                      {!hideTotals && (
-                          <>
-                              <td className="border border-black p-2">&nbsp;</td>
-                              <td className="border border-black p-2">&nbsp;</td>
-                          </>
-                      )}
+                      <td className="border border-black p-2">&nbsp;</td>
+                      <td className="border border-black p-2">&nbsp;</td>
                   </tr>
               ))}
             </tbody>
@@ -129,45 +104,47 @@ export function QuotationView({ quotation, hideTotals = false }: QuotationViewPr
 
         {/* Totals and Special Notes */}
         <div className="mt-4 grid grid-cols-2 gap-4 text-xs">
-          {!hideTotals && (
-              <div className="border border-black p-2">
-                  <h3 className="font-bold mb-1">SPECIAL NOTE</h3>
-                  <p className="whitespace-pre-wrap min-h-[80px]">
-                      {quotation.specialNote}
-                  </p>
+          <div className="border border-black p-2">
+              <h3 className="font-bold mb-1">SPECIAL NOTE</h3>
+              <p className="whitespace-pre-wrap min-h-[80px]">
+                  {quotation.specialNote}
+              </p>
+          </div>
+          <div className="flex flex-col gap-px">
+              <div className="flex justify-between items-center p-2 border border-black">
+                  <span>Sub Total:</span>
+                  <span className="font-bold">£{quotation.subTotal.toFixed(2)}</span>
               </div>
-          )}
-          {!hideTotals && (
-            <div className="flex flex-col gap-px">
-                <div className="flex justify-between items-center p-2 border border-black">
-                    <span>Sub Total:</span>
-                    <span className="font-bold">£{quotation.subTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 border border-black">
-                    <span>VAT (20%):</span>
-                    <span className="font-bold">£{quotation.vatAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 border-2 border-black text-sm">
-                    <span className="font-bold">Total:</span>
-                    <span className="font-bold">£{quotation.totalAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 border border-black">
-                    <span>Amount Paid:</span>
-                    <span className="font-bold">£{paidAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center p-2 border-2 border-black bg-gray-200 text-sm">
-                    <span className="font-bold">Amount Due:</span>
-                    <span className="font-bold">£{dueAmount.toFixed(2)}</span>
-                </div>
-            </div>
-          )}
+              <div className="flex justify-between items-center p-2 border border-black">
+                  <span>VAT (20%):</span>
+                  <span className="font-bold">£{quotation.vatAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 border-2 border-black text-sm">
+                  <span className="font-bold">Total:</span>
+                  <span className="font-bold">£{quotation.totalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 border border-black">
+                  <span>Amount Paid:</span>
+                  <span className="font-bold">£{paidAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 border-2 border-black bg-gray-200 text-sm">
+                  <span className="font-bold">Amount Due:</span>
+                  <span className="font-bold">£{dueAmount.toFixed(2)}</span>
+              </div>
+          </div>
         </div>
         
         {/* Footer */}
-        <div className="mt-4 text-center text-xs">
-          <p>Thank you for your business!</p>
-          <p className="text-[10px] pt-1">Powered by Today AI</p>
-          <p className="text-[10px]">Developed by Faz | RemotizedIT</p>
+        <div className="mt-8 text-xs absolute bottom-8 left-8 right-8">
+            <div className="border-t border-black pt-2">
+                <h4 className="font-bold mb-1">Terms:</h4>
+                <p>This quotation is valid for 30 days. Prices are based on current costs and may change after the validity period. A 60% deposit is required to confirm the order.</p>
+            </div>
+            <div className="mt-4 text-center">
+                <p>Thank you for your business!</p>
+                <p className="text-[10px] pt-1">Powered by Today AI</p>
+                <p className="text-[10px]">Developed by Faz | RemotizedIT</p>
+            </div>
         </div>
       </div>
     </div>

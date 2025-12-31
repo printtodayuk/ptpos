@@ -48,7 +48,9 @@ const JobItemSchema = z.object({
   description: z.string().min(1, 'Description is required.'),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1.'),
   price: z.coerce.number().min(0, 'Price cannot be negative.'),
-  vatApplied: z.boolean().default(false),
+  vatApplied: z.boolean({
+    required_error: "VAT selection is required for each item.",
+  }),
 });
 
 export const JobSheetHistorySchema = z.object({
