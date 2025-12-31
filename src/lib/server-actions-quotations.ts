@@ -398,24 +398,29 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
         }
 
         const quotationData = quotationSnap.data() as Quotation;
-
-        const jobSheetData = {
+        const deliveryByDate = quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null;
+        
+        const jobSheetDataForCreation = {
             date: new Date(),
             operator: quotationData.operator,
             clientName: quotationData.clientName,
-            clientDetails: quotationData.clientDetails,
+            clientDetails: quotationData.clientDetails || null,
             jobItems: quotationData.jobItems,
             subTotal: quotationData.subTotal,
             vatAmount: quotationData.vatAmount,
             totalAmount: quotationData.totalAmount,
+            paidAmount: 0,
+            dueAmount: quotationData.totalAmount,
             status: 'Hold' as const,
-            specialNote: `Converted from Quotation ${quotationData.quotationId}. \n\n${quotationData.specialNote || ''}`,
-            irNumber: quotationData.jid || '', // Use JID from quotation as IR number, default to empty string
-            deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as string) : null,
+            paymentStatus: 'Unpaid' as const,
+            specialNote: `Converted from Quotation ${quotationData.quotationId}.\n\n${quotationData.specialNote || ''}`,
+            irNumber: null,
+            deliveryBy: deliveryByDate,
             type: 'Invoice' as const,
+            history: [],
         };
         
-        const result = await addJobSheet(jobSheetData);
+        const result = await addJobSheet(jobSheetDataForCreation);
 
         if (result.success && result.jobSheet) {
             await updateDoc(quotationRef, {
