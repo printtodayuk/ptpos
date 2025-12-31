@@ -21,7 +21,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator, JobSheetHistory, Quotation } from '@/lib/types';
+import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator, JobSheetHistory, Quotation, QuotationStatus } from '@/lib/types';
 import { JobSheetSchema, operators } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
@@ -465,11 +465,17 @@ export async function getJobSheetByJobId(jobId: string): Promise<JobSheet | null
 
 export async function getDashboardStats() {
   try {
+    // Fetch all job sheets
     const jobSheetsQuery = collection(db, 'jobSheets');
     const jobSheetsSnapshot = await getDocs(jobSheetsQuery);
-
     const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
 
+    // Fetch all quotations
+    const quotationsQuery = collection(db, 'quotations');
+    const quotationsSnapshot = await getDocs(quotationsQuery);
+    const quotations = quotationsSnapshot.docs.map(doc => doc.data() as Quotation);
+
+    // Process Job Sheet Stats
     const productionCount = jobSheets.filter(js => js.status === 'Production').length;
     const finishingCount = jobSheets.filter(js => js.status === 'Finishing').length;
     const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
@@ -480,6 +486,13 @@ export async function getDashboardStats() {
     const parcelCompareCount = jobSheets.filter(js => js.status === 'Parcel Compare').length;
     const deliveredCount = jobSheets.filter(js => js.status === 'Delivered').length;
     const osCount = jobSheets.filter(js => js.status === 'OS').length;
+    
+    // Process Quotation Stats
+    const sentCount = quotations.filter(q => q.status === 'Sent').length;
+    const quotationHoldCount = quotations.filter(q => q.status === 'Hold').length;
+    const wfrCount = quotations.filter(q => q.status === 'WFR').length;
+    const approvedCount = quotations.filter(q => q.status === 'Approved').length;
+    const declinedCount = quotations.filter(q => q.status === 'Declined').length;
 
     return {
       productionCount,
@@ -492,20 +505,14 @@ export async function getDashboardStats() {
       parcelCompareCount,
       deliveredCount,
       osCount,
+      sentCount,
+      quotationHoldCount,
+      wfrCount,
+      approvedCount,
+      declinedCount
     };
   } catch (e) {
     console.error('Error fetching dashboard stats:', e);
-    return {
-      productionCount: 0,
-      finishingCount: 0,
-      holdCount: 0,
-      studioCount: 0,
-      mghCount: 0,
-      cancelCount: 0,
-      readyPickupCount: 0,
-      parcelCompareCount: 0,
-      deliveredCount: 0,
-      osCount: 0,
-    };
+    return null;
   }
 }

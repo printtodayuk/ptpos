@@ -5,28 +5,32 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats } from "@/lib/server-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, PackageX, Wand, Wrench } from "lucide-react";
+import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, PackageX, Wand, Wrench, Send, Hourglass, CheckCircle2, XCircle } from "lucide-react";
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
-import { Calendar } from '@/components/ui/calendar';
+import { WorldClock } from '@/components/dashboard/world-clock';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    productionCount: 0,
-    finishingCount: 0,
-    holdCount: 0,
-    studioCount: 0,
-    mghCount: 0,
-    cancelCount: 0,
-    readyPickupCount: 0,
-    parcelCompareCount: 0,
-    deliveredCount: 0,
-    osCount: 0,
-  });
+  const [stats, setStats] = useState<{
+    productionCount: number;
+    finishingCount: number;
+    holdCount: number;
+    studioCount: number;
+    mghCount: number;
+    cancelCount: number;
+    readyPickupCount: number;
+    parcelCompareCount: number;
+    deliveredCount: number;
+    osCount: number;
+    sentCount: number;
+    quotationHoldCount: number;
+    wfrCount: number;
+    approvedCount: number;
+    declinedCount: number;
+  } | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
-  const [ukDate, setUkDate] = useState<Date | undefined>(new Date());
-  const [bdDate, setBdDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     setIsLoading(true);
@@ -76,32 +80,34 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
       
+       <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Quotation Status</CardTitle>
+           <CardDescription>
+            A real-time overview of current quotation statuses.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <StatCard title="Sent" value={stats.sentCount} icon={Send} description="Quotations sent to clients" isCurrency={false} className="bg-blue-500/10 border-blue-500 text-blue-700" />
+              <StatCard title="On Hold" value={stats.quotationHoldCount} icon={Ban} description="Quotations on hold" isCurrency={false} className="bg-yellow-500/10 border-yellow-500 text-yellow-700" />
+              <StatCard title="Waiting for Response" value={stats.wfrCount} icon={Hourglass} description="Awaiting client feedback" isCurrency={false} className="bg-purple-500/10 border-purple-500 text-purple-700" />
+              <StatCard title="Approved" value={stats.approvedCount} icon={CheckCircle2} description="Quotations approved by clients" isCurrency={false} className="bg-green-500/10 border-green-500 text-green-700" />
+              <StatCard title="Declined" value={stats.declinedCount} icon={XCircle} description="Quotations declined by clients" isCurrency={false} className="bg-red-500/10 border-red-500 text-red-700" />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
-            <CardTitle className="text-xl">Office Calendars</CardTitle>
+            <CardTitle className="text-xl">Office Clocks</CardTitle>
             <CardDescription>
-                Note: Bank and government holidays are not automatically highlighted.
+                Live time for London and Dhaka offices.
             </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-8 md:grid-cols-2">
-            <div className="flex flex-col items-center">
-                <h3 className="text-lg font-semibold mb-2">UK Calendar</h3>
-                <Calendar
-                    mode="single"
-                    selected={ukDate}
-                    onSelect={setUkDate}
-                    className="rounded-md border"
-                />
-            </div>
-            <div className="flex flex-col items-center">
-                <h3 className="text-lg font-semibold mb-2">Bangladesh Calendar</h3>
-                <Calendar
-                    mode="single"
-                    selected={bdDate}
-                    onSelect={setBdDate}
-                    className="rounded-md border"
-                />
-            </div>
+            <WorldClock city="London" timeZone="Europe/London" />
+            <WorldClock city="Dhaka" timeZone="Asia/Dhaka" />
         </CardContent>
       </Card>
 
