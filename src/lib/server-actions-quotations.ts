@@ -434,8 +434,8 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
                 jid: result.jobSheet.jobId,
                 history: [...(quotationData.history || []), historyEntry],
             });
-            revalidatePath('/quotation-report');
             revalidatePath('/quotation');
+            revalidatePath('/quotation-report');
             return { success: true, message: `Job Sheet ${result.jobSheet.jobId} created successfully.`, jobSheet: result.jobSheet };
         } else {
             return { success: false, message: result.message || 'Failed to create Job Sheet.' };
