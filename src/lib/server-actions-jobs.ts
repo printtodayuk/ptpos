@@ -32,6 +32,9 @@ const CreateJobSheetSchema = JobSheetSchema.omit({
   id: true,
   jobId: true,
   createdAt: true,
+  paidAmount: true,
+  dueAmount: true,
+  paymentStatus: true
 });
 
 const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
@@ -68,6 +71,18 @@ export async function addJobSheet(
   try {
     const newJobId = await getNextJobId();
 
+    const { jobItems, ...restOfData } = validatedData.data;
+
+    // Recalculate totals on the server to ensure data integrity
+    const subTotal = jobItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const vatAmount = jobItems.reduce((acc, item) => {
+        if (item.vatApplied) {
+            return acc + (item.price * item.quantity * 0.2);
+        }
+        return acc;
+    }, 0);
+    const totalAmount = subTotal + vatAmount;
+
     const initialHistoryEntry: JobSheetHistory = {
         timestamp: Timestamp.now(),
         operator: validatedData.data.operator,
@@ -76,21 +91,25 @@ export async function addJobSheet(
     };
 
     const dataToSave: any = {
-      ...validatedData.data,
+      ...restOfData,
+      jobItems,
+      subTotal,
+      vatAmount,
+      totalAmount,
       jobId: newJobId,
       date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
-      paidAmount: data.paidAmount || 0,
-      dueAmount: data.dueAmount ?? data.totalAmount,
-      paymentStatus: data.paymentStatus || 'Unpaid',
+      paidAmount: 0,
+      dueAmount: totalAmount,
+      paymentStatus: 'Unpaid',
       history: [initialHistoryEntry],
     };
-     if (validatedData.data.tid) {
+    
+    if (validatedData.data.tid) {
       dataToSave.tid = validatedData.data.tid;
     } else {
       dataToSave.tid = null;
     }
-
 
     if (validatedData.data.deliveryBy) {
       dataToSave.deliveryBy = Timestamp.fromDate(validatedData.data.deliveryBy as Date);
