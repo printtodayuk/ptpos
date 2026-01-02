@@ -414,6 +414,10 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null,
             type: 'Invoice' as const,
             invoiceNumber: null,
+            // These will be calculated by addJobSheet
+            paidAmount: 0,
+            dueAmount: quotationData.totalAmount,
+            paymentStatus: 'Unpaid' as const,
         };
         
         const result = await addJobSheet(jobSheetDataForCreation);

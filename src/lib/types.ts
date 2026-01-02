@@ -1,5 +1,4 @@
 
-
 import { z } from 'zod';
 
 export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK'] as const;
@@ -114,10 +113,10 @@ export const QuotationSchema = z.object({
   subTotal: z.number(),
   vatAmount: z.number(),
   totalAmount: z.number(),
-  paidAmount: z.number().default(0),
+  paidAmount: z.number().default(0).optional(),
   dueAmount: z.number().default(0),
   status: z.enum(quotationStatus),
-  paymentStatus: z.enum(paymentStatuses).default('Unpaid'),
+  paymentStatus: z.enum(paymentStatuses).default('Unpaid').optional(),
   specialNote: z.string().optional().nullable(),
   jid: z.string().optional().nullable(),
   deliveryBy: z.date().optional().nullable(),
