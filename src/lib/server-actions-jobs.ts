@@ -31,6 +31,7 @@ import { addTransaction } from './server-actions';
 const CreateJobSheetSchema = JobSheetSchema.omit({
   id: true,
   createdAt: true,
+  jobId: true,
 }).passthrough();
 
 const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
@@ -53,7 +54,8 @@ async function getNextJobId(): Promise<string> {
 
 
 export async function addJobSheet(
-  data: z.infer<typeof CreateJobSheetSchema>
+  data: z.infer<typeof CreateJobSheetSchema>,
+  fromQuotation?: Quotation | null
 ) {
   const validatedData = CreateJobSheetSchema.safeParse(data);
   if (!validatedData.success) {
@@ -73,7 +75,9 @@ export async function addJobSheet(
         timestamp: Timestamp.now(),
         operator: operator,
         action: 'Created',
-        details: `Job sheet created by ${operator}.`,
+        details: fromQuotation 
+            ? `Job sheet created from Quotation ${fromQuotation.quotationId} by ${operator}.`
+            : `Job sheet created by ${operator}.`,
     };
 
     const dataToSave: any = {
@@ -109,6 +113,23 @@ export async function addJobSheet(
     }
     
     const docRef = await addDoc(collection(db, 'jobSheets'), dataToSave);
+    
+    // If created from quotation, update the quotation
+    if (fromQuotation) {
+        const quotationRef = doc(db, 'quotations', fromQuotation.id!);
+        const quotationHistory: QuotationHistory = {
+            timestamp: Timestamp.now(),
+            operator: operator,
+            action: 'Converted',
+            details: `Converted to Job Sheet ${newJobId}.`,
+        };
+        await updateDoc(quotationRef, {
+            jid: newJobId,
+            status: 'Approved',
+            history: [...(fromQuotation.history || []), quotationHistory]
+        });
+    }
+
 
     const newDocSnap = await getDoc(docRef);
     const newDocData = newDocSnap.data();
@@ -127,6 +148,9 @@ export async function addJobSheet(
 
     revalidatePath('/job-sheet');
     revalidatePath('/js-report');
+    revalidatePath('/quotation-report');
+    revalidatePath('/quotation');
+
     return { success: true, message: 'Job sheet added successfully.', jobSheet: newJobSheet };
   } catch (error) {
     console.error('Error adding job sheet:', error);

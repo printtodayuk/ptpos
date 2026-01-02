@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { QuotationHistoryDialog } from './quotation-history-dialog';
+import { JobSheetForm } from '../jobs/job-sheet-form';
 
 const DELETE_PIN = '5206';
 
@@ -26,11 +27,11 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<Quotation[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
-  const [isCreatingJob, startCreateJobTransition] = useTransition();
   const [quotationToEdit, setQuotationToEdit] = useState<Quotation | null>(null);
   const [quotationToView, setQuotationToView] = useState<Quotation | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<Quotation | null>(null);
   const [quotationToViewHistory, setQuotationToViewHistory] = useState<Quotation | null>(null);
+  const [quotationToConvert, setQuotationToConvert] = useState<Quotation | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
@@ -69,23 +70,7 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
   };
 
   const handleCreateJob = (quotation: Quotation) => {
-    if (isCreatingJob) return;
-    startCreateJobTransition(async () => {
-        const result = await createJobSheetFromQuotation(quotation.id!);
-        if (result.success && result.jobSheet) {
-            toast({
-                title: 'Job Created!',
-                description: `Job Sheet ${result.jobSheet.jobId} has been created from Quotation ${quotation.quotationId}.`,
-            });
-            performSearch(debouncedSearchTerm);
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: result.message || 'Failed to create job sheet.',
-            });
-        }
-    });
+    setQuotationToConvert(quotation);
   };
 
   const confirmDelete = async () => {
@@ -119,6 +104,12 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
     onQuotationUpdated();
     performSearch(debouncedSearchTerm);
   };
+  
+  const handleConversionSuccess = () => {
+    setQuotationToConvert(null);
+    performSearch(debouncedSearchTerm);
+    onQuotationUpdated();
+  }
 
   return (
     <>
@@ -135,6 +126,22 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
           </div>
         </DialogContent>
       </Dialog>
+      
+       <Dialog open={!!quotationToConvert} onOpenChange={() => setQuotationToConvert(null)}>
+        <DialogContent className="sm:max-w-4xl p-0 flex flex-col h-full max-h-[90vh]">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle>Create Job Sheet from Quotation {quotationToConvert?.quotationId}</DialogTitle>
+            <DialogDescription>Review and confirm the details below to create a new job sheet.</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
+            <JobSheetForm
+                onJobSheetAdded={handleConversionSuccess}
+                jobSheetToCreateFromQuotation={quotationToConvert}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
        <QuotationViewDialog
         quotation={quotationToView}

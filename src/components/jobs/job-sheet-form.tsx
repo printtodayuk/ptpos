@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addJobSheet, updateJobSheet } from '@/lib/server-actions-jobs';
-import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses } from '@/lib/types';
+import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses, type Quotation } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
@@ -26,8 +26,9 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useSession } from '../auth/session-provider';
 
 type JobSheetFormProps = {
-  onJobSheetAdded?: () => void;
+  onJobSheetAdded?: (jobSheet?: JobSheet) => void;
   jobSheetToEdit?: JobSheet | null;
+  jobSheetToCreateFromQuotation?: Quotation | null;
 };
 
 type FormValues = Omit<JobSheet, 'id' | 'createdAt' | 'jobId'>;
@@ -50,15 +51,15 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   tid: '',
 });
 
-export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormProps) {
+export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreateFromQuotation }: JobSheetFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const { operator: loggedInOperator } = useSession();
   const [lastJobSheet, setLastJobSheet] = useState<JobSheet | null>(null);
-  const [lastOperator, setLastOperator] = useState<Operator>(loggedInOperator || 'PTMGH');
   const [currentJobSheetId, setCurrentJobSheetId] = useState<string | undefined>(undefined);
 
   const isEditMode = !!jobSheetToEdit;
+  const isConversionMode = !!jobSheetToCreateFromQuotation;
   const isPaid = isEditMode && (jobSheetToEdit.paymentStatus === 'Paid' || jobSheetToEdit.paymentStatus === 'Partially Paid');
 
   const form = useForm<FormValues>({
@@ -70,9 +71,26 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     control: form.control,
     name: 'jobItems',
   });
-
+  
   useEffect(() => {
-    if (jobSheetToEdit && jobSheetToEdit.id !== currentJobSheetId) {
+    if (jobSheetToCreateFromQuotation) {
+       form.reset({
+        date: new Date(),
+        operator: jobSheetToCreateFromQuotation.operator,
+        clientName: jobSheetToCreateFromQuotation.clientName,
+        clientDetails: jobSheetToCreateFromQuotation.clientDetails || '',
+        jobItems: jobSheetToCreateFromQuotation.jobItems,
+        subTotal: jobSheetToCreateFromQuotation.subTotal,
+        vatAmount: jobSheetToCreateFromQuotation.vatAmount,
+        totalAmount: jobSheetToCreateFromQuotation.totalAmount,
+        status: 'Hold',
+        specialNote: `Converted from Quotation ${jobSheetToCreateFromQuotation.quotationId}.\n\n${jobSheetToCreateFromQuotation.specialNote || ''}`,
+        irNumber: '',
+        deliveryBy: jobSheetToCreateFromQuotation.deliveryBy ? new Date(jobSheetToCreateFromQuotation.deliveryBy) : undefined,
+        type: 'Invoice',
+        tid: jobSheetToCreateFromQuotation.tid,
+      });
+    } else if (jobSheetToEdit && jobSheetToEdit.id !== currentJobSheetId) {
         const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : undefined;
         form.reset({
             ...jobSheetToEdit,
@@ -84,11 +102,11 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
             tid: jobSheetToEdit.tid || '',
         });
         setCurrentJobSheetId(jobSheetToEdit.id);
-    } else if (!jobSheetToEdit && currentJobSheetId) {
+    } else if (!jobSheetToEdit && !jobSheetToCreateFromQuotation) {
         form.reset(getFreshDefaultValues(loggedInOperator));
         setCurrentJobSheetId(undefined);
     }
-  }, [jobSheetToEdit, form, loggedInOperator, currentJobSheetId]);
+  }, [jobSheetToEdit, jobSheetToCreateFromQuotation, form, loggedInOperator, currentJobSheetId]);
 
 
   const watchedJobItems = form.watch('jobItems');
@@ -129,26 +147,29 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
-      const operator = form.getValues('operator');
-      if (operator) {
-        setLastOperator(operator as Operator);
-      }
       
       const result = isEditMode && jobSheetToEdit?.id
         ? await updateJobSheet(jobSheetToEdit.id, data, loggedInOperator!)
-        : await addJobSheet(data);
+        : await addJobSheet(data, jobSheetToCreateFromQuotation);
 
       if (result.success && result.jobSheet) {
         if (isEditMode) {
           toast({ title: 'Success', description: 'Job sheet updated successfully.' });
+        } else if (isConversionMode) {
+          toast({ title: 'Success', description: `Job Sheet ${result.jobSheet.jobId} created from quotation.` });
         } else {
           setLastJobSheet(result.jobSheet);
           toast({ title: 'Success', description: `Job Sheet ${result.jobSheet.jobId} created.` });
         }
+
+        if (onJobSheetAdded) {
+            onJobSheetAdded(result.jobSheet);
+        }
+
         if (!isEditMode) {
             form.reset(getFreshDefaultValues(loggedInOperator));
         }
-        onJobSheetAdded?.();
+
       } else {
         toast({
           variant: 'destructive',
@@ -160,25 +181,25 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
   };
 
   const cancelEdit = () => {
-    onJobSheetAdded?.(); 
+    if(onJobSheetAdded) onJobSheetAdded();
   };
   
   return (
     <>
       <JobSheetViewDialog 
         jobSheet={lastJobSheet}
-        isOpen={!!lastJobSheet && !isEditMode}
+        isOpen={!!lastJobSheet && !isEditMode && !isConversionMode}
         onClose={() => setLastJobSheet(null)}
       />
-        <Card className="w-full">
+        <Card className="w-full border-0 shadow-none">
             <form onSubmit={form.handleSubmit(onSubmit)}>
-            {!isEditMode && (
-                <CardHeader>
+            {!isEditMode && !isConversionMode && (
+                <CardHeader className="p-0 mb-6">
                 <CardTitle>Create Job Sheet</CardTitle>
                 <CardDescription>Fill in the details to create a new job sheet.</CardDescription>
                 </CardHeader>
             )}
-            <CardContent className={cn(isEditMode && "pt-6")}>
+            <CardContent className="p-0">
                 {isPaid && (
                   <Alert variant="destructive" className="mb-6">
                     <Lock className="h-4 w-4" />
@@ -193,7 +214,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 <div className="space-y-2">
                     <Label htmlFor="operator">Operator</Label>
                     <Controller name="operator" control={form.control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isConversionMode || !isEditMode}>
                         <SelectTrigger><SelectValue placeholder="Select Operator" /></SelectTrigger>
                         <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
                     </Select>
@@ -341,8 +362,8 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
                 </div>
                 </div>
             </CardContent>
-            <CardFooter className={cn("justify-end gap-2", isEditMode ? 'pt-6' : '')}>
-                {isEditMode && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
+            <CardFooter className={cn("justify-end gap-2", (isEditMode || isConversionMode) ? 'pt-6' : '')}>
+                {(isEditMode || isConversionMode) && <Button type="button" variant="outline" onClick={cancelEdit}>Cancel</Button>}
                 <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditMode ? "Update Job Sheet" : "Create Job Sheet"}

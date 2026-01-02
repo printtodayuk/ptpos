@@ -32,7 +32,7 @@ const CreateQuotationSchema = QuotationSchema.omit({
   id: true,
   quotationId: true,
   createdAt: true,
-});
+}).passthrough();
 
 const UpdateQuotationSchema = CreateQuotationSchema.extend({
     tid: z.string().optional().nullable(),
@@ -409,6 +409,8 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             subTotal: quotationData.subTotal,
             vatAmount: quotationData.vatAmount,
             totalAmount: quotationData.totalAmount,
+            paidAmount: 0,
+            dueAmount: quotationData.totalAmount,
             status: 'Hold' as const,
             paymentStatus: 'Unpaid' as const,
             specialNote: `Converted from Quotation ${quotationData.quotationId}.\n\n${quotationData.specialNote || ''}`,
