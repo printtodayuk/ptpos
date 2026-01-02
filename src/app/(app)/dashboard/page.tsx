@@ -9,7 +9,6 @@ import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, Pack
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
-import { WorldClock } from '@/components/dashboard/world-clock';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<{
@@ -95,19 +94,6 @@ export default function DashboardPage() {
               <StatCard title="Approved" value={stats.approvedCount} icon={CheckCircle2} description="Quotations approved by clients" isCurrency={false} className="bg-green-500/10 border-green-500 text-green-700" />
               <StatCard title="Declined" value={stats.declinedCount} icon={XCircle} description="Quotations declined by clients" isCurrency={false} className="bg-red-500/10 border-red-500 text-red-700" />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-            <CardTitle className="text-xl">Office Clocks</CardTitle>
-            <CardDescription>
-                Live time for London and Dhaka offices.
-            </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-8 md:grid-cols-2">
-            <WorldClock city="London" timeZone="Europe/London" />
-            <WorldClock city="Dhaka" timeZone="Asia/Dhaka" />
         </CardContent>
       </Card>
 

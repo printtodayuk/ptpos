@@ -27,26 +27,13 @@ export function WorldClock({ city, timeZone }: WorldClockProps) {
     second: '2-digit',
     hour12: true,
   });
-  
-  const dateString = time.toLocaleDateString('en-GB', {
-    timeZone,
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 
   return (
-    <Card className="flex flex-col items-center justify-center text-center">
-      <CardHeader>
-        <CardTitle className="text-xl">{city}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-5xl font-bold font-mono tracking-widest text-primary">
+    <div className="flex flex-col items-center justify-center text-center">
+        <div className="text-2xl font-bold font-mono text-primary">
           {timeString}
         </div>
-        <p className="text-muted-foreground mt-2">{dateString}</p>
-      </CardContent>
-    </Card>
+        <p className="text-xs text-muted-foreground">{city}</p>
+    </div>
   );
 }

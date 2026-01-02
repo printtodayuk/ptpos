@@ -16,11 +16,12 @@ import { Nav } from '@/components/nav';
 import { PinLock } from '@/components/auth/pin-lock';
 import { SessionProvider, useSession } from '@/components/auth/session-provider';
 import { Badge } from '@/components/ui/badge';
+import { WorldClock } from '@/components/dashboard/world-clock';
 
 function AppHeader() {
   const { operator } = useSession();
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-card px-4 sm:px-6">
+    <header className="flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6">
       <SidebarTrigger className="md:hidden" />
       <div className="flex-1 flex items-center gap-4">
         <h1 className="text-lg font-semibold sm:hidden">Print Today</h1>
@@ -30,6 +31,10 @@ function AppHeader() {
                 {operator}
             </Badge>
         )}
+      </div>
+      <div className="hidden md:flex items-center gap-4">
+        <WorldClock city="London" timeZone="Europe/London" />
+        <WorldClock city="Dhaka" timeZone="Asia/Dhaka" />
       </div>
     </header>
   );
