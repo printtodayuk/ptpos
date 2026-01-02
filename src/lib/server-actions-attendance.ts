@@ -71,8 +71,12 @@ export async function getOperatorStatus(operator: Operator): Promise<TimeRecord 
   } as TimeRecord;
 }
 
-
-export async function getAllOperatorStatuses(): Promise<Record<Operator, TimeRecordStatus | 'not-clocked-in'>> {
+export type OperatorStatusInfo = {
+    status: TimeRecordStatus | 'not-clocked-in';
+    clockInTime?: Date;
+    breakStartTime?: Date;
+}
+export async function getAllOperatorStatuses(): Promise<Record<Operator, OperatorStatusInfo>> {
   const date = getCurrentDateString();
   
   const q = query(
@@ -91,18 +95,31 @@ export async function getAllOperatorStatuses(): Promise<Record<Operator, TimeRec
     recordsByOperator[data.operator].push(data);
   });
 
-  const statuses: Record<Operator, TimeRecordStatus | 'not-clocked-in'> = {} as any;
+  const statuses: Record<Operator, OperatorStatusInfo> = {} as any;
 
   for (const op of operators) {
     const records = recordsByOperator[op];
     if (!records || records.length === 0) {
-      statuses[op] = 'not-clocked-in';
+      statuses[op] = { status: 'not-clocked-in' };
       continue;
     }
 
     records.sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
     const latestRecord = records[0];
-    statuses[op] = latestRecord.status;
+    
+    statuses[op] = {
+        status: latestRecord.status,
+    };
+
+    if (latestRecord.status === 'clocked-in') {
+        statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
+    } else if (latestRecord.status === 'on-break') {
+        statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
+        const currentBreak = latestRecord.breaks?.find((b: any) => !b.endTime);
+        if (currentBreak) {
+            statuses[op].breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+        }
+    }
   }
 
   return statuses;
