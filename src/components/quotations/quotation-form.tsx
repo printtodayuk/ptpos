@@ -128,7 +128,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
       
       const result = isEditMode && quotationToEdit?.id
         ? await updateQuotation(quotationToEdit.id, data, loggedInOperator!)
-        : await addQuotation(data);
+        : await addQuotation({...data, quotationId: undefined });
 
       if (result.success && result.quotation) {
         if (isEditMode) {
