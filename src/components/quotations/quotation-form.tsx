@@ -48,6 +48,9 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   deliveryBy: undefined,
   type: 'Quotation',
   tid: '',
+  paidAmount: 0,
+  dueAmount: 0,
+  paymentStatus: 'Unpaid',
 });
 
 export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFormProps) {
@@ -70,10 +73,10 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   });
 
   useEffect(() => {
-    if (isEditMode && quotationToEdit) {
+    if (quotationToEdit) {
         const deliveryByDate = quotationToEdit.deliveryBy ? new Date(quotationToEdit.deliveryBy) : undefined;
         form.reset({
-            ...quotationToEdit,
+            ...(quotationToEdit as any), // Use any to bypass strict type checking for reset
             date: new Date(quotationToEdit.date),
             deliveryBy: deliveryByDate,
             jid: quotationToEdit.jid || '',
@@ -84,20 +87,22 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
     } else {
         form.reset(getFreshDefaultValues(loggedInOperator));
     }
-  }, [quotationToEdit, isEditMode, form, loggedInOperator]);
+  }, [quotationToEdit, form, loggedInOperator]);
 
 
   const watchedJobItems = form.watch('jobItems');
   
   const subTotal = (watchedJobItems || []).reduce((acc, item) => {
     const price = Number(item?.price) || 0;
-    return acc + price;
+    const quantity = Number(item?.quantity) || 0;
+    return acc + (price * quantity);
   }, 0);
 
   const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
     if (item?.vatApplied) {
       const price = Number(item?.price) || 0;
-      return acc + (price * 0.2);
+      const quantity = Number(item?.quantity) || 0;
+      return acc + (price * quantity * 0.2);
     }
     return acc;
   }, 0);
@@ -128,7 +133,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
       
       const result = isEditMode && quotationToEdit?.id
         ? await updateQuotation(quotationToEdit.id, data, loggedInOperator!)
-        : await addQuotation({...data, quotationId: undefined });
+        : await addQuotation({ ...data, quotationId: undefined });
 
       if (result.success && result.quotation) {
         if (isEditMode) {
@@ -145,7 +150,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: result.message,
+          description: result.message || 'Validation failed. Please check the form.',
         });
       }
     });
