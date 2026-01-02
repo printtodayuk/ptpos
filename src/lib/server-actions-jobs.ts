@@ -30,9 +30,8 @@ import { addTransaction } from './server-actions';
 
 const CreateJobSheetSchema = JobSheetSchema.omit({
   id: true,
-  jobId: true,
   createdAt: true,
-});
+}).passthrough();
 
 const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
     tid: z.string().optional().nullable(),
@@ -514,3 +513,5 @@ export async function getDashboardStats() {
     return null;
   }
 }
+
+    
