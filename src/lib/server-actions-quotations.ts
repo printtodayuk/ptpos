@@ -407,12 +407,15 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             subTotal: quotationData.subTotal,
             vatAmount: quotationData.vatAmount,
             totalAmount: quotationData.totalAmount,
+            paidAmount: 0,
+            dueAmount: quotationData.totalAmount,
             status: 'Hold' as const,
+            paymentStatus: 'Unpaid' as const,
             specialNote: `Converted from Quotation ${quotationData.quotationId}.\n\n${quotationData.specialNote || ''}`,
             irNumber: null,
             deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null,
             type: 'Invoice' as const,
-            invoiceNumber: quotationData.invoiceNumber || null,
+            invoiceNumber: null
         };
         
         const result = await addJobSheet(jobSheetDataForCreation);

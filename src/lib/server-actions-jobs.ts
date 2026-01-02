@@ -67,32 +67,18 @@ export async function addJobSheet(
 
   try {
     const newJobId = await getNextJobId();
-
-    const { jobItems, ...restOfData } = validatedData.data;
-
-    // Recalculate totals on the server to ensure data integrity
-    const subTotal = jobItems.reduce((acc, item) => acc + item.price, 0);
-    const vatAmount = jobItems.reduce((acc, item) => {
-        if (item.vatApplied) {
-            return acc + (item.price * 0.2);
-        }
-        return acc;
-    }, 0);
-    const totalAmount = subTotal + vatAmount;
+    
+    const { totalAmount, operator } = validatedData.data;
 
     const initialHistoryEntry: JobSheetHistory = {
         timestamp: Timestamp.now(),
-        operator: validatedData.data.operator,
+        operator: operator,
         action: 'Created',
-        details: `Job sheet created by ${validatedData.data.operator}.`,
+        details: `Job sheet created by ${operator}.`,
     };
 
     const dataToSave: any = {
-      ...restOfData,
-      jobItems,
-      subTotal,
-      vatAmount,
-      totalAmount,
+      ...validatedData.data,
       jobId: newJobId,
       date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
