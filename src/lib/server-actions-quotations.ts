@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -407,15 +408,10 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             subTotal: quotationData.subTotal,
             vatAmount: quotationData.vatAmount,
             totalAmount: quotationData.totalAmount,
-            paidAmount: 0,
-            dueAmount: quotationData.totalAmount,
-            status: 'Hold' as const,
-            paymentStatus: 'Unpaid' as const,
+            status: 'Hold' as const, // Explicitly set a valid JobSheetStatus
             specialNote: `Converted from Quotation ${quotationData.quotationId}.\n\n${quotationData.specialNote || ''}`,
-            irNumber: null,
             deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null,
             type: 'Invoice' as const,
-            invoiceNumber: null
         };
         
         const result = await addJobSheet(jobSheetDataForCreation);
