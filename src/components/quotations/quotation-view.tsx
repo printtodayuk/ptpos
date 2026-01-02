@@ -76,7 +76,6 @@ export function QuotationView({ quotation }: QuotationViewProps) {
               <tr className="bg-gray-200">
                 <th className="border border-black p-2 text-left w-[60%]">DESCRIPTION</th>
                 <th className="border border-black p-2 text-right">QTY</th>
-                <th className="border border-black p-2 text-right">PRICE</th>
                 <th className="border border-black p-2 text-right">AMOUNT</th>
               </tr>
             </thead>
@@ -86,14 +85,12 @@ export function QuotationView({ quotation }: QuotationViewProps) {
                   <td className="border border-black p-2 align-top">{item.description}</td>
                   <td className="border border-black p-2 text-right align-top">{item.quantity}</td>
                   <td className="border border-black p-2 text-right align-top">£{item.price.toFixed(2)}</td>
-                  <td className="border border-black p-2 text-right align-top">£{(item.price * item.quantity).toFixed(2)}</td>
                 </tr>
               ))}
               {/* Add empty rows to fill space */}
               {Array.from({ length: Math.max(0, 10 - quotation.jobItems.length) }).map((_, index) => (
                   <tr key={`empty-${index}`}>
                       <td className="border border-black p-2 h-8">&nbsp;</td>
-                      <td className="border border-black p-2">&nbsp;</td>
                       <td className="border border-black p-2">&nbsp;</td>
                       <td className="border border-black p-2">&nbsp;</td>
                   </tr>

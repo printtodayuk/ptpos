@@ -353,7 +353,3 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit }: JobSheetFormPr
     </>
   );
 }
-
-    
-
-    

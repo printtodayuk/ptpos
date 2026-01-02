@@ -32,9 +32,6 @@ const CreateJobSheetSchema = JobSheetSchema.omit({
   id: true,
   jobId: true,
   createdAt: true,
-  paidAmount: true,
-  dueAmount: true,
-  paymentStatus: true
 });
 
 const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
@@ -74,10 +71,10 @@ export async function addJobSheet(
     const { jobItems, ...restOfData } = validatedData.data;
 
     // Recalculate totals on the server to ensure data integrity
-    const subTotal = jobItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const subTotal = jobItems.reduce((acc, item) => acc + item.price, 0);
     const vatAmount = jobItems.reduce((acc, item) => {
         if (item.vatApplied) {
-            return acc + (item.price * item.quantity * 0.2);
+            return acc + (item.price * 0.2);
         }
         return acc;
     }, 0);

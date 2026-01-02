@@ -94,15 +94,13 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   
   const subTotal = (watchedJobItems || []).reduce((acc, item) => {
     const price = Number(item?.price) || 0;
-    const quantity = Number(item?.quantity) || 0;
-    return acc + (price * quantity);
+    return acc + price;
   }, 0);
 
   const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
     if (item?.vatApplied) {
       const price = Number(item?.price) || 0;
-      const quantity = Number(item?.quantity) || 0;
-      return acc + (price * quantity * 0.2);
+      return acc + (price * 0.2);
     }
     return acc;
   }, 0);
