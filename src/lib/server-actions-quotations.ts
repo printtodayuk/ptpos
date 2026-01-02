@@ -117,7 +117,7 @@ export async function addQuotation(
       newQuotation = {
         ...(newDocData as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy'>),
         id: docRef.id,
-        quotationId: newQuotationId,
+        quotationId: newDocData.quotationId,
         date: (newDocData.date as Timestamp).toDate(),
         deliveryBy: newDocData.deliveryBy ? (newDocData.deliveryBy as Timestamp).toDate() : null,
         createdAt: (newDocData.createdAt as Timestamp)?.toDate() || new Date(), 
@@ -399,6 +399,7 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
 
         const quotationData = quotationSnap.data() as Quotation;
         
+        // Construct the job sheet data meticulously
         const jobSheetDataForCreation = {
             date: new Date(),
             operator: quotationData.operator,
@@ -408,10 +409,17 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             subTotal: quotationData.subTotal,
             vatAmount: quotationData.vatAmount,
             totalAmount: quotationData.totalAmount,
+            paidAmount: 0,
+            dueAmount: quotationData.totalAmount,
             status: 'Hold' as const, // Explicitly set a valid JobSheetStatus
+            paymentStatus: 'Unpaid' as const,
             specialNote: `Converted from Quotation ${quotationData.quotationId}.\n\n${quotationData.specialNote || ''}`,
+            irNumber: null,
             deliveryBy: quotationData.deliveryBy ? new Date(quotationData.deliveryBy as any) : null,
             type: 'Invoice' as const,
+            tid: quotationData.tid || null,
+            invoiceNumber: quotationData.invoiceNumber || null,
+            history: [], // History will be added by addJobSheet
         };
         
         const result = await addJobSheet(jobSheetDataForCreation);
@@ -429,8 +437,12 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
                 jid: result.jobSheet.jobId,
                 history: [...(quotationData.history || []), historyEntry],
             });
+
             revalidatePath('/quotation');
             revalidatePath('/quotation-report');
+            revalidatePath('/job-sheet');
+            revalidatePath('/js-report');
+            
             return { success: true, message: `Job Sheet ${result.jobSheet.jobId} created successfully.`, jobSheet: result.jobSheet };
         } else {
             return { success: false, message: result.message || 'Failed to create Job Sheet.' };
@@ -438,6 +450,6 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
 
     } catch (error) {
         console.error('Error creating job sheet from quotation:', error);
-        return { success: false, message: 'An unexpected error occurred.' };
+        return { success: false, message: error instanceof Error ? error.message : 'An unexpected error occurred.' };
     }
 }

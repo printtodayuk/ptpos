@@ -63,7 +63,7 @@ export type JobSheetHistory = z.infer<typeof JobSheetHistorySchema>;
 
 export const JobSheetSchema = z.object({
   id: z.string().optional(),
-  jobId: z.string(),
+  jobId: z.string().optional(),
   invoiceNumber: z.string().optional().nullable(),
   tid: z.string().optional().nullable(),
   date: z.union([z.date(), z.string()]),
