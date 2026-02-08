@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useTransition } from 'react';
@@ -5,6 +6,7 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addDays, format } from 'date-fns';
 import { Loader2, PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { InvoiceSchema } from '@/lib/types';
 import type { CompanyProfile, Invoice } from '@/lib/types';
 import { saveInvoice } from '@/lib/server-actions-invoices';
+import { useToast } from '@/hooks/use-toast';
 
 const CreateInvoiceSchema = InvoiceSchema.omit({ id: true, invoiceId: true, createdAt: true });
 
@@ -31,6 +34,7 @@ type InvoiceFormProps = {
 
 export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCancel }: InvoiceFormProps) {
     const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
 
     const form = useForm<z.infer<typeof CreateInvoiceSchema>>({
         resolver: zodResolver(CreateInvoiceSchema),
@@ -100,7 +104,7 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
         form.setValue('vatAmount', vatAmount);
         form.setValue('totalAmount', totalAmount);
 
-    }, [watchedItems, watchedDiscountType, watchedDiscountValue, form.setValue]);
+    }, [watchedItems, watchedDiscountType, watchedDiscountValue, form]);
 
 
     const onSubmit = (data: z.infer<typeof CreateInvoiceSchema>) => {
@@ -110,7 +114,12 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
             if (result.success) {
                 onSuccess();
             } else {
-                console.error("Failed to save invoice", result.errors);
+                toast({
+                    variant: "destructive",
+                    title: "Uh oh! Something went wrong.",
+                    description: result.message || "Could not save invoice.",
+                });
+                console.error("Failed to save invoice", result.errors || result.message);
             }
         });
     };
