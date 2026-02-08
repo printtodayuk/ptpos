@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { Building, Plus, Loader2, Edit, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -240,4 +240,6 @@ export default function InvoiceGeneratorPage() {
         </div>
     );
 }
+    
+
     
