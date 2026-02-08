@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useTransition } from 'react';
@@ -49,6 +48,10 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
             subTotal: 0,
             discountType: 'amount',
             discountValue: 0,
+            discountAmount: 0,
+            subTotalAfterDiscount: 0,
+            vatAmount: 0,
+            totalAmount: 0,
             notes: '',
             status: 'Draft',
         },
@@ -70,9 +73,9 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
 
         let discountAmount = 0;
         if (watchedDiscountType === 'percentage') {
-            discountAmount = subTotal * (watchedDiscountValue / 100);
+            discountAmount = subTotal * ((watchedDiscountValue || 0) / 100);
         } else {
-            discountAmount = watchedDiscountValue;
+            discountAmount = watchedDiscountValue || 0;
         }
         
         const subTotalAfterDiscount = subTotal - discountAmount;
@@ -97,7 +100,7 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
         form.setValue('vatAmount', vatAmount);
         form.setValue('totalAmount', totalAmount);
 
-    }, [watchedItems, watchedDiscountType, watchedDiscountValue, form]);
+    }, [watchedItems, watchedDiscountType, watchedDiscountValue, form.setValue]);
 
 
     const onSubmit = (data: z.infer<typeof CreateInvoiceSchema>) => {
@@ -201,8 +204,8 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
                 {fields.map((field, index) => (
                     <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
                         <Textarea className="col-span-6" {...form.register(`items.${index}.description`)} placeholder="Item description"/>
-                        <Input className="col-span-2" type="number" {...form.register(`items.${index}.quantity`)} placeholder="1"/>
-                        <Input className="col-span-2" type="number" step="0.01" {...form.register(`items.${index}.price`)} placeholder="0.00"/>
+                        <Input className="col-span-2" type="number" {...form.register(`items.${index}.quantity`, { valueAsNumber: true })} placeholder="1"/>
+                        <Input className="col-span-2" type="number" step="0.01" {...form.register(`items.${index}.price`, { valueAsNumber: true })} placeholder="0.00"/>
                         <div className="col-span-1 flex items-center justify-center h-full">
                             <Controller
                                 control={form.control}
@@ -224,7 +227,7 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
                 <div className="space-y-2">
                     <Label htmlFor="discountValue">Discount</Label>
                     <div className="flex gap-2">
-                        <Input id="discountValue" type="number" step="0.01" {...form.register('discountValue')} />
+                        <Input id="discountValue" type="number" step="0.01" {...form.register('discountValue', { valueAsNumber: true })} />
                         <Controller
                             name="discountType"
                             control={form.control}
@@ -263,5 +266,3 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
         </form>
     );
 }
-
-    
