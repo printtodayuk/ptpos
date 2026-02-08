@@ -35,6 +35,7 @@ const navItems = [
   { href: '/js-report', icon: FileSpreadsheet, label: 'JS Report' },
   { href: '/quotation', icon: MessageSquareQuote, label: 'Quotation' },
   { href: '/quotation-report', icon: FileText, label: 'Quotation Report' },
+  { href: '/invoice-generator', icon: FileText, label: 'Invoice Generator'},
   { href: '/non-invoicing', icon: File, label: 'PT Till' },
   { href: '/contact-list', icon: Contact, label: 'Contact List' },
   { href: '/attendance', icon: Clock, label: 'Attendance'},
@@ -85,3 +86,5 @@ export function Nav() {
     </SidebarMenu>
   );
 }
+
+    

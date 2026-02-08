@@ -74,10 +74,10 @@ export const JobSheetSchema = z.object({
   subTotal: z.number(),
   vatAmount: z.number(),
   totalAmount: z.number(),
-  paidAmount: z.number().default(0).optional(),
-  dueAmount: z.number().default(0).optional(),
+  paidAmount: z.number().default(0),
+  dueAmount: z.number().default(0),
   status: z.enum(jobSheetStatus),
-  paymentStatus: z.enum(paymentStatuses).default('Unpaid').optional(),
+  paymentStatus: z.enum(paymentStatuses).default('Unpaid'),
   specialNote: z.string().optional().nullable(),
   irNumber: z.string().optional().nullable(),
   deliveryBy: z.date().optional().nullable(),
@@ -186,3 +186,54 @@ export const UpdateTimeRecordSchema = z.object({
         endTime: z.date().nullable(),
     })).default([]),
 });
+
+export const CompanyProfileSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Company name is required.'),
+  logoUrl: z.string().url('Must be a valid URL.').optional().or(z.literal('')),
+  address: z.string().min(1, 'Address is required.'),
+  email: z.string().email('Invalid email address.').optional().or(z.literal('')),
+  website: z.string().url('Must be a valid URL.').optional().or(z.literal('')),
+  bankDetails: z.string().optional(),
+  createdAt: z.any().optional(),
+});
+export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;
+
+
+export const invoiceStatus = ['Draft', 'Sent', 'Paid'] as const;
+export type InvoiceStatus = (typeof invoiceStatus)[number];
+
+export const InvoiceItemSchema = z.object({
+  description: z.string().min(1, 'Description is required.'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1.'),
+  price: z.coerce.number().min(0, 'Price cannot be negative.'),
+  vatApplied: z.boolean().default(false),
+});
+
+export const InvoiceSchema = z.object({
+  id: z.string().optional(),
+  invoiceId: z.string(),
+  companyProfileId: z.string().min(1, "Please select a company profile."),
+  clientName: z.string().min(1, 'Client name is required.'),
+  clientAddress: z.string().min(1, 'Client address is required.'),
+  date: z.union([z.date(), z.string()]),
+  dueDate: z.union([z.date(), z.string()]),
+  items: z.array(InvoiceItemSchema).min(1, 'At least one item is required.'),
+  subTotal: z.number(),
+  discountType: z.enum(['percentage', 'amount']).default('amount'),
+  discountValue: z.coerce.number().min(0).default(0),
+  discountAmount: z.number().default(0),
+  subTotalAfterDiscount: z.number(),
+  vatAmount: z.number(),
+  totalAmount: z.number(),
+  status: z.enum(invoiceStatus).default('Draft'),
+  notes: z.string().optional(),
+  createdAt: z.any().optional(),
+});
+
+export type Invoice = Omit<z.infer<typeof InvoiceSchema>, 'date' | 'dueDate'> & {
+    date: Date | string;
+    dueDate: Date | string;
+};
+
+    

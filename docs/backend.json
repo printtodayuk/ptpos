@@ -380,6 +380,60 @@
         "date": { "type": "string", "format": "date", "description": "The date of the clock-in (YYYY-MM-DD)." }
       },
       "required": ["operator", "clockInTime", "status", "date"]
+    },
+    "CompanyProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Company Profile",
+      "type": "object",
+      "description": "Stores details for a company that can issue invoices.",
+      "properties": {
+        "name": { "type": "string", "description": "Company name." },
+        "logoUrl": { "type": "string", "description": "URL for the company logo." },
+        "address": { "type": "string", "description": "Company address." },
+        "email": { "type": "string", "format": "email", "description": "Company contact email." },
+        "website": { "type": "string", "description": "Company website." },
+        "bankDetails": { "type": "string", "description": "Bank details for payment." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "address"]
+    },
+    "Invoice": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invoice",
+      "type": "object",
+      "description": "Represents a customer invoice.",
+      "properties": {
+        "invoiceId": { "type": "string", "description": "Auto-incrementing invoice ID (e.g., Inv-00001)." },
+        "companyProfileId": { "type": "string", "description": "ID of the company profile used for this invoice." },
+        "clientName": { "type": "string" },
+        "clientAddress": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "vatApplied": { "type": "boolean" }
+            },
+            "required": ["description", "quantity", "price"]
+          }
+        },
+        "subTotal": { "type": "number" },
+        "discountType": { "type": "string", "enum": ["percentage", "amount"] },
+        "discountValue": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "subTotalAfterDiscount": { "type": "number" },
+        "vatAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Draft", "Paid", "Sent"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoiceId", "companyProfileId", "clientName", "clientAddress", "date", "dueDate", "items", "totalAmount", "status"]
     }
   },
   "auth": {
@@ -414,7 +468,7 @@
           "params": [
             {
               "name": "counterId",
-              "description": "The name of the counter (e.g., 'transactions', 'jobSheets', 'quotations')."
+              "description": "The name of the counter (e.g., 'transactions', 'jobSheets', 'quotations', 'invoices')."
             }
           ]
         }
@@ -482,8 +536,42 @@
                 }
             ]
         }
+      },
+      {
+        "path": "/companyProfiles/{profileId}",
+        "definition": {
+            "entityName": "CompanyProfile",
+            "schema": {
+                "$ref": "#/backend/entities/CompanyProfile"
+            },
+            "description": "Stores company profiles for invoicing.",
+            "params": [
+                {
+                    "name": "profileId",
+                    "description": "Unique identifier for the company profile."
+                }
+            ]
+        }
+      },
+      {
+        "path": "/invoices/{invoiceId}",
+        "definition": {
+            "entityName": "Invoice",
+            "schema": {
+                "$ref": "#/backend/entities/Invoice"
+            },
+            "description": "Stores generated invoices.",
+            "params": [
+                {
+                    "name": "invoiceId",
+                    "description": "Unique identifier for the invoice."
+                }
+            ]
+        }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, and quotations in a reliable way. A 'jobSheets' collection stores detailed job information, including payment status. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, quotations, and invoices in a reliable way. A 'jobSheets' collection stores detailed job information. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance. 'companyProfiles' and 'invoices' collections are added for the new invoice generator feature."
   }
 }
+
+    
