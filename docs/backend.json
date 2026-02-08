@@ -173,6 +173,10 @@
           "type": "number",
           "description": "The sum of all job item prices."
         },
+        "discountType": { "type": "string", "enum": ["percentage", "amount"], "description": "The type of discount applied." },
+        "discountValue": { "type": "number", "description": "The value of the discount (percentage or amount)." },
+        "discountAmount": { "type": "number", "description": "The calculated amount of the discount." },
+        "subTotalAfterDiscount": { "type": "number", "description": "The sub-total after the discount is applied." },
         "vatAmount": {
             "type": "number",
             "description": "The calculated VAT amount."
@@ -573,5 +577,3 @@
     "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, quotations, and invoices in a reliable way. A 'jobSheets' collection stores detailed job information. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance. 'companyProfiles' and 'invoices' collections are added for the new invoice generator feature."
   }
 }
-
-    

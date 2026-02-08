@@ -72,6 +72,10 @@ export const JobSheetSchema = z.object({
   clientDetails: z.string().optional().nullable(),
   jobItems: z.array(JobItemSchema).min(1, 'At least one job item is required.'),
   subTotal: z.number(),
+  discountType: z.enum(['percentage', 'amount']).default('amount'),
+  discountValue: z.coerce.number().min(0).default(0),
+  discountAmount: z.number().default(0),
+  subTotalAfterDiscount: z.number().default(0),
   vatAmount: z.number(),
   totalAmount: z.number(),
   paidAmount: z.number().default(0),
@@ -235,5 +239,3 @@ export type Invoice = Omit<z.infer<typeof InvoiceSchema>, 'date' | 'dueDate'> & 
     date: Date | string;
     dueDate: Date | string;
 };
-
-    

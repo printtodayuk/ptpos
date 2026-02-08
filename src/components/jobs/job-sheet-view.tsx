@@ -143,6 +143,12 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
                     <span>Sub Total:</span>
                     <span className="font-bold">£{jobSheet.subTotal.toFixed(2)}</span>
                 </div>
+                {jobSheet.discountAmount > 0 && (
+                    <div className="flex justify-between items-center p-2 border border-black">
+                        <span>Discount:</span>
+                        <span className="font-bold">- £{jobSheet.discountAmount.toFixed(2)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between items-center p-2 border border-black">
                     <span>VAT (20%):</span>
                     <span className="font-bold">£{jobSheet.vatAmount.toFixed(2)}</span>

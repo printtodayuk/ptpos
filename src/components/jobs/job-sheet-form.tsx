@@ -41,6 +41,10 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   clientDetails: '',
   jobItems: [{ description: '', quantity: 1, price: 0, vatApplied: false }],
   subTotal: 0,
+  discountType: 'amount',
+  discountValue: 0,
+  discountAmount: 0,
+  subTotalAfterDiscount: 0,
   vatAmount: 0,
   totalAmount: 0,
   status: 'Hold',
@@ -89,6 +93,10 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
         deliveryBy: jobSheetToCreateFromQuotation.deliveryBy ? new Date(jobSheetToCreateFromQuotation.deliveryBy) : undefined,
         type: 'Invoice',
         tid: jobSheetToCreateFromQuotation.tid,
+        discountType: 'amount',
+        discountValue: 0,
+        discountAmount: 0,
+        subTotalAfterDiscount: jobSheetToCreateFromQuotation.subTotal,
       });
     } else if (jobSheetToEdit && jobSheetToEdit.id !== currentJobSheetId) {
         const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : undefined;
@@ -100,6 +108,8 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             specialNote: jobSheetToEdit.specialNote || '',
             clientDetails: jobSheetToEdit.clientDetails || '',
             tid: jobSheetToEdit.tid || '',
+            discountType: jobSheetToEdit.discountType || 'amount',
+            discountValue: jobSheetToEdit.discountValue || 0,
         });
         setCurrentJobSheetId(jobSheetToEdit.id);
     } else if (!jobSheetToEdit && !jobSheetToCreateFromQuotation) {
@@ -110,39 +120,43 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
 
 
   const watchedJobItems = form.watch('jobItems');
-  
-  const subTotal = (watchedJobItems || []).reduce((acc, item) => {
-    const price = Number(item?.price) || 0;
-    return acc + price;
-  }, 0);
-
-  const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
-    if (item?.vatApplied) {
-      const price = Number(item?.price) || 0;
-      return acc + (price * 0.2);
-    }
-    return acc;
-  }, 0);
-
-  const totalAmount = subTotal + vatAmount;
+  const watchedDiscountType = form.watch('discountType');
+  const watchedDiscountValue = form.watch('discountValue');
 
   useEffect(() => {
-    const currentSubTotal = form.getValues('subTotal') || 0;
-    const currentVatAmount = form.getValues('vatAmount') || 0;
-    const currentTotalAmount = form.getValues('totalAmount') || 0;
+    const subTotal = watchedJobItems.reduce((acc, item) => {
+        return acc + (item.price || 0);
+    }, 0);
 
-    const tolerance = 0.001;
+    let discountAmount = 0;
+    if (watchedDiscountType === 'percentage') {
+        discountAmount = subTotal * ((watchedDiscountValue || 0) / 100);
+    } else {
+        discountAmount = watchedDiscountValue || 0;
+    }
+    
+    const subTotalAfterDiscount = subTotal - discountAmount;
+    
+    const vatAmount = watchedJobItems.reduce((acc, item) => {
+        if (item.vatApplied) {
+            const itemPrice = item.price || 0;
+            const itemProportion = subTotal > 0 ? itemPrice / subTotal : 0;
+            const itemDiscount = discountAmount * itemProportion;
+            const itemPriceAfterDiscount = itemPrice - itemDiscount;
+            return acc + (itemPriceAfterDiscount * 0.20);
+        }
+        return acc;
+    }, 0);
 
-    if (Math.abs(currentSubTotal - subTotal) > tolerance) {
-      form.setValue('subTotal', subTotal, { shouldValidate: true });
-    }
-    if (Math.abs(currentVatAmount - vatAmount) > tolerance) {
-      form.setValue('vatAmount', vatAmount, { shouldValidate: true });
-    }
-    if (Math.abs(currentTotalAmount - totalAmount) > tolerance) {
-      form.setValue('totalAmount', totalAmount, { shouldValidate: true });
-    }
-  }, [subTotal, vatAmount, totalAmount, form]);
+    const totalAmount = subTotalAfterDiscount + vatAmount;
+
+    form.setValue('subTotal', subTotal);
+    form.setValue('discountAmount', discountAmount);
+    form.setValue('subTotalAfterDiscount', subTotalAfterDiscount);
+    form.setValue('vatAmount', vatAmount);
+    form.setValue('totalAmount', totalAmount);
+
+}, [watchedJobItems, watchedDiscountType, watchedDiscountValue, form]);
 
 
   const onSubmit = (data: FormValues) => {
@@ -295,18 +309,22 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                 </div>
                 
                 {/* Row 4: Totals */}
-                <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center rounded-lg border p-4">
+                <div className="md:col-span-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-center rounded-lg border p-4">
                     <div className="space-y-2">
                         <Label>Sub-Total</Label>
-                        <Input value={`£${subTotal.toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                        <Input value={`£${form.watch('subTotal')?.toFixed(2) || '0.00'}`} readOnly className="font-bold bg-muted" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Discount</Label>
+                        <Input value={`- £${form.watch('discountAmount')?.toFixed(2) || '0.00'}`} readOnly className="font-bold bg-muted" />
                     </div>
                     <div className="space-y-2">
                         <Label>VAT Amount</Label>
-                        <Input value={`£${vatAmount.toFixed(2)}`} readOnly className="font-bold bg-muted" />
+                        <Input value={`£${form.watch('vatAmount')?.toFixed(2) || '0.00'}`} readOnly className="font-bold bg-muted" />
                     </div>
                     <div className="space-y-2">
                         <Label>Total Amount</Label>
-                        <Input value={`£${totalAmount.toFixed(2)}`} readOnly className="font-bold bg-primary text-primary-foreground" />
+                        <Input value={`£${form.watch('totalAmount')?.toFixed(2) || '0.00'}`} readOnly className="font-bold bg-primary text-primary-foreground" />
                     </div>
                 </div>
                  {/* Automation IDs */}
@@ -355,8 +373,27 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                     )} />
                 </div>
 
-                {/* Row 6: Special Note */}
-                <div className="space-y-2 md:col-span-4">
+                {/* Row 6: Special Note & Discount */}
+                 <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="discountValue">Discount</Label>
+                    <div className="flex gap-2">
+                        <Input id="discountValue" type="number" step="0.01" {...form.register('discountValue', { valueAsNumber: true })} disabled={isPaid} />
+                        <Controller
+                            name="discountType"
+                            control={form.control}
+                            render={({ field }) => (
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isPaid}>
+                                    <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="amount">£</SelectItem>
+                                        <SelectItem value="percentage">%</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </div>
+                </div>
+                <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="specialNote">Special Note</Label>
                     <Textarea id="specialNote" {...form.register('specialNote')} />
                 </div>
