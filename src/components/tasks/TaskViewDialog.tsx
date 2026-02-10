@@ -61,13 +61,16 @@ export function TaskViewDialog({ task, isOpen, onClose, onSuccess }: TaskViewDia
 
     if (!task) return null;
 
-    // Sort history from newest to oldest
-    const sortedHistory = [...(task.history || [])].sort((a, b) => {
-        const dateA = toDate(a.timestamp);
-        const dateB = toDate(b.timestamp);
-        if (!dateA || !dateB) return 0;
-        return dateB.getTime() - dateA.getTime();
-    });
+    // Filter for notes only and sort them from newest to oldest
+    const notes = [...(task.history || [])]
+        .filter(entry => entry.action === 'Note Added')
+        .sort((a, b) => {
+            const dateA = toDate(a.timestamp);
+            const dateB = toDate(b.timestamp);
+            if (!dateA || !dateB) return 0;
+            return dateB.getTime() - dateA.getTime();
+        });
+
 
     const handleAddNote = () => {
         if (!note.trim() || !operator) return;
@@ -118,22 +121,17 @@ export function TaskViewDialog({ task, isOpen, onClose, onSuccess }: TaskViewDia
 
                     {/* History and Notes Section */}
                     <div>
-                        <h3 className="text-lg font-semibold mb-2">History & Notes</h3>
+                        <h3 className="text-lg font-semibold mb-2">Notes</h3>
                         <ScrollArea className="h-[250px] pr-6 border rounded-lg p-4">
                             <div className="relative pl-6">
                                 <div className="absolute left-[30px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
-                                {sortedHistory.length > 0 ? sortedHistory.map((entry, index) => {
+                                {notes.length > 0 ? notes.map((entry, index) => {
                                     const timestamp = toDate(entry.timestamp);
-                                    const isNote = entry.action === 'Note Added';
                                     return (
                                         <div key={index} className="relative pl-8 mb-8">
-                                            <div className={`absolute left-[30px] top-1 h-3 w-3 rounded-full ${isNote ? 'bg-amber-500' : 'bg-primary'} -translate-x-1/2`}></div>
-                                            <div className={`p-4 rounded-lg border ${isNote ? 'bg-amber-50 border-amber-200' : 'bg-card'}`}>
-                                                {isNote ? (
-                                                    <p className="text-sm text-foreground whitespace-pre-wrap">{entry.details}</p>
-                                                ) : (
-                                                    <p className="font-semibold text-sm text-foreground">{entry.action}: <span className="font-normal text-muted-foreground whitespace-pre-wrap">{entry.details}</span></p>
-                                                )}
+                                            <div className="absolute left-[30px] top-1 h-3 w-3 rounded-full bg-amber-500 -translate-x-1/2"></div>
+                                            <div className="p-4 rounded-lg border bg-amber-50 border-amber-200">
+                                                <p className="text-sm text-foreground whitespace-pre-wrap">{entry.details}</p>
                                                 <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                                                     <div className="flex items-center gap-2">
                                                         <User className="h-3 w-3" />
@@ -148,7 +146,7 @@ export function TaskViewDialog({ task, isOpen, onClose, onSuccess }: TaskViewDia
                                         </div>
                                     );
                                 }) : (
-                                    <div className="text-center text-muted-foreground p-10">No history or notes for this task.</div>
+                                    <div className="text-center text-muted-foreground p-10">No notes for this task.</div>
                                 )}
                             </div>
                         </ScrollArea>
