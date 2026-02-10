@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -86,7 +87,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
         shouldReset = true;
         newDefaultValues = {
             date: new Date(),
-            operator: jobSheetToCreateFromQuotation.operator,
+            operator: loggedInOperator || undefined,
             clientName: jobSheetToCreateFromQuotation.clientName,
             clientDetails: jobSheetToCreateFromQuotation.clientDetails || '',
             jobItems: jobSheetToCreateFromQuotation.jobItems,
@@ -433,3 +434,5 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     </>
   );
 }
+
+    
