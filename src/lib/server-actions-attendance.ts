@@ -80,23 +80,36 @@ export async function getAllOperatorStatuses(): Promise<Record<Operator, Operato
     const date = getCurrentDateString();
     const statuses: Record<Operator, OperatorStatusInfo> = {} as any;
 
+    // 1. Initialize all operators as 'not-clocked-in'
     for (const op of operators) {
-        const q = query(
-            collection(db, 'timeRecords'),
-            where('operator', '==', op),
-            where('date', '==', date),
-            orderBy('clockInTime', 'desc'),
-            limit(1)
-        );
+        statuses[op] = { status: 'not-clocked-in' };
+    }
 
-        const querySnapshot = await getDocs(q);
+    // 2. Fetch all of today's records with a simple query
+    const q = query(collection(db, 'timeRecords'), where('date', '==', date));
+    const querySnapshot = await getDocs(q);
 
-        if (querySnapshot.empty) {
-            statuses[op] = { status: 'not-clocked-in' };
-            continue;
+    // 3. Group records by operator
+    const recordsByOperator: Partial<Record<Operator, any[]>> = {};
+    querySnapshot.forEach(doc => {
+        const record = doc.data();
+        const operator = record.operator as Operator;
+        if (!recordsByOperator[operator]) {
+            recordsByOperator[operator] = [];
         }
+        recordsByOperator[operator]!.push(record);
+    });
 
-        const latestRecord = querySnapshot.docs[0].data();
+    // 4. Process records for each operator to find their latest status
+    for (const op of operators) {
+        const opRecords = recordsByOperator[op as Operator];
+        if (!opRecords || opRecords.length === 0) {
+            continue; // Already set to not-clocked-in
+        }
+        
+        // Sort records in-memory to find the latest one
+        opRecords.sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
+        const latestRecord = opRecords[0];
         
         if (latestRecord.status === 'clocked-out') {
             statuses[op] = { status: 'clocked-out' };
@@ -117,6 +130,7 @@ export async function getAllOperatorStatuses(): Promise<Record<Operator, Operato
             }
         }
     }
+    
     return statuses;
 }
 
