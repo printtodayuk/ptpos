@@ -116,7 +116,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
         form.reset(getFreshDefaultValues(loggedInOperator));
         setCurrentJobSheetId(undefined);
     }
-  }, [jobSheetToEdit, jobSheetToCreateFromQuotation, form, loggedInOperator, currentJobSheetId]);
+  }, [jobSheetToEdit, jobSheetToCreateFromQuotation, loggedInOperator, currentJobSheetId, form.reset]);
 
 
   const watchedJobItems = form.watch('jobItems');
@@ -124,7 +124,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const watchedDiscountValue = form.watch('discountValue');
 
   useEffect(() => {
-    const subTotal = watchedJobItems.reduce((acc, item) => {
+    const subTotal = (watchedJobItems || []).reduce((acc, item) => {
         const price = Number(item.price) || 0;
         return acc + price;
     }, 0);
@@ -138,14 +138,13 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     
     const subTotalAfterDiscount = subTotal - discountAmount;
     
-    const vatAmount = watchedJobItems.reduce((acc, item) => {
+    const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
         if (item.vatApplied) {
             const price = Number(item.price) || 0;
-            const itemTotal = price;
-
-            const itemProportion = subTotal > 0 ? itemTotal / subTotal : 0;
+            // Distribute discount proportionally before calculating VAT
+            const itemProportion = subTotal > 0 ? price / subTotal : 0;
             const itemDiscount = discountAmount * itemProportion;
-            const itemPriceAfterDiscount = itemTotal - itemDiscount;
+            const itemPriceAfterDiscount = price - itemDiscount;
             return acc + (itemPriceAfterDiscount * 0.20);
         }
         return acc;
@@ -159,7 +158,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     form.setValue('vatAmount', vatAmount);
     form.setValue('totalAmount', totalAmount);
 
-}, [watchedJobItems, watchedDiscountType, watchedDiscountValue, form]);
+}, [watchedJobItems, watchedDiscountType, watchedDiscountValue, form.setValue]);
 
 
   const onSubmit = (data: FormValues) => {
