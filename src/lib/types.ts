@@ -239,3 +239,40 @@ export type Invoice = Omit<z.infer<typeof InvoiceSchema>, 'date' | 'dueDate'> & 
     date: Date | string;
     dueDate: Date | string;
 };
+
+// Task Management Schemas
+export const taskStatus = ['To Do', 'In Progress', 'Done', 'Cancelled'] as const;
+export type TaskStatus = (typeof taskStatus)[number];
+
+export const TaskTypeSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(1, 'Type name is required.'),
+});
+export type TaskType = z.infer<typeof TaskTypeSchema>;
+
+export const TaskHistorySchema = z.object({
+    timestamp: z.any(),
+    operator: z.string(),
+    action: z.string(),
+    details: z.string(),
+});
+export type TaskHistory = z.infer<typeof TaskHistorySchema>;
+
+export const TaskSchema = z.object({
+  id: z.string().optional(),
+  taskId: z.string(),
+  createdAt: z.any(),
+  createdBy: z.enum(operators),
+  type: z.string().min(1, 'Task type is required.'),
+  details: z.string().min(1, 'Details are required.'),
+  assignedTo: z.enum(operators),
+  completionDate: z.date().nullable(),
+  status: z.enum(taskStatus).default('To Do'),
+  history: z.array(TaskHistorySchema).optional().default([]),
+});
+
+export type Task = Omit<z.infer<typeof TaskSchema>, 'createdAt' | 'completionDate' | 'history'> & {
+    createdAt: Date | string;
+    completionDate?: Date | string | null;
+    history?: TaskHistory[];
+};

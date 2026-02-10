@@ -9,6 +9,7 @@ import { Loader, Ban, Paintbrush, Truck, PackageCheck, Package, ThumbsDown, Pack
 import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
 import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
+import { TaskDashboardSection } from '@/components/tasks/TaskDashboardSection';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<{
@@ -79,6 +80,8 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
       
+      <TaskDashboardSection />
+
        <Card>
         <CardHeader>
           <CardTitle className="text-xl">Quotation Status</CardTitle>

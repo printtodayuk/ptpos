@@ -438,6 +438,49 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["invoiceId", "companyProfileId", "clientName", "clientAddress", "date", "dueDate", "items", "totalAmount", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "type": "object",
+      "description": "Represents a task or request in the system.",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "type": { "type": "string" },
+        "details": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "completionDate": { "type": "string", "format": "date-time", "nullable": true },
+        "status": { "type": "string", "enum": ["To Do", "In Progress", "Done", "Cancelled"] },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/TaskHistory" }
+        }
+      },
+      "required": ["taskId", "createdAt", "createdBy", "type", "details", "assignedTo", "status"]
+    },
+    "TaskHistory": {
+      "title": "Task History",
+      "type": "object",
+      "description": "Represents a single entry in the history log of a task.",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "operator": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["timestamp", "operator", "action", "details"]
+    },
+    "TaskType": {
+      "title": "Task Type",
+      "type": "object",
+      "description": "Represents a user-definable type for a task.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
     }
   },
   "auth": {
@@ -468,11 +511,11 @@
           "schema": {
             "$ref": "#/backend/entities/Counter"
           },
-          "description": "Stores counter documents for generating sequential IDs.",
+          "description": "Stores counter documents for generating sequential IDs for transactions, job sheets, quotations, invoices, and tasks.",
           "params": [
             {
               "name": "counterId",
-              "description": "The name of the counter (e.g., 'transactions', 'jobSheets', 'quotations', 'invoices')."
+              "description": "The name of the counter (e.g., 'transactions', 'jobSheets', 'quotations', 'invoices', 'tasks')."
             }
           ]
         }
@@ -572,8 +615,28 @@
                 }
             ]
         }
+      },
+       {
+        "path": "/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": {
+            "$ref": "#/backend/entities/Task"
+          },
+          "description": "Stores all tasks and requests."
+        }
+      },
+      {
+        "path": "/taskTypes/{typeId}",
+        "definition": {
+          "entityName": "TaskType",
+          "schema": {
+            "$ref": "#/backend/entities/TaskType"
+          },
+          "description": "Stores user-defined task types."
+        }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, quotations, and invoices in a reliable way. A 'jobSheets' collection stores detailed job information. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance. 'companyProfiles' and 'invoices' collections are added for the new invoice generator feature."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, quotations, and invoices in a reliable way. A 'jobSheets' collection stores detailed job information. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance. 'companyProfiles' and 'invoices' collections are added for the new invoice generator feature. The 'tasks' and 'taskTypes' collections support the new task management feature."
   }
 }
