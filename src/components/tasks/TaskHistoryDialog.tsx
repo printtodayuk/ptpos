@@ -1,11 +1,10 @@
-
 'use client';
 
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { type Task, type TaskHistory } from '@/lib/types';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, MessageSquare } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
 type TaskHistoryDialogProps = {
@@ -63,13 +62,18 @@ export function TaskHistoryDialog({ task, isOpen, onClose }: TaskHistoryDialogPr
                 
                 {sortedHistory.map((entry, index) => {
                      const timestamp = toDate(entry.timestamp);
+                     const isNote = entry.action === 'Note Added';
                      return (
                         <div key={index} className="relative pl-8 mb-8">
                             {/* Timeline dot */}
-                            <div className="absolute left-[30px] top-1 h-3 w-3 rounded-full bg-primary -translate-x-1/2"></div>
+                            <div className={`absolute left-[30px] top-1 h-3 w-3 rounded-full ${isNote ? 'bg-amber-500' : 'bg-primary'} -translate-x-1/2`}></div>
                             
-                            <div className="p-4 rounded-lg border bg-card">
-                                <p className="font-semibold text-foreground">{entry.action}: <span className="font-normal text-muted-foreground whitespace-pre-wrap">{entry.details}</span></p>
+                            <div className={`p-4 rounded-lg border ${isNote ? 'bg-amber-50 border-amber-200' : 'bg-card'}`}>
+                                {isNote ? (
+                                    <p className="text-sm text-foreground whitespace-pre-wrap">{entry.details}</p>
+                                ) : (
+                                    <p className="font-semibold text-sm text-foreground">{entry.action}: <span className="font-normal text-muted-foreground whitespace-pre-wrap">{entry.details}</span></p>
+                                )}
                                 <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                                     <div className="flex items-center gap-2">
                                         <User className="h-3 w-3" />
