@@ -84,6 +84,7 @@ export function TasksTable({ tasks, onEdit, onDelete, onStatusChange, onViewHist
                         <TableRow>
                             <TableHead>ID</TableHead>
                             <TableHead>Created</TableHead>
+                            <TableHead>Created By</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Details</TableHead>
                             <TableHead>Assigned To</TableHead>
@@ -97,6 +98,7 @@ export function TasksTable({ tasks, onEdit, onDelete, onStatusChange, onViewHist
                             <TableRow key={task.id}>
                                 <TableCell><Badge variant="secondary">{task.taskId}</Badge></TableCell>
                                 <TableCell>{format(new Date(task.createdAt), 'dd/MM/yy')}</TableCell>
+                                <TableCell><Badge variant="outline">{task.createdBy}</Badge></TableCell>
                                 <TableCell>{task.type}</TableCell>
                                 <TableCell className="max-w-xs truncate">{task.details}</TableCell>
                                 <TableCell><Badge variant="outline">{task.assignedTo}</Badge></TableCell>
@@ -107,31 +109,36 @@ export function TasksTable({ tasks, onEdit, onDelete, onStatusChange, onViewHist
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" disabled={isUpdating}>
-                                                {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuSub>
-                                                <DropdownMenuSubTrigger>Move to</DropdownMenuSubTrigger>
-                                                <DropdownMenuSubContent>
-                                                    <DropdownMenuRadioGroup value={task.status} onValueChange={(value) => handleStatusChange(task, value as TaskStatus)}>
-                                                        {taskStatus.map(s => (
-                                                            <DropdownMenuRadioItem key={s} value={s}>
-                                                                {s}
-                                                            </DropdownMenuRadioItem>
-                                                        ))}
-                                                    </DropdownMenuRadioGroup>
-                                                </DropdownMenuSubContent>
-                                            </DropdownMenuSub>
-                                            <DropdownMenuItem onSelect={() => onEdit(task)}><Edit className="mr-2 h-4 w-4" />Edit / Add Note</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => onViewHistory(task)}><History className="mr-2 h-4 w-4" />View History</DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onSelect={() => onDelete(task)} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button variant="ghost" size="icon" onClick={() => onViewHistory(task)}>
+                                            <History className="h-4 w-4" />
+                                            <span className="sr-only">View History</span>
+                                        </Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" disabled={isUpdating}>
+                                                    {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuSub>
+                                                    <DropdownMenuSubTrigger>Move to</DropdownMenuSubTrigger>
+                                                    <DropdownMenuSubContent>
+                                                        <DropdownMenuRadioGroup value={task.status} onValueChange={(value) => handleStatusChange(task, value as TaskStatus)}>
+                                                            {taskStatus.map(s => (
+                                                                <DropdownMenuRadioItem key={s} value={s}>
+                                                                    {s}
+                                                                </DropdownMenuRadioItem>
+                                                            ))}
+                                                        </DropdownMenuRadioGroup>
+                                                    </DropdownMenuSubContent>
+                                                </DropdownMenuSub>
+                                                <DropdownMenuItem onSelect={() => onEdit(task)}><Edit className="mr-2 h-4 w-4" />Edit / Add Note</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onSelect={() => onDelete(task)} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
