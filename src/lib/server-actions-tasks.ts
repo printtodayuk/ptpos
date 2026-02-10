@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -57,23 +58,16 @@ const CreateTaskTypeSchema = TaskTypeSchema.omit({ id: true });
 
 
 async function getNextTaskId(): Promise<string> {
-    const counterRef = doc(db, 'counters', 'tasks');
-    try {
-        const newCount = await runTransaction(db, async (transaction) => {
-            const counterDoc = await transaction.get(counterRef);
-            if (!counterDoc.exists()) {
-                transaction.set(counterRef, { count: 1 });
-                return 1;
-            }
-            const newCount = counterDoc.data().count + 1;
-            transaction.update(counterRef, { count: newCount });
-            return newCount;
-        });
-        return String(newCount).padStart(3, '0');
-    } catch (error) {
-        console.error("Error getting next task ID:", error);
-        throw new Error("Could not generate a new task ID.");
+    const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return "TSK001";
     }
+    const lastTask = snapshot.docs[0].data();
+    const lastId = lastTask.taskId || "TSK000";
+    const lastNum = parseInt(lastId.replace(/[^0-9]/g, ''), 10) || 0;
+    const newNum = lastNum + 1;
+    return `TSK${String(newNum).padStart(3, '0')}`;
 }
 
 
