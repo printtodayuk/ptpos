@@ -64,7 +64,7 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard title="On Hold" value={stats.holdCount} icon={Ban} description="Jobs waiting for action" isCurrency={false} className="bg-red-500/10 border-red-500 text-red-700" />
               <StatCard title="In Studio" value={stats.studioCount} icon={Paintbrush} description="Jobs in the design phase" isCurrency={false} className="bg-blue-500/10 border-blue-500 text-blue-700" />
               <StatCard title="In Production" value={stats.productionCount} icon={Loader} description="Jobs currently being made" isCurrency={false} className="bg-orange-500/10 border-orange-500 text-orange-700" />
@@ -87,7 +87,7 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard title="Sent" value={stats.sentCount} icon={Send} description="Quotations sent to clients" isCurrency={false} className="bg-blue-500/10 border-blue-500 text-blue-700" />
               <StatCard title="On Hold" value={stats.quotationHoldCount} icon={Ban} description="Quotations on hold" isCurrency={false} className="bg-yellow-500/10 border-yellow-500 text-yellow-700" />
               <StatCard title="Waiting for Response" value={stats.wfrCount} icon={Hourglass} description="Awaiting client feedback" isCurrency={false} className="bg-purple-500/10 border-purple-500 text-purple-700" />
