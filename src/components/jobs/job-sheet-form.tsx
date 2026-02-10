@@ -125,9 +125,8 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
 
   useEffect(() => {
     const subTotal = watchedJobItems.reduce((acc, item) => {
-        const quantity = Number(item.quantity) || 0;
         const price = Number(item.price) || 0;
-        return acc + (quantity * price);
+        return acc + price;
     }, 0);
 
     let discountAmount = 0;
@@ -141,9 +140,8 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     
     const vatAmount = watchedJobItems.reduce((acc, item) => {
         if (item.vatApplied) {
-            const quantity = Number(item.quantity) || 0;
             const price = Number(item.price) || 0;
-            const itemTotal = quantity * price;
+            const itemTotal = price;
 
             const itemProportion = subTotal > 0 ? itemTotal / subTotal : 0;
             const itemDiscount = discountAmount * itemProportion;
