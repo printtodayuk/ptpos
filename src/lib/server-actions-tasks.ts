@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -20,6 +21,26 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { TaskSchema, TaskTypeSchema, type Operator, type Task, type TaskHistory, type TaskStatus, type TaskType } from '@/lib/types';
 import { format } from 'date-fns';
+
+// Helper function to safely convert Firestore Timestamps to JS Dates
+const toDate = (timestamp: any): Date | null => {
+    if (timestamp instanceof Timestamp) {
+        return timestamp.toDate();
+    }
+    if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+    }
+    if (timestamp instanceof Date) {
+        return timestamp;
+    }
+    if (typeof timestamp === 'string') {
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+    return null;
+};
 
 const CreateTaskSchema = TaskSchema.omit({ id: true, taskId: true, createdAt: true, history: true });
 const CreateTaskTypeSchema = TaskTypeSchema.omit({ id: true });
@@ -131,8 +152,11 @@ export async function updateTask(
         changes.push(`Assignee changed from ${originalData.assignedTo} to ${validatedData.data.assignedTo}.`);
     }
     
-    const originalDueDate = originalData.completionDate ? format((originalData.completionDate as Timestamp).toDate(), 'PPP') : 'none';
-    const newDueDate = validatedData.data.completionDate ? format(new Date(validatedData.data.completionDate), 'PPP') : 'none';
+    const originalDueDateAsDate = toDate(originalData.completionDate);
+    const originalDueDate = originalDueDateAsDate ? format(originalDueDateAsDate, 'PPP') : 'none';
+    const newDueDateAsDate = validatedData.data.completionDate;
+    const newDueDate = newDueDateAsDate ? format(newDueDateAsDate, 'PPP') : 'none';
+
     if (validatedData.data.completionDate !== undefined && originalDueDate !== newDueDate) {
         changes.push(`Due date changed from ${originalDueDate} to ${newDueDate}.`);
     }
