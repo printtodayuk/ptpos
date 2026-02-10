@@ -102,7 +102,7 @@ export async function addTask(data: z.infer<typeof CreateTaskSchema>) {
     try {
         const taskId = await getNextTaskId();
         const historyEntry: TaskHistory = {
-            timestamp: serverTimestamp(),
+            timestamp: Timestamp.now(),
             operator: validatedData.data.createdBy,
             action: 'Created',
             details: `Task created and assigned to ${validatedData.data.assignedTo}.`,
@@ -205,7 +205,7 @@ export async function updateTask(
 
     if (changes.length > 0) {
         const historyEntry: TaskHistory = {
-            timestamp: serverTimestamp(),
+            timestamp: Timestamp.now(),
             operator,
             action: 'Updated',
             details: changes.join(' '),
@@ -216,7 +216,7 @@ export async function updateTask(
     // If a new note was added, log it separately
     if (note && note.trim() !== '') {
         const noteEntry: TaskHistory = {
-            timestamp: serverTimestamp(),
+            timestamp: Timestamp.now(),
             operator,
             action: 'Note Added',
             details: note.trim(),
@@ -248,7 +248,7 @@ export async function updateTaskStatus(id: string, status: TaskStatus, operator:
 
     const originalData = taskSnap.data();
     const historyEntry: TaskHistory = {
-        timestamp: serverTimestamp(),
+        timestamp: Timestamp.now(),
         operator,
         action: 'Status Change',
         details: `Status changed from ${originalData.status} to ${status}.`,
