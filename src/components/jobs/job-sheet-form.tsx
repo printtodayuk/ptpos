@@ -98,6 +98,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
         discountAmount: 0,
         subTotalAfterDiscount: jobSheetToCreateFromQuotation.subTotal,
       });
+      setCurrentJobSheetId(undefined); // Not editing, it's a new sheet
     } else if (jobSheetToEdit && jobSheetToEdit.id !== currentJobSheetId) {
         const deliveryByDate = jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : undefined;
         form.reset({
@@ -112,11 +113,12 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             discountValue: jobSheetToEdit.discountValue || 0,
         });
         setCurrentJobSheetId(jobSheetToEdit.id);
-    } else if (!jobSheetToEdit && !jobSheetToCreateFromQuotation) {
+    } else if (!jobSheetToEdit && !jobSheetToCreateFromQuotation && currentJobSheetId !== undefined) {
+        // This condition is met when switching from an edit view back to a new create form
         form.reset(getFreshDefaultValues(loggedInOperator));
         setCurrentJobSheetId(undefined);
     }
-  }, [jobSheetToEdit, jobSheetToCreateFromQuotation, loggedInOperator, currentJobSheetId, form.reset]);
+  }, [jobSheetToEdit, jobSheetToCreateFromQuotation, loggedInOperator, currentJobSheetId, form]);
 
 
   const watchedJobItems = form.watch('jobItems');
@@ -158,7 +160,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     form.setValue('vatAmount', vatAmount);
     form.setValue('totalAmount', totalAmount);
 
-}, [watchedJobItems, watchedDiscountType, watchedDiscountValue, form.setValue]);
+}, [watchedJobItems, watchedDiscountType, watchedDiscountValue, form]);
 
 
   const onSubmit = (data: FormValues) => {
@@ -413,3 +415,5 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     </>
   );
 }
+
+    
