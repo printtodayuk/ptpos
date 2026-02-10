@@ -1,4 +1,3 @@
-
 'use server';
 
 import {
@@ -112,7 +111,7 @@ export async function updateTask(
     const taskSnap = await getDoc(taskRef);
     if (!taskSnap.exists()) return { success: false, message: 'Task not found.' };
 
-    const originalData = taskSnap.data() as Task;
+    const originalData = taskSnap.data();
     const validatedData = CreateTaskSchema.partial().safeParse(data);
     if (!validatedData.success) {
         return { success: false, message: 'Validation failed.' };
@@ -132,7 +131,7 @@ export async function updateTask(
         changes.push(`Assignee changed from ${originalData.assignedTo} to ${validatedData.data.assignedTo}.`);
     }
     
-    const originalDueDate = originalData.completionDate ? format(new Date(originalData.completionDate), 'PPP') : 'none';
+    const originalDueDate = originalData.completionDate ? format((originalData.completionDate as Timestamp).toDate(), 'PPP') : 'none';
     const newDueDate = validatedData.data.completionDate ? format(new Date(validatedData.data.completionDate), 'PPP') : 'none';
     if (validatedData.data.completionDate !== undefined && originalDueDate !== newDueDate) {
         changes.push(`Due date changed from ${originalDueDate} to ${newDueDate}.`);
@@ -181,7 +180,7 @@ export async function updateTaskStatus(id: string, status: TaskStatus, operator:
     const taskSnap = await getDoc(taskRef);
     if (!taskSnap.exists()) return { success: false, message: 'Task not found.' };
 
-    const originalData = taskSnap.data() as Task;
+    const originalData = taskSnap.data();
     const historyEntry: TaskHistory = {
         timestamp: Timestamp.now(),
         operator,
