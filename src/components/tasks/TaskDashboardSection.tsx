@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useMemo } from 'react';
+import { useState, useEffect, useTransition, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,34 +31,21 @@ export function TaskDashboardSection() {
     const [assignedToFilter, setAssignedToFilter] = useState<'All' | Operator>('All');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-    const fetchTasks = () => {
+    const fetchTasks = useCallback(() => {
         startLoading(async () => {
-            const fetchedTasks = await getTasks();
+            const fetchedTasks = await getTasks({
+                searchTerm: debouncedSearchTerm,
+                assignedTo: assignedToFilter === 'All' ? undefined : assignedToFilter,
+            });
             setTasks(fetchedTasks);
         });
-    };
+    }, [debouncedSearchTerm, assignedToFilter]);
+
 
     useEffect(() => {
         fetchTasks();
-    }, []);
+    }, [fetchTasks]);
     
-    const filteredTasks = useMemo(() => {
-        return tasks.filter(task => {
-            const searchMatch = debouncedSearchTerm
-                ? task.taskId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                  task.details.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                  task.type.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                : true;
-            
-            const filterMatch = assignedToFilter === 'All'
-                ? true
-                : task.assignedTo === assignedToFilter;
-
-            return searchMatch && filterMatch;
-        });
-    }, [tasks, debouncedSearchTerm, assignedToFilter]);
-
-
     const handleSuccess = () => {
         setIsDialogOpen(false);
         setTaskToEdit(null);
@@ -162,7 +149,7 @@ export function TaskDashboardSection() {
                         <div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
                     ) : (
                         <TasksTable
-                          tasks={filteredTasks}
+                          tasks={tasks}
                           onEdit={handleEdit}
                           onDelete={handleDeleteRequest}
                           onStatusChange={fetchTasks}

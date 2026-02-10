@@ -7,6 +7,7 @@
 
 
 
+
 'use server';
 
 import {
@@ -251,32 +252,10 @@ export async function getTransactions(
 
 export async function getDashboardStats() {
   try {
-    const jobSheetsQuery = collection(db, 'jobSheets');
-    const jobSheetsSnapshot = await getDocs(jobSheetsQuery);
-    const jobSheets = jobSheetsSnapshot.docs.map(doc => doc.data() as JobSheet);
+    const jobSheetsRef = collection(db, 'jobSheets');
+    const quotationsRef = collection(db, 'quotations');
 
-    const quotationsQuery = collection(db, 'quotations');
-    const quotationsSnapshot = await getDocs(quotationsQuery);
-    const quotations = quotationsSnapshot.docs.map(doc => doc.data() as Quotation);
-
-    const productionCount = jobSheets.filter(js => js.status === 'Production').length;
-    const finishingCount = jobSheets.filter(js => js.status === 'Finishing').length;
-    const holdCount = jobSheets.filter(js => js.status === 'Hold').length;
-    const studioCount = jobSheets.filter(js => js.status === 'Studio').length;
-    const mghCount = jobSheets.filter(js => js.status === 'MGH').length;
-    const cancelCount = jobSheets.filter(js => js.status === 'Cancel').length;
-    const readyPickupCount = jobSheets.filter(js => js.status === 'Ready Pickup').length;
-    const parcelCompareCount = jobSheets.filter(js => js.status === 'Parcel Compare').length;
-    const deliveredCount = jobSheets.filter(js => js.status === 'Delivered').length;
-    const osCount = jobSheets.filter(js => js.status === 'OS').length;
-    
-    const sentCount = quotations.filter(q => q.status === 'Sent').length;
-    const quotationHoldCount = quotations.filter(q => q.status === 'Hold').length;
-    const wfrCount = quotations.filter(q => q.status === 'WFR').length;
-    const approvedCount = quotations.filter(q => q.status === 'Approved').length;
-    const declinedCount = quotations.filter(q => q.status === 'Declined').length;
-
-    return {
+    const [
       productionCount,
       finishingCount,
       holdCount,
@@ -292,6 +271,40 @@ export async function getDashboardStats() {
       wfrCount,
       approvedCount,
       declinedCount
+    ] = await Promise.all([
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Production'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Finishing'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Hold'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Studio'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'MGH'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Cancel'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Ready Pickup'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Parcel Compare'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Delivered'))),
+        getCountFromServer(query(jobSheetsRef, where('status', '==', 'OS'))),
+        getCountFromServer(query(quotationsRef, where('status', '==', 'Sent'))),
+        getCountFromServer(query(quotationsRef, where('status', '==', 'Hold'))),
+        getCountFromServer(query(quotationsRef, where('status', '==', 'WFR'))),
+        getCountFromServer(query(quotationsRef, where('status', '==', 'Approved'))),
+        getCountFromServer(query(quotationsRef, where('status', '==', 'Declined'))),
+    ]);
+
+    return {
+      productionCount: productionCount.data().count,
+      finishingCount: finishingCount.data().count,
+      holdCount: holdCount.data().count,
+      studioCount: studioCount.data().count,
+      mghCount: mghCount.data().count,
+      cancelCount: cancelCount.data().count,
+      readyPickupCount: readyPickupCount.data().count,
+      parcelCompareCount: parcelCompareCount.data().count,
+      deliveredCount: deliveredCount.data().count,
+      osCount: osCount.data().count,
+      sentCount: sentCount.data().count,
+      quotationHoldCount: quotationHoldCount.data().count,
+      wfrCount: wfrCount.data().count,
+      approvedCount: approvedCount.data().count,
+      declinedCount: declinedCount.data().count
     };
   } catch (e) {
     console.error('Error fetching dashboard stats:', e);
@@ -619,43 +632,26 @@ export async function getTillStats() {
         const todayStart = startOfDay(new Date());
         const todayEnd = endOfDay(new Date());
 
-        const allTillQuery = query(
-            collection(db, 'transactions'),
-            where('type', '==', 'non-invoicing')
-        );
-        
-        const allTillSnapshot = await getDocs(allTillQuery);
+        const tillQuery = query(collection(db, 'transactions'), where('type', '==', 'non-invoicing'));
 
-        let dailySales = 0;
-        let cashTotal = 0;
-        let cardTotal = 0;
-        let bankTotal = 0;
+        const todayQuery = query(tillQuery, where('date', '>=', todayStart), where('date', '<=', todayEnd));
+        const cashQuery = query(tillQuery, where('paymentMethod', '==', 'Cash'));
+        const cardQuery = query(tillQuery, where('paymentMethod', '==', 'Card Payment'));
+        const bankQuery = query(tillQuery, where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer']));
 
-        allTillSnapshot.forEach(doc => {
-            const transaction = doc.data() as Transaction;
-            const transactionDate = (transaction.date as Timestamp).toDate();
-
-            // Daily sales calculation
-            if (transactionDate >= todayStart && transactionDate <= todayEnd) {
-                dailySales += transaction.paidAmount;
-            }
-
-            // Totals by payment method
-            if (transaction.paymentMethod === 'Cash') {
-                cashTotal += transaction.paidAmount;
-            } else if (transaction.paymentMethod === 'Card Payment') {
-                cardTotal += transaction.paidAmount;
-            } else if (transaction.paymentMethod === 'Bank Transfer' || transaction.paymentMethod === 'ST Bank Transfer' || transaction.paymentMethod === 'AIR Bank Transfer') {
-                bankTotal += transaction.paidAmount;
-            }
-        });
+        const [dailySalesSnap, cashTotalSnap, cardTotalSnap, bankTotalSnap] = await Promise.all([
+            getAggregateFromServer(todayQuery, { total: sum('paidAmount') }),
+            getAggregateFromServer(cashQuery, { total: sum('paidAmount') }),
+            getAggregateFromServer(cardQuery, { total: sum('paidAmount') }),
+            getAggregateFromServer(bankQuery, { total: sum('paidAmount') }),
+        ]);
 
         return {
             success: true,
-            dailySales,
-            cashTotal,
-            cardTotal,
-            bankTotal,
+            dailySales: dailySalesSnap.data().total,
+            cashTotal: cashTotalSnap.data().total,
+            cardTotal: cardTotalSnap.data().total,
+            bankTotal: bankTotalSnap.data().total,
         };
 
     } catch (e) {

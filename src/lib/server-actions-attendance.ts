@@ -77,52 +77,47 @@ export type OperatorStatusInfo = {
     breakStartTime?: Date;
 }
 export async function getAllOperatorStatuses(): Promise<Record<Operator, OperatorStatusInfo>> {
-  const date = getCurrentDateString();
-  
-  const q = query(
-    collection(db, 'timeRecords'),
-    where('date', '==', date)
-  );
-  
-  const querySnapshot = await getDocs(q);
-  const recordsByOperator: Record<string, any[]> = {};
+    const date = getCurrentDateString();
+    const statuses: Record<Operator, OperatorStatusInfo> = {} as any;
 
-  querySnapshot.docs.forEach(doc => {
-    const data = doc.data();
-    if (!recordsByOperator[data.operator]) {
-      recordsByOperator[data.operator] = [];
-    }
-    recordsByOperator[data.operator].push(data);
-  });
+    for (const op of operators) {
+        const q = query(
+            collection(db, 'timeRecords'),
+            where('operator', '==', op),
+            where('date', '==', date),
+            orderBy('clockInTime', 'desc'),
+            limit(1)
+        );
 
-  const statuses: Record<Operator, OperatorStatusInfo> = {} as any;
+        const querySnapshot = await getDocs(q);
 
-  for (const op of operators) {
-    const records = recordsByOperator[op];
-    if (!records || records.length === 0) {
-      statuses[op] = { status: 'not-clocked-in' };
-      continue;
-    }
+        if (querySnapshot.empty) {
+            statuses[op] = { status: 'not-clocked-in' };
+            continue;
+        }
 
-    records.sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
-    const latestRecord = records[0];
-    
-    statuses[op] = {
-        status: latestRecord.status,
-    };
+        const latestRecord = querySnapshot.docs[0].data();
+        
+        if (latestRecord.status === 'clocked-out') {
+            statuses[op] = { status: 'clocked-out' };
+            continue;
+        }
+        
+        statuses[op] = {
+            status: latestRecord.status,
+        };
 
-    if (latestRecord.status === 'clocked-in') {
-        statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
-    } else if (latestRecord.status === 'on-break') {
-        statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
-        const currentBreak = latestRecord.breaks?.find((b: any) => !b.endTime);
-        if (currentBreak) {
-            statuses[op].breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+        if (latestRecord.status === 'clocked-in') {
+            statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
+        } else if (latestRecord.status === 'on-break') {
+            statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
+            const currentBreak = latestRecord.breaks?.find((b: any) => !b.endTime);
+            if (currentBreak) {
+                statuses[op].breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+            }
         }
     }
-  }
-
-  return statuses;
+    return statuses;
 }
 
 

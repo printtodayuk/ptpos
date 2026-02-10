@@ -95,9 +95,21 @@ export async function addTask(data: z.infer<typeof CreateTaskSchema>) {
     return { success: true, message: 'Task created successfully.' };
 }
 
-export async function getTasks(): Promise<Task[]> {
-    const snapshot = await db.collection('tasks').orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map(doc => {
+export async function getTasks(filters?: { searchTerm?: string; assignedTo?: Operator }): Promise<Task[]> {
+    let tasksQuery: FirebaseFirestore.Query = db.collection('tasks').orderBy('createdAt', 'desc');
+
+    if (filters?.assignedTo) {
+        tasksQuery = tasksQuery.where('assignedTo', '==', filters.assignedTo);
+    }
+    
+    // Only limit if there are no filters, to keep initial load fast
+    if (!filters?.searchTerm && !filters?.assignedTo) {
+        tasksQuery = tasksQuery.limit(50);
+    }
+
+    const snapshot = await tasksQuery.get();
+    
+    let tasks = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
             ...data,
@@ -106,7 +118,19 @@ export async function getTasks(): Promise<Task[]> {
             completionDate: toDate(data.completionDate)
         } as Task;
     });
+
+    if (filters?.searchTerm) {
+        const lowercasedTerm = filters.searchTerm.toLowerCase();
+        tasks = tasks.filter(task => 
+            task.taskId.toLowerCase().includes(lowercasedTerm) ||
+            task.details.toLowerCase().includes(lowercasedTerm) ||
+            task.type.toLowerCase().includes(lowercasedTerm)
+        );
+    }
+    
+    return tasks;
 }
+
 
 export async function updateTask(
     id: string,
