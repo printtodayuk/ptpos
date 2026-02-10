@@ -125,21 +125,21 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
 
   useEffect(() => {
     const subTotal = watchedJobItems.reduce((acc, item) => {
-        return acc + (item.price || 0);
+        return acc + (Number(item.price) || 0);
     }, 0);
 
     let discountAmount = 0;
     if (watchedDiscountType === 'percentage') {
-        discountAmount = subTotal * ((watchedDiscountValue || 0) / 100);
+        discountAmount = subTotal * ((Number(watchedDiscountValue) || 0) / 100);
     } else {
-        discountAmount = watchedDiscountValue || 0;
+        discountAmount = Number(watchedDiscountValue) || 0;
     }
     
     const subTotalAfterDiscount = subTotal - discountAmount;
     
     const vatAmount = watchedJobItems.reduce((acc, item) => {
         if (item.vatApplied) {
-            const itemPrice = item.price || 0;
+            const itemPrice = Number(item.price) || 0;
             const itemProportion = subTotal > 0 ? itemPrice / subTotal : 0;
             const itemDiscount = discountAmount * itemProportion;
             const itemPriceAfterDiscount = itemPrice - itemDiscount;
