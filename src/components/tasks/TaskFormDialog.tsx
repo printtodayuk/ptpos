@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
@@ -38,6 +37,7 @@ export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskF
     const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
     const [isAddTypeOpen, setIsAddTypeOpen] = useState(false);
     const [newTypeName, setNewTypeName] = useState('');
+    const [note, setNote] = useState('');
 
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
@@ -64,13 +64,14 @@ export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskF
                     status: 'To Do',
                 });
             }
+            setNote('');
         }
     }, [isOpen, taskToEdit, operator, form]);
 
     const onSubmit = (data: z.infer<typeof FormSchema>) => {
         startTransition(async () => {
             const result = taskToEdit
-                ? await updateTask(taskToEdit.id!, data, operator!)
+                ? await updateTask(taskToEdit.id!, data, operator!, note)
                 : await addTask(data);
 
             if (result.success) {
@@ -125,10 +126,22 @@ export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskF
                     </DialogHeader>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="details">Details / Note</Label>
+                            <Label htmlFor="details">Task Details</Label>
                             <Textarea id="details" {...form.register('details')} />
                             {form.formState.errors.details && <p className="text-sm text-destructive">{form.formState.errors.details.message}</p>}
                         </div>
+
+                        {taskToEdit && (
+                             <div className="space-y-2">
+                                <Label htmlFor="note">Add Note (for internal communication)</Label>
+                                <Textarea 
+                                    id="note" 
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    placeholder="Add a new note here..."
+                                />
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">

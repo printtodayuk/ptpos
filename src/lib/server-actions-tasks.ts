@@ -102,7 +102,12 @@ export async function getTasks(): Promise<Task[]> {
     });
 }
 
-export async function updateTask(id: string, data: Partial<z.infer<typeof CreateTaskSchema>>, operator: Operator) {
+export async function updateTask(
+    id: string, 
+    data: Partial<z.infer<typeof CreateTaskSchema>>, 
+    operator: Operator, 
+    note?: string
+) {
     const taskRef = doc(db, 'tasks', id);
     const taskSnap = await getDoc(taskRef);
     if (!taskSnap.exists()) return { success: false, message: 'Task not found.' };
@@ -112,9 +117,11 @@ export async function updateTask(id: string, data: Partial<z.infer<typeof Create
     if (!validatedData.success) {
         return { success: false, message: 'Validation failed.' };
     }
-    const changes: string[] = [];
 
-    // Compare fields and generate history
+    const changes: string[] = [];
+    const newHistory = [...(originalData.history || [])];
+
+    // Compare fields and generate history for explicit changes
     if (validatedData.data.type && originalData.type !== validatedData.data.type) {
         changes.push(`Type changed from "${originalData.type}" to "${validatedData.data.type}".`);
     }
@@ -131,16 +138,30 @@ export async function updateTask(id: string, data: Partial<z.infer<typeof Create
         changes.push(`Due date changed from ${originalDueDate} to ${newDueDate}.`);
     }
     
-    const historyEntry: TaskHistory = {
-        timestamp: Timestamp.now(),
-        operator,
-        action: 'Updated',
-        details: changes.length > 0 ? changes.join(' ') : 'Task saved with no changes.',
-    };
+    if (changes.length > 0) {
+        const historyEntry: TaskHistory = {
+            timestamp: Timestamp.now(),
+            operator,
+            action: 'Updated',
+            details: changes.join(' '),
+        };
+        newHistory.push(historyEntry);
+    }
     
+    // If a new note was added, log it separately
+    if (note && note.trim() !== '') {
+        const noteEntry: TaskHistory = {
+            timestamp: Timestamp.now(),
+            operator,
+            action: 'Note Added',
+            details: note.trim(),
+        };
+        newHistory.push(noteEntry);
+    }
+
     const updatePayload: any = {
         ...data,
-        history: [...(originalData.history || []), historyEntry],
+        history: newHistory,
     };
     
     if (data.completionDate) {
