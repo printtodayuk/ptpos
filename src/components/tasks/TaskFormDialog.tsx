@@ -125,7 +125,7 @@ export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskF
                     </DialogHeader>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="details">Details</Label>
+                            <Label htmlFor="details">Details / Note</Label>
                             <Textarea id="details" {...form.register('details')} />
                             {form.formState.errors.details && <p className="text-sm text-destructive">{form.formState.errors.details.message}</p>}
                         </div>
@@ -167,7 +167,7 @@ export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskF
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Completion Date</Label>
+                                <Label>Due Date</Label>
                                 <Controller
                                     name="completionDate"
                                     control={form.control}

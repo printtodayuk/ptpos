@@ -20,6 +20,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { TaskSchema, TaskTypeSchema, type Operator, type Task, type TaskHistory, type TaskStatus, type TaskType } from '@/lib/types';
+import { format } from 'date-fns';
 
 const CreateTaskSchema = TaskSchema.omit({ id: true, taskId: true, createdAt: true, history: true });
 const CreateTaskTypeSchema = TaskTypeSchema.omit({ id: true });
@@ -107,11 +108,34 @@ export async function updateTask(id: string, data: Partial<z.infer<typeof Create
     if (!taskSnap.exists()) return { success: false, message: 'Task not found.' };
 
     const originalData = taskSnap.data() as Task;
+    const validatedData = CreateTaskSchema.partial().safeParse(data);
+    if (!validatedData.success) {
+        return { success: false, message: 'Validation failed.' };
+    }
+    const changes: string[] = [];
+
+    // Compare fields and generate history
+    if (validatedData.data.type && originalData.type !== validatedData.data.type) {
+        changes.push(`Type changed from "${originalData.type}" to "${validatedData.data.type}".`);
+    }
+    if (validatedData.data.details && originalData.details !== validatedData.data.details) {
+        changes.push('Details were updated.');
+    }
+    if (validatedData.data.assignedTo && originalData.assignedTo !== validatedData.data.assignedTo) {
+        changes.push(`Assignee changed from ${originalData.assignedTo} to ${validatedData.data.assignedTo}.`);
+    }
+    
+    const originalDueDate = originalData.completionDate ? format(new Date(originalData.completionDate), 'PPP') : 'none';
+    const newDueDate = validatedData.data.completionDate ? format(new Date(validatedData.data.completionDate), 'PPP') : 'none';
+    if (validatedData.data.completionDate !== undefined && originalDueDate !== newDueDate) {
+        changes.push(`Due date changed from ${originalDueDate} to ${newDueDate}.`);
+    }
+    
     const historyEntry: TaskHistory = {
         timestamp: Timestamp.now(),
         operator,
         action: 'Updated',
-        details: 'Task details were updated.', // Generic message, can be improved
+        details: changes.length > 0 ? changes.join(' ') : 'Task saved with no changes.',
     };
     
     const updatePayload: any = {
@@ -121,12 +145,15 @@ export async function updateTask(id: string, data: Partial<z.infer<typeof Create
     
     if (data.completionDate) {
         updatePayload.completionDate = Timestamp.fromDate(data.completionDate);
+    } else if (data.completionDate === null) {
+        updatePayload.completionDate = null;
     }
     
     await updateDoc(taskRef, updatePayload);
     revalidatePath('/dashboard');
     return { success: true, message: 'Task updated.' };
 }
+
 
 export async function updateTaskStatus(id: string, status: TaskStatus, operator: Operator) {
     const taskRef = doc(db, 'tasks', id);

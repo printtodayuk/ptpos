@@ -11,6 +11,7 @@ import { TaskFormDialog } from './TaskFormDialog';
 import { TasksTable } from './TasksTable';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { TaskHistoryDialog } from './TaskHistoryDialog';
 
 export function TaskDashboardSection() {
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -18,6 +19,7 @@ export function TaskDashboardSection() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+    const [taskToViewHistory, setTaskToViewHistory] = useState<Task | null>(null);
     const { toast } = useToast();
 
     const fetchTasks = () => {
@@ -44,6 +46,10 @@ export function TaskDashboardSection() {
 
     const handleDeleteRequest = (task: Task) => {
         setTaskToDelete(task);
+    };
+    
+    const handleViewHistory = (task: Task) => {
+        setTaskToViewHistory(task);
     };
 
     const confirmDelete = async () => {
@@ -83,6 +89,12 @@ export function TaskDashboardSection() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+            <TaskHistoryDialog
+                task={taskToViewHistory}
+                isOpen={!!taskToViewHistory}
+                onClose={() => setTaskToViewHistory(null)}
+            />
 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -98,7 +110,13 @@ export function TaskDashboardSection() {
                     {isLoading ? (
                         <div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
                     ) : (
-                        <TasksTable tasks={tasks} onEdit={handleEdit} onDelete={handleDeleteRequest} onStatusChange={fetchTasks} />
+                        <TasksTable
+                          tasks={tasks}
+                          onEdit={handleEdit}
+                          onDelete={handleDeleteRequest}
+                          onStatusChange={fetchTasks}
+                          onViewHistory={handleViewHistory}
+                        />
                     )}
                 </CardContent>
             </Card>

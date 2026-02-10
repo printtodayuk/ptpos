@@ -3,10 +3,10 @@
 
 import { useState, useTransition } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Edit, Trash2, CheckCircle, Circle, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CheckCircle, Circle, Loader2, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { Task, TaskStatus } from '@/lib/types';
@@ -20,9 +20,10 @@ type TasksTableProps = {
     onEdit: (task: Task) => void;
     onDelete: (task: Task) => void;
     onStatusChange: () => void;
+    onViewHistory: (task: Task) => void;
 };
 
-export function TasksTable({ tasks, onEdit, onDelete, onStatusChange }: TasksTableProps) {
+export function TasksTable({ tasks, onEdit, onDelete, onStatusChange, onViewHistory }: TasksTableProps) {
     const { operator } = useSession();
     const { toast } = useToast();
     const [isUpdating, startUpdateTransition] = useTransition();
@@ -103,7 +104,9 @@ export function TasksTable({ tasks, onEdit, onDelete, onStatusChange }: TasksTab
                                                 </DropdownMenuRadioGroup>
                                             </DropdownMenuSubContent>
                                         </DropdownMenuSub>
-                                        <DropdownMenuItem onSelect={() => onEdit(task)}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => onEdit(task)}><Edit className="mr-2 h-4 w-4" />Edit / Add Note</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => onViewHistory(task)}><History className="mr-2 h-4 w-4" />View History</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
                                         <DropdownMenuItem onSelect={() => onDelete(task)} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>

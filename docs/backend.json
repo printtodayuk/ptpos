@@ -451,7 +451,7 @@
         "type": { "type": "string" },
         "details": { "type": "string" },
         "assignedTo": { "type": "string" },
-        "completionDate": { "type": "string", "format": "date-time", "nullable": true },
+        "completionDate": { "type": "string", "format": "date-time", "nullable": true, "description": "The date the task is due." },
         "status": { "type": "string", "enum": ["To Do", "In Progress", "Done", "Cancelled"] },
         "history": {
           "type": "array",
