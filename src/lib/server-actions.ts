@@ -8,6 +8,7 @@
 
 
 
+
 'use server';
 
 import {
@@ -255,56 +256,34 @@ export async function getDashboardStats() {
     const jobSheetsRef = collection(db, 'jobSheets');
     const quotationsRef = collection(db, 'quotations');
 
-    const [
-      productionCount,
-      finishingCount,
-      holdCount,
-      studioCount,
-      mghCount,
-      cancelCount,
-      readyPickupCount,
-      parcelCompareCount,
-      deliveredCount,
-      osCount,
-      sentCount,
-      quotationHoldCount,
-      wfrCount,
-      approvedCount,
-      declinedCount
-    ] = await Promise.all([
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Production'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Finishing'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Hold'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Studio'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'MGH'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Cancel'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Ready Pickup'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Parcel Compare'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'Delivered'))),
-        getCountFromServer(query(jobSheetsRef, where('status', '==', 'OS'))),
-        getCountFromServer(query(quotationsRef, where('status', '==', 'Sent'))),
-        getCountFromServer(query(quotationsRef, where('status', '==', 'Hold'))),
-        getCountFromServer(query(quotationsRef, where('status', '==', 'WFR'))),
-        getCountFromServer(query(quotationsRef, where('status', '==', 'Approved'))),
-        getCountFromServer(query(quotationsRef, where('status', '==', 'Declined'))),
+    const [jobSheetsSnap, quotationsSnap] = await Promise.all([
+        getDocs(jobSheetsRef),
+        getDocs(quotationsRef)
     ]);
 
+    const jobSheets = jobSheetsSnap.docs.map(doc => doc.data() as JobSheet);
+    const quotations = quotationsSnap.docs.map(doc => doc.data() as Quotation);
+
+    const getCount = (items: (JobSheet | Quotation)[], status: string) => {
+        return items.filter(item => item.status === status).length;
+    }
+
     return {
-      productionCount: productionCount.data().count,
-      finishingCount: finishingCount.data().count,
-      holdCount: holdCount.data().count,
-      studioCount: studioCount.data().count,
-      mghCount: mghCount.data().count,
-      cancelCount: cancelCount.data().count,
-      readyPickupCount: readyPickupCount.data().count,
-      parcelCompareCount: parcelCompareCount.data().count,
-      deliveredCount: deliveredCount.data().count,
-      osCount: osCount.data().count,
-      sentCount: sentCount.data().count,
-      quotationHoldCount: quotationHoldCount.data().count,
-      wfrCount: wfrCount.data().count,
-      approvedCount: approvedCount.data().count,
-      declinedCount: declinedCount.data().count
+      productionCount: getCount(jobSheets, 'Production'),
+      finishingCount: getCount(jobSheets, 'Finishing'),
+      holdCount: getCount(jobSheets, 'Hold'),
+      studioCount: getCount(jobSheets, 'Studio'),
+      mghCount: getCount(jobSheets, 'MGH'),
+      cancelCount: getCount(jobSheets, 'Cancel'),
+      readyPickupCount: getCount(jobSheets, 'Ready Pickup'),
+      parcelCompareCount: getCount(jobSheets, 'Parcel Compare'),
+      deliveredCount: getCount(jobSheets, 'Delivered'),
+      osCount: getCount(jobSheets, 'OS'),
+      sentCount: getCount(quotations, 'Sent'),
+      quotationHoldCount: getCount(quotations, 'Hold'),
+      wfrCount: getCount(quotations, 'WFR'),
+      approvedCount: getCount(quotations, 'Approved'),
+      declinedCount: getCount(quotations, 'Declined'),
     };
   } catch (e) {
     console.error('Error fetching dashboard stats:', e);
