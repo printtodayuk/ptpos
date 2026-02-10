@@ -1,0 +1,180 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { type Task, type TaskHistory, type TaskStatus } from '@/lib/types';
+import { Clock, User, MessageSquare, Loader2 } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
+import { updateTask } from '@/lib/server-actions-tasks';
+import { useSession } from '@/components/auth/session-provider';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+type TaskViewDialogProps = {
+  task: Task | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+};
+
+// Helper function to safely convert Firestore Timestamps to JS Dates
+const toDate = (timestamp: any): Date | null => {
+    if (timestamp instanceof Timestamp) {
+        return timestamp.toDate();
+    }
+    if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+    }
+    if (timestamp instanceof Date) {
+        return timestamp;
+    }
+    if (typeof timestamp === 'string') {
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+    return null;
+};
+
+const getStatusClass = (status: TaskStatus) => {
+    switch (status) {
+        case 'To Do': return 'bg-gray-500';
+        case 'In Progress': return 'bg-blue-500';
+        case 'Done': return 'bg-green-600';
+        case 'Cancelled': return 'bg-red-600';
+        default: return 'bg-gray-400';
+    }
+};
+
+export function TaskViewDialog({ task, isOpen, onClose, onSuccess }: TaskViewDialogProps) {
+    const [note, setNote] = useState('');
+    const [isPending, startTransition] = useTransition();
+    const { operator } = useSession();
+    const { toast } = useToast();
+
+    if (!task) return null;
+
+    // Sort history from newest to oldest
+    const sortedHistory = [...(task.history || [])].sort((a, b) => {
+        const dateA = toDate(a.timestamp);
+        const dateB = toDate(b.timestamp);
+        if (!dateA || !dateB) return 0;
+        return dateB.getTime() - dateA.getTime();
+    });
+
+    const handleAddNote = () => {
+        if (!note.trim() || !operator) return;
+
+        startTransition(async () => {
+            const result = await updateTask(task.id!, {}, operator, note);
+            if (result.success) {
+                toast({ title: 'Success', description: 'Note added.' });
+                setNote('');
+                onSuccess();
+            } else {
+                toast({ variant: 'destructive', title: 'Error', description: result.message });
+            }
+        });
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            if (!open) {
+                onClose();
+                setNote(''); // Reset note on close
+            }
+        }}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Task Details: {task.taskId}</DialogTitle>
+                    <DialogDescription>
+                        Created by {task.createdBy} on {format(new Date(task.createdAt), 'dd/MM/yyyy')}.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-6 py-4">
+                    {/* Task Details Section */}
+                    <div className="space-y-4">
+                        <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+                             <div className="grid grid-cols-3 gap-4 text-sm">
+                                <div><strong className="text-muted-foreground">Type:</strong><br />{task.type}</div>
+                                <div><strong className="text-muted-foreground">Assigned To:</strong><br /><Badge variant="outline">{task.assignedTo}</Badge></div>
+                                <div><strong className="text-muted-foreground">Status:</strong><br /><Badge className={cn('text-white', getStatusClass(task.status))}>{task.status}</Badge></div>
+                                <div className="col-span-3"><strong className="text-muted-foreground">Due Date:</strong><br />{task.completionDate ? format(new Date(task.completionDate), 'PPP') : 'N/A'}</div>
+                            </div>
+                            <div className="pt-2">
+                                <strong className="text-muted-foreground">Details:</strong>
+                                <p className="text-sm whitespace-pre-wrap">{task.details}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* History and Notes Section */}
+                    <div>
+                        <h3 className="text-lg font-semibold mb-2">History & Notes</h3>
+                        <ScrollArea className="h-[250px] pr-6 border rounded-lg p-4">
+                            <div className="relative pl-6">
+                                <div className="absolute left-[30px] top-0 h-full w-0.5 bg-border -translate-x-1/2"></div>
+                                {sortedHistory.length > 0 ? sortedHistory.map((entry, index) => {
+                                    const timestamp = toDate(entry.timestamp);
+                                    const isNote = entry.action === 'Note Added';
+                                    return (
+                                        <div key={index} className="relative pl-8 mb-8">
+                                            <div className={`absolute left-[30px] top-1 h-3 w-3 rounded-full ${isNote ? 'bg-amber-500' : 'bg-primary'} -translate-x-1/2`}></div>
+                                            <div className={`p-4 rounded-lg border ${isNote ? 'bg-amber-50 border-amber-200' : 'bg-card'}`}>
+                                                {isNote ? (
+                                                    <p className="text-sm text-foreground whitespace-pre-wrap">{entry.details}</p>
+                                                ) : (
+                                                    <p className="font-semibold text-sm text-foreground">{entry.action}: <span className="font-normal text-muted-foreground whitespace-pre-wrap">{entry.details}</span></p>
+                                                )}
+                                                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                                                    <div className="flex items-center gap-2">
+                                                        <User className="h-3 w-3" />
+                                                        <span>{entry.operator}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="h-3 w-3" />
+                                                        <span>{timestamp ? format(timestamp, 'dd/MM/yyyy, p') : 'Just now'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }) : (
+                                    <div className="text-center text-muted-foreground p-10">No history or notes for this task.</div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </div>
+
+                    {/* Add Note Section */}
+                    <div className="space-y-2">
+                        <Label htmlFor="new-note">Add a new note</Label>
+                        <Textarea 
+                            id="new-note"
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Type your note here..."
+                            disabled={isPending}
+                        />
+                         <Button onClick={handleAddNote} disabled={isPending || !note.trim()}>
+                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Add Note
+                        </Button>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

@@ -14,7 +14,7 @@ import { TaskFormDialog } from './TaskFormDialog';
 import { TasksTable } from './TasksTable';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { TaskHistoryDialog } from './TaskHistoryDialog';
+import { TaskViewDialog } from './TaskViewDialog';
 
 const filterableOperators: ('All' | Operator)[] = ['All', ...operators];
 
@@ -24,7 +24,7 @@ export function TaskDashboardSection() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-    const [taskToViewHistory, setTaskToViewHistory] = useState<Task | null>(null);
+    const [taskToView, setTaskToView] = useState<Task | null>(null);
     const { toast } = useToast();
     
     const [searchTerm, setSearchTerm] = useState('');
@@ -74,8 +74,8 @@ export function TaskDashboardSection() {
         setTaskToDelete(task);
     };
     
-    const handleViewHistory = (task: Task) => {
-        setTaskToViewHistory(task);
+    const handleViewTask = (task: Task) => {
+        setTaskToView(task);
     };
 
     const confirmDelete = async () => {
@@ -116,10 +116,11 @@ export function TaskDashboardSection() {
                 </AlertDialogContent>
             </AlertDialog>
             
-            <TaskHistoryDialog
-                task={taskToViewHistory}
-                isOpen={!!taskToViewHistory}
-                onClose={() => setTaskToViewHistory(null)}
+            <TaskViewDialog
+                task={taskToView}
+                isOpen={!!taskToView}
+                onClose={() => setTaskToView(null)}
+                onSuccess={fetchTasks}
             />
 
             <Card>
@@ -165,7 +166,7 @@ export function TaskDashboardSection() {
                           onEdit={handleEdit}
                           onDelete={handleDeleteRequest}
                           onStatusChange={fetchTasks}
-                          onViewHistory={handleViewHistory}
+                          onViewTask={handleViewTask}
                         />
                     )}
                 </CardContent>
