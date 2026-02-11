@@ -76,9 +76,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     name: 'jobItems',
   });
   
-  // This effect should only run when the component's *purpose* changes
-  // (e.g. from create to edit, or from edit to convert).
-  // It should NOT run on every re-render.
   useEffect(() => {
     let newDefaultValues: Partial<FormValues> | null = null;
     let shouldReset = false;
@@ -119,7 +116,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             discountValue: jobSheetToEdit.discountValue || 0,
         };
     } else {
-      // This handles the case where we move from edit/convert to create new
       shouldReset = true;
       newDefaultValues = getFreshDefaultValues(loggedInOperator);
     }
@@ -127,8 +123,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     if (shouldReset && newDefaultValues) {
         form.reset(newDefaultValues);
     }
-  // The dependency array is critical here. It should only contain the objects
-  // that define the mode of the form.
   }, [jobSheetToEdit, jobSheetToCreateFromQuotation, loggedInOperator, form.reset]);
 
 
@@ -136,42 +130,53 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const watchedDiscountType = form.watch('discountType');
   const watchedDiscountValue = form.watch('discountValue');
 
+  const subTotal = (watchedJobItems || []).reduce((acc, item) => {
+    const price = Number(item.price) || 0;
+    return acc + price;
+  }, 0);
+
+  let discountAmount = 0;
+  if (watchedDiscountType === 'percentage') {
+      discountAmount = subTotal * ((Number(watchedDiscountValue) || 0) / 100);
+  } else {
+      discountAmount = Number(watchedDiscountValue) || 0;
+  }
+  
+  const subTotalAfterDiscount = subTotal - discountAmount;
+  
+  const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
+      if (item.vatApplied) {
+          const price = Number(item.price) || 0;
+          // Distribute discount proportionally before calculating VAT
+          const itemProportion = subTotal > 0 ? price / subTotal : 0;
+          const itemDiscount = discountAmount * itemProportion;
+          const itemPriceAfterDiscount = price - itemDiscount;
+          return acc + (itemPriceAfterDiscount * 0.20);
+      }
+      return acc;
+  }, 0);
+
+  const totalAmount = subTotalAfterDiscount + vatAmount;
+
   useEffect(() => {
-    const subTotal = (watchedJobItems || []).reduce((acc, item) => {
-        const price = Number(item.price) || 0;
-        return acc + price;
-    }, 0);
+    const tolerance = 0.001;
 
-    let discountAmount = 0;
-    if (watchedDiscountType === 'percentage') {
-        discountAmount = subTotal * ((Number(watchedDiscountValue) || 0) / 100);
-    } else {
-        discountAmount = Number(watchedDiscountValue) || 0;
+    if (Math.abs((form.getValues('subTotal') || 0) - subTotal) > tolerance) {
+        form.setValue('subTotal', subTotal);
     }
-    
-    const subTotalAfterDiscount = subTotal - discountAmount;
-    
-    const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
-        if (item.vatApplied) {
-            const price = Number(item.price) || 0;
-            // Distribute discount proportionally before calculating VAT
-            const itemProportion = subTotal > 0 ? price / subTotal : 0;
-            const itemDiscount = discountAmount * itemProportion;
-            const itemPriceAfterDiscount = price - itemDiscount;
-            return acc + (itemPriceAfterDiscount * 0.20);
-        }
-        return acc;
-    }, 0);
-
-    const totalAmount = subTotalAfterDiscount + vatAmount;
-
-    form.setValue('subTotal', subTotal);
-    form.setValue('discountAmount', discountAmount);
-    form.setValue('subTotalAfterDiscount', subTotalAfterDiscount);
-    form.setValue('vatAmount', vatAmount);
-    form.setValue('totalAmount', totalAmount);
-
-}, [watchedJobItems, watchedDiscountType, watchedDiscountValue, form]);
+    if (Math.abs((form.getValues('discountAmount') || 0) - discountAmount) > tolerance) {
+        form.setValue('discountAmount', discountAmount);
+    }
+    if (Math.abs((form.getValues('subTotalAfterDiscount') || 0) - subTotalAfterDiscount) > tolerance) {
+        form.setValue('subTotalAfterDiscount', subTotalAfterDiscount);
+    }
+    if (Math.abs((form.getValues('vatAmount') || 0) - vatAmount) > tolerance) {
+        form.setValue('vatAmount', vatAmount);
+    }
+    if (Math.abs((form.getValues('totalAmount') || 0) - totalAmount) > tolerance) {
+        form.setValue('totalAmount', totalAmount);
+    }
+}, [subTotal, discountAmount, subTotalAfterDiscount, vatAmount, totalAmount, form]);
 
 
   const onSubmit = (data: FormValues) => {
