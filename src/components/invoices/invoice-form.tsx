@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useTransition } from 'react';
@@ -70,41 +69,51 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
     const watchedDiscountType = form.watch('discountType');
     const watchedDiscountValue = form.watch('discountValue');
     
-    useEffect(() => {
-        const subTotal = watchedItems.reduce((acc, item) => {
-            return acc + (item.price || 0);
-        }, 0);
+    const subTotal = (watchedItems || []).reduce((acc, item) => {
+        return acc + (item.price || 0);
+    }, 0);
 
-        let discountAmount = 0;
-        if (watchedDiscountType === 'percentage') {
-            discountAmount = subTotal * ((watchedDiscountValue || 0) / 100);
-        } else {
-            discountAmount = watchedDiscountValue || 0;
+    let discountAmount = 0;
+    if (watchedDiscountType === 'percentage') {
+        discountAmount = subTotal * ((watchedDiscountValue || 0) / 100);
+    } else {
+        discountAmount = watchedDiscountValue || 0;
+    }
+    
+    const subTotalAfterDiscount = subTotal - discountAmount;
+    
+    const vatAmount = (watchedItems || []).reduce((acc, item) => {
+        if (item.vatApplied) {
+            const itemPrice = item.price || 0;
+            // Distribute discount proportionally before calculating VAT
+            const itemProportion = subTotal > 0 ? itemPrice / subTotal : 0;
+            const itemDiscount = discountAmount * itemProportion;
+            const itemPriceAfterDiscount = itemPrice - itemDiscount;
+            return acc + (itemPriceAfterDiscount * 0.20);
         }
-        
-        const subTotalAfterDiscount = subTotal - discountAmount;
-        
-        const vatAmount = watchedItems.reduce((acc, item) => {
-            if (item.vatApplied) {
-                const itemPrice = item.price || 0;
-                // Distribute discount proportionally before calculating VAT
-                const itemProportion = subTotal > 0 ? itemPrice / subTotal : 0;
-                const itemDiscount = discountAmount * itemProportion;
-                const itemPriceAfterDiscount = itemPrice - itemDiscount;
-                return acc + (itemPriceAfterDiscount * 0.20);
-            }
-            return acc;
-        }, 0);
+        return acc;
+    }, 0);
 
-        const totalAmount = subTotalAfterDiscount + vatAmount;
+    const totalAmount = subTotalAfterDiscount + vatAmount;
 
-        form.setValue('subTotal', subTotal);
-        form.setValue('discountAmount', discountAmount);
-        form.setValue('subTotalAfterDiscount', subTotalAfterDiscount);
-        form.setValue('vatAmount', vatAmount);
-        form.setValue('totalAmount', totalAmount);
-
-    }, [watchedItems, watchedDiscountType, watchedDiscountValue, form]);
+    useEffect(() => {
+        const tolerance = 0.001;
+        if (Math.abs((form.getValues('subTotal') || 0) - subTotal) > tolerance) {
+            form.setValue('subTotal', subTotal);
+        }
+        if (Math.abs((form.getValues('discountAmount') || 0) - discountAmount) > tolerance) {
+            form.setValue('discountAmount', discountAmount);
+        }
+        if (Math.abs((form.getValues('subTotalAfterDiscount') || 0) - subTotalAfterDiscount) > tolerance) {
+            form.setValue('subTotalAfterDiscount', subTotalAfterDiscount);
+        }
+        if (Math.abs((form.getValues('vatAmount') || 0) - vatAmount) > tolerance) {
+            form.setValue('vatAmount', vatAmount);
+        }
+        if (Math.abs((form.getValues('totalAmount') || 0) - totalAmount) > tolerance) {
+            form.setValue('totalAmount', totalAmount);
+        }
+    }, [subTotal, discountAmount, subTotalAfterDiscount, vatAmount, totalAmount, form]);
 
 
     const onSubmit = (data: z.infer<typeof CreateInvoiceSchema>) => {
@@ -259,10 +268,10 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
             </div>
 
             <div className="border rounded-lg p-4 space-y-2 bg-muted/50">
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal:</span><span>£{form.getValues('subTotal')?.toFixed(2)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount:</span><span>- £{form.getValues('discountAmount')?.toFixed(2)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">VAT (20%):</span><span>£{form.getValues('vatAmount')?.toFixed(2)}</span></div>
-                <div className="flex justify-between font-bold text-lg"><span className="text-foreground">Total:</span><span>£{form.getValues('totalAmount')?.toFixed(2)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal:</span><span>£{form.watch('subTotal')?.toFixed(2)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount:</span><span>- £{form.watch('discountAmount')?.toFixed(2)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">VAT (20%):</span><span>£{form.watch('vatAmount')?.toFixed(2)}</span></div>
+                <div className="flex justify-between font-bold text-lg"><span className="text-foreground">Total:</span><span>£{form.watch('totalAmount')?.toFixed(2)}</span></div>
             </div>
             
             <DialogFooter>
