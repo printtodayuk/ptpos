@@ -78,60 +78,58 @@ export type OperatorStatusInfo = {
 }
 export async function getAllOperatorStatuses(): Promise<Record<Operator, OperatorStatusInfo>> {
     const date = getCurrentDateString();
-    const statuses: Record<Operator, OperatorStatusInfo> = {} as any;
+    const statuses: Partial<Record<Operator, OperatorStatusInfo>> = {};
 
-    // 1. Initialize all operators as 'not-clocked-in'
-    for (const op of operators) {
-        statuses[op] = { status: 'not-clocked-in' };
-    }
+    const operatorPromises = operators.map(async (op) => {
+        const q = query(
+            collection(db, 'timeRecords'),
+            where('operator', '==', op),
+            where('date', '==', date),
+            orderBy('clockInTime', 'desc'),
+            limit(1)
+        );
 
-    // 2. Fetch all of today's records with a simple query
-    const q = query(collection(db, 'timeRecords'), where('date', '==', date));
-    const querySnapshot = await getDocs(q);
+        const snapshot = await getDocs(q);
 
-    // 3. Group records by operator
-    const recordsByOperator: Partial<Record<Operator, any[]>> = {};
-    querySnapshot.forEach(doc => {
-        const record = doc.data();
-        const operator = record.operator as Operator;
-        if (!recordsByOperator[operator]) {
-            recordsByOperator[operator] = [];
-        }
-        recordsByOperator[operator]!.push(record);
-    });
-
-    // 4. Process records for each operator to find their latest status
-    for (const op of operators) {
-        const opRecords = recordsByOperator[op as Operator];
-        if (!opRecords || opRecords.length === 0) {
-            continue; // Already set to not-clocked-in
+        if (snapshot.empty) {
+            statuses[op] = { status: 'not-clocked-in' };
+            return;
         }
         
-        // Sort records in-memory to find the latest one
-        opRecords.sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
-        const latestRecord = opRecords[0];
-        
+        const latestRecord = snapshot.docs[0].data();
+
         if (latestRecord.status === 'clocked-out') {
             statuses[op] = { status: 'clocked-out' };
-            continue;
+            return;
         }
-        
-        statuses[op] = {
+
+        const statusInfo: OperatorStatusInfo = {
             status: latestRecord.status,
         };
 
-        if (latestRecord.status === 'clocked-in') {
-            statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
-        } else if (latestRecord.status === 'on-break') {
-            statuses[op].clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
-            const currentBreak = latestRecord.breaks?.find((b: any) => !b.endTime);
-            if (currentBreak) {
-                statuses[op].breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+        if (latestRecord.status === 'clocked-in' || latestRecord.status === 'on-break') {
+            statusInfo.clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
+            if (latestRecord.status === 'on-break') {
+                const currentBreak = latestRecord.breaks?.find((b: any) => !b.endTime);
+                if (currentBreak) {
+                    statusInfo.breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+                }
             }
+        }
+        
+        statuses[op] = statusInfo;
+    });
+
+    await Promise.all(operatorPromises);
+
+    // Ensure all operators are in the final object
+    for (const op of operators) {
+        if (!statuses[op]) {
+            statuses[op] = { status: 'not-clocked-in' };
         }
     }
     
-    return statuses;
+    return statuses as Record<Operator, OperatorStatusInfo>;
 }
 
 
