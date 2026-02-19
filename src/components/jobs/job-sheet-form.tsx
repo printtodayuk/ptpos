@@ -139,8 +139,9 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const watchedDiscountType = form.watch('discountType');
   const watchedDiscountValue = form.watch('discountValue');
   const watchedClientName = form.watch('clientName');
+  const watchedCompanyName = form.watch('companyName');
 
-  // Auto-fill logic from contacts
+  // Auto-fill logic from contacts (Name match)
   useEffect(() => {
     if (!watchedClientName || isEditMode || isConversionMode) return;
 
@@ -158,6 +159,28 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
         form.setValue('clientDetails', details);
     }
   }, [watchedClientName, contacts, form, isEditMode, isConversionMode]);
+
+  // Auto-fill logic from contacts (Company Name match)
+  useEffect(() => {
+    if (!watchedCompanyName || isEditMode || isConversionMode) return;
+
+    const match = contacts.find(c => c.companyName?.toLowerCase() === watchedCompanyName.toLowerCase());
+    if (match) {
+        // Only set client name if it's currently empty to avoid overwriting user's intentional input
+        if (!form.getValues('clientName')) {
+            form.setValue('clientName', match.name);
+        }
+        
+        const details = [
+            match.companyName,
+            match.phone,
+            match.email,
+            `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+        ].filter(Boolean).join('\n');
+        
+        form.setValue('clientDetails', details);
+    }
+  }, [watchedCompanyName, contacts, form, isEditMode, isConversionMode]);
 
   const subTotal = (watchedJobItems || []).reduce((acc, item) => {
     const price = Number(item.price) || 0;
@@ -296,7 +319,18 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="companyName">Company Name</Label>
-                                <Input id="companyName" {...form.register('companyName')} disabled={isPaid}/>
+                                <Input 
+                                    id="companyName" 
+                                    {...form.register('companyName')} 
+                                    disabled={isPaid}
+                                    list="companies-list"
+                                    autoComplete="off"
+                                />
+                                <datalist id="companies-list">
+                                    {[...new Set(contacts.map(c => c.companyName).filter(Boolean))].map((comp, idx) => (
+                                        <option key={idx} value={comp!} />
+                                    ))}
+                                </datalist>
                             </div>
                         </div>
                         <div className="space-y-2">
