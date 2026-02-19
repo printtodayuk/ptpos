@@ -10,12 +10,6 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
       aria-label="Print Today Logo"
       {...props}
     >
-      <defs>
-        <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" style={{ stopColor: 'hsl(var(--primary))', stopOpacity: 1 }} />
-          <stop offset="100%" style={{ stopColor: 'hsl(var(--accent))', stopOpacity: 1 }} />
-        </linearGradient>
-      </defs>
       <text
         x="50%"
         y="50%"
@@ -24,9 +18,9 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
         fontFamily="var(--font-headline), sans-serif"
         fontSize="28"
         fontWeight="bold"
-        fill="url(#logo-gradient)"
       >
-        Print Today
+        <tspan fill="#012169">Print</tspan>
+        <tspan fill="#C8102E"> Today</tspan>
       </text>
     </svg>
   );
