@@ -1,4 +1,3 @@
-
 'use server';
 
 import {
@@ -325,6 +324,7 @@ export async function searchJobSheets(
         return (
           js.jobId?.toLowerCase().includes(lowercasedTerm) ||
           js.clientName?.toLowerCase().includes(lowercasedTerm) ||
+          js.companyName?.toLowerCase().includes(lowercasedTerm) ||
           js.jobItems.some(item => item.description?.toLowerCase().includes(lowercasedTerm))
         );
       });
@@ -414,6 +414,7 @@ export async function exportAllJobSheets(
                 'Date': format(date, 'yyyy-MM-dd'),
                 'Operator': data.operator,
                 'Client Name': data.clientName,
+                'Company Name': data.companyName,
                 'Client Details': data.clientDetails,
                 'Job Items': data.jobItems.map(item => `${item.quantity}x ${item.description} @ £${item.price.toFixed(2)} (VAT: ${item.vatApplied ? 'Yes' : 'No'})`).join('; '),
                 'Sub-Total': data.subTotal.toFixed(2),
