@@ -277,3 +277,12 @@ export type Task = Omit<z.infer<typeof TaskSchema>, 'createdAt' | 'completionDat
     completionDate?: Date | string | null;
     history?: TaskHistory[];
 };
+
+export const NoticeSchema = z.object({
+  id: z.string().optional(),
+  content: z.string(),
+  updatedAt: z.any(),
+  updatedBy: z.string().optional(),
+});
+
+export type Notice = z.infer<typeof NoticeSchema>;

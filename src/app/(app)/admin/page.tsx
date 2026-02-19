@@ -3,14 +3,17 @@
 
 import { useEffect, useState, useCallback, useTransition } from 'react';
 import { searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
+import { getCurrentNotice, saveNotice } from '@/lib/server-actions-notices';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, Trash2, CheckCircle, Edit, Filter } from 'lucide-react';
+import { Loader2, Search, Trash2, CheckCircle, Edit, Filter, Megaphone, Send } from 'lucide-react';
 import type { Transaction, PaymentMethod } from '@/lib/types';
 import { paymentMethods } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { TransactionsTable } from '@/components/transactions/transactions-table';
 import {
   AlertDialog,
@@ -35,10 +38,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { PinLock } from '@/components/admin/pin-lock';
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog';
+import { useSession } from '@/components/auth/session-provider';
 
 const filterablePaymentMethods: ('All' | PaymentMethod)[] = ['All', ...paymentMethods];
 
 export default function AdminPage() {
+  const { operator } = useSession();
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<'All' | PaymentMethod>('All');
   const [results, setResults] = useState<Transaction[]>([]);
@@ -49,6 +54,10 @@ export default function AdminPage() {
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [isBulkActionPending, startBulkActionTransition] = useTransition();
   const [bulkAction, setBulkAction] = useState<'delete' | 'check' | null>(null);
+
+  // Notice state
+  const [noticeContent, setNoticeContent] = useState('');
+  const [isSavingNotice, setIsSavingNotice] = useState(false);
 
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -64,6 +73,25 @@ export default function AdminPage() {
   useEffect(() => {
     performSearch(debouncedSearchTerm, paymentFilter);
   }, [debouncedSearchTerm, paymentFilter, performSearch]);
+
+  // Fetch current notice
+  useEffect(() => {
+    getCurrentNotice().then(n => {
+      if (n) setNoticeContent(n.content);
+    });
+  }, []);
+
+  const handleSaveNotice = async () => {
+    if (!operator) return;
+    setIsSavingNotice(true);
+    const result = await saveNotice(noticeContent, operator);
+    setIsSavingNotice(false);
+    if (result.success) {
+      toast({ title: 'Notice Updated', description: 'The dashboard announcement has been saved.' });
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+  };
 
   const handleDeleteRequest = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
@@ -185,6 +213,35 @@ export default function AdminPage() {
           <CardTitle>Admin Control Panel</CardTitle>
           <CardDescription>Search, view, and verify all transactions.</CardDescription>
         </CardHeader>
+
+        {/* Notice Board Management Section */}
+        <Card className="border-primary/20 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 flex flex-row items-center gap-2">
+            <Megaphone className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Dashboard Notice Board</CardTitle>
+              <CardDescription>Post an announcement that will appear at the top of everyone's dashboard.</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="notice-content">Notice Content</Label>
+              <Textarea 
+                id="notice-content"
+                placeholder="Type your announcement here... (e.g. Next staff meeting at 2PM today)"
+                value={noticeContent}
+                onChange={(e) => setNoticeContent(e.target.value)}
+                className="min-h-[100px] bg-white border-primary/20"
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleSaveNotice} disabled={isSavingNotice} className="bg-primary hover:bg-primary/90 text-white font-semibold">
+                {isSavingNotice ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Post Notice
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

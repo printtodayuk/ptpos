@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -10,6 +9,7 @@ import { CardDescription, CardHeader, CardTitle, Card, CardContent } from "@/com
 import { Loader2 } from 'lucide-react';
 import { LiveOperatorStatus } from '@/components/attendance/live-operator-status';
 import { TaskDashboardSection } from '@/components/tasks/TaskDashboardSection';
+import { NoticeDisplay } from '@/components/dashboard/notice-display';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<{
@@ -56,6 +56,8 @@ export default function DashboardPage() {
           <CardTitle>Dashboard</CardTitle>
           <CardDescription>An overview of your sales and job sheet activity.</CardDescription>
       </CardHeader>
+
+      <NoticeDisplay />
       
        <Card>
         <CardHeader>

@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Contact": {
@@ -485,6 +484,17 @@
         "name": { "type": "string" }
       },
       "required": ["name"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "type": "object",
+      "description": "A dashboard announcement.",
+      "properties": {
+        "content": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["content", "updatedAt"]
     }
   },
   "auth": {
@@ -639,8 +649,18 @@
           },
           "description": "Stores user-defined task types."
         }
+      },
+      {
+        "path": "/notices/{noticeId}",
+        "definition": {
+          "entityName": "Notice",
+          "schema": {
+            "$ref": "#/backend/entities/Notice"
+          },
+          "description": "Stores dashboard notices."
+        }
       }
     ],
-    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, quotations, and invoices in a reliable way. A 'jobSheets' collection stores detailed job information. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance. 'companyProfiles' and 'invoices' collections are added for the new invoice generator feature. The 'tasks' and 'taskTypes' collections support the new task management feature."
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, quotations, and invoices in a reliable way. A 'jobSheets' collection stores detailed job information. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance. 'companyProfiles' and 'invoices' collections are added for the new invoice generator feature. The 'tasks' and 'taskTypes' collections support the task management feature. The 'notices' collection allows admins to post dashboard announcements."
   }
 }
