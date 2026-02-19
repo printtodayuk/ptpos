@@ -151,6 +151,10 @@
           "type": "string",
           "description": "Name of the client."
         },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the client's company."
+        },
         "clientDetails": {
             "type": "string",
             "description": "Additional details about the client (address, phone, etc.)."

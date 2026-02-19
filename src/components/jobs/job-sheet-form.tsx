@@ -18,7 +18,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addJobSheet, updateJobSheet } from '@/lib/server-actions-jobs';
-import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses, type Quotation } from '@/lib/types';
+import { getContacts } from '@/lib/server-actions-contacts';
+import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses, type Quotation, type Contact } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
@@ -39,6 +40,7 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   date: new Date(),
   operator: operator || undefined,
   clientName: '',
+  companyName: '',
   clientDetails: '',
   jobItems: [{ description: '', quantity: 1, price: 0, vatApplied: false }],
   subTotal: 0,
@@ -61,6 +63,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const { toast } = useToast();
   const { operator: loggedInOperator } = useSession();
   const [lastJobSheet, setLastJobSheet] = useState<JobSheet | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   
   const isEditMode = !!jobSheetToEdit;
   const isConversionMode = !!jobSheetToCreateFromQuotation;
@@ -75,6 +78,10 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     control: form.control,
     name: 'jobItems',
   });
+
+  useEffect(() => {
+    getContacts().then(setContacts);
+  }, []);
   
   useEffect(() => {
     let newDefaultValues: Partial<FormValues> | null = null;
@@ -86,6 +93,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             date: new Date(),
             operator: loggedInOperator || undefined,
             clientName: jobSheetToCreateFromQuotation.clientName,
+            companyName: '',
             clientDetails: jobSheetToCreateFromQuotation.clientDetails || '',
             jobItems: jobSheetToCreateFromQuotation.jobItems,
             subTotal: jobSheetToCreateFromQuotation.subTotal,
@@ -114,6 +122,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             tid: jobSheetToEdit.tid || '',
             discountType: jobSheetToEdit.discountType || 'amount',
             discountValue: jobSheetToEdit.discountValue || 0,
+            companyName: jobSheetToEdit.companyName || '',
         };
     } else {
       shouldReset = true;
@@ -129,6 +138,26 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const watchedJobItems = form.watch('jobItems');
   const watchedDiscountType = form.watch('discountType');
   const watchedDiscountValue = form.watch('discountValue');
+  const watchedClientName = form.watch('clientName');
+
+  // Auto-fill logic from contacts
+  useEffect(() => {
+    if (!watchedClientName || isEditMode || isConversionMode) return;
+
+    const match = contacts.find(c => c.name.toLowerCase() === watchedClientName.toLowerCase());
+    if (match) {
+        form.setValue('companyName', match.companyName || '');
+        
+        const details = [
+            match.companyName,
+            match.phone,
+            match.email,
+            `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+        ].filter(Boolean).join('\n');
+        
+        form.setValue('clientDetails', details);
+    }
+  }, [watchedClientName, contacts, form, isEditMode, isConversionMode]);
 
   const subTotal = (watchedJobItems || []).reduce((acc, item) => {
     const price = Number(item.price) || 0;
@@ -250,14 +279,29 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                         <CardTitle>Client Information</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="clientName">Client Name</Label>
-                            <Input id="clientName" {...form.register('clientName')} disabled={isPaid}/>
-                            {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="clientName">Client Name (Full Name)</Label>
+                                <Input 
+                                    id="clientName" 
+                                    {...form.register('clientName')} 
+                                    disabled={isPaid} 
+                                    list="contacts-list"
+                                    autoComplete="off"
+                                />
+                                <datalist id="contacts-list">
+                                    {contacts.map(c => <option key={c.id} value={c.name} />)}
+                                </datalist>
+                                {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="companyName">Company Name</Label>
+                                <Input id="companyName" {...form.register('companyName')} disabled={isPaid}/>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="clientDetails">Client Details (Address, Phone, etc.)</Label>
-                            <Textarea id="clientDetails" {...form.register('clientDetails')} disabled={isPaid}/>
+                            <Textarea id="clientDetails" {...form.register('clientDetails')} disabled={isPaid} rows={5} />
                         </div>
                     </CardContent>
                 </Card>
@@ -439,5 +483,3 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     </>
   );
 }
-
-    
