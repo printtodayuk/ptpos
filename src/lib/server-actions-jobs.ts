@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -37,6 +36,14 @@ const CreateJobSheetSchema = JobSheetSchema.omit({
 const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
     tid: z.string().optional().nullable(),
 });
+
+// Helper to sanitize history for client-side serialization
+const sanitizeHistory = (history?: any[]): JobSheetHistory[] => {
+    return (history || []).map(h => ({
+        ...h,
+        timestamp: h.timestamp instanceof Timestamp ? h.timestamp.toDate() : h.timestamp,
+    }));
+};
 
 async function getNextJobId(): Promise<string> {
     const q = query(collection(db, 'jobSheets'), orderBy('jobId', 'desc'), limit(1));
@@ -117,7 +124,7 @@ export async function addJobSheet(
     // If created from quotation, update the quotation
     if (fromQuotation) {
         const quotationRef = doc(db, 'quotations', fromQuotation.id!);
-        const quotationHistory: QuotationHistory = {
+        const quotationHistory = {
             timestamp: Timestamp.now(),
             operator: operator,
             action: 'Converted',
@@ -137,12 +144,13 @@ export async function addJobSheet(
     let newJobSheet: JobSheet | null = null;
     if (newDocData) {
       newJobSheet = {
-        ...(newDocData as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy'>),
+        ...(newDocData as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
         id: docRef.id,
         jobId: newJobId,
         date: (newDocData.date as Timestamp).toDate(),
         deliveryBy: newDocData.deliveryBy ? (newDocData.deliveryBy as Timestamp).toDate() : null,
         createdAt: (newDocData.createdAt as Timestamp)?.toDate() || new Date(), 
+        history: sanitizeHistory(newDocData.history),
       };
     }
 
@@ -263,11 +271,12 @@ export async function updateJobSheet(
      let jobSheet: JobSheet | null = null;
     if (updatedData) {
         jobSheet = {
-            ...(updatedData as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy'>),
+            ...(updatedData as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
             id: updatedDoc.id,
             date: (updatedData.date as Timestamp).toDate(),
             deliveryBy: updatedData.deliveryBy ? (updatedData.deliveryBy as Timestamp).toDate() : null,
             createdAt: (updatedData.createdAt as Timestamp)?.toDate() || new Date(),
+            history: sanitizeHistory(updatedData.history),
         };
     }
     return { success: true, message: 'Job sheet updated successfully.', jobSheet };
@@ -291,11 +300,12 @@ export async function searchJobSheets(
     let jobSheets = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
-        ...data,
+        ...(data as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
         id: doc.id,
         date: (data.date as Timestamp).toDate(),
         deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
         createdAt: (data.createdAt as Timestamp)?.toDate(),
+        history: sanitizeHistory(data.history),
       } as JobSheet;
     });
 
@@ -476,15 +486,15 @@ export async function getJobSheetByJobId(jobId: string): Promise<JobSheet | null
     const doc = querySnapshot.docs[0];
     const data = doc.data();
     return {
-      ...data,
+      ...(data as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
       id: doc.id,
       date: (data.date as Timestamp).toDate(),
       deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
       createdAt: (data.createdAt as Timestamp)?.toDate(),
+      history: sanitizeHistory(data.history),
     } as JobSheet;
   } catch (error) {
     console.error('Error fetching job sheet by JID:', error);
     return null;
   }
 }
-    

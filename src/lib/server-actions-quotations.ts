@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -37,6 +36,14 @@ const CreateQuotationSchema = QuotationSchema.omit({
 const UpdateQuotationSchema = CreateQuotationSchema.extend({
     tid: z.string().optional().nullable(),
 });
+
+// Helper to sanitize history for client-side serialization
+const sanitizeHistory = (history?: any[]): QuotationHistory[] => {
+    return (history || []).map(h => ({
+        ...h,
+        timestamp: h.timestamp instanceof Timestamp ? h.timestamp.toDate() : h.timestamp,
+    }));
+};
 
 async function getNextQuotationId(): Promise<string> {
     const q = query(collection(db, 'quotations'), orderBy('quotationId', 'desc'), limit(1));
@@ -115,12 +122,13 @@ export async function addQuotation(
     let newQuotation: Quotation | null = null;
     if (newDocData) {
       newQuotation = {
-        ...(newDocData as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy'>),
+        ...(newDocData as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
         id: docRef.id,
         quotationId: newDocData.quotationId,
         date: (newDocData.date as Timestamp).toDate(),
         deliveryBy: newDocData.deliveryBy ? (newDocData.deliveryBy as Timestamp).toDate() : null,
         createdAt: (newDocData.createdAt as Timestamp)?.toDate() || new Date(), 
+        history: sanitizeHistory(newDocData.history),
       };
     }
 
@@ -182,7 +190,7 @@ export async function updateQuotation(
      if (originalQuotation.tid !== validatedData.data.tid) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Transaction ID changed from '${originalQuotation.tid || 'none'}' to '${validatedData.data.tid || 'none'}'.` });
     }
-     if (JSON.stringify(originalQuotation.jobItems) !== JSON.stringify(validatedData.data.jobItems)) {
+     if (JSON.stringify(originalJobSheet.jobItems) !== JSON.stringify(validatedData.data.jobItems)) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: 'Quotation items, quantities, or prices were modified.' });
     }
 
@@ -238,11 +246,12 @@ export async function updateQuotation(
      let quotation: Quotation | null = null;
     if (updatedData) {
         quotation = {
-            ...(updatedData as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy'>),
+            ...(updatedData as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
             id: updatedDoc.id,
             date: (updatedData.date as Timestamp).toDate(),
             deliveryBy: updatedData.deliveryBy ? (updatedData.deliveryBy as Timestamp).toDate() : null,
             createdAt: (updatedData.createdAt as Timestamp)?.toDate() || new Date(),
+            history: sanitizeHistory(updatedData.history),
         };
     }
     return { success: true, message: 'Quotation updated successfully.', quotation };
@@ -265,11 +274,12 @@ export async function searchQuotations(
     let quotations = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
-        ...data,
+        ...(data as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
         id: doc.id,
         date: (data.date as Timestamp).toDate(),
         deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
         createdAt: (data.createdAt as Timestamp)?.toDate(),
+        history: sanitizeHistory(data.history),
       } as Quotation;
     });
 
@@ -372,11 +382,12 @@ export async function getQuotationByQuotationId(quotationId: string): Promise<Qu
     const doc = querySnapshot.docs[0];
     const data = doc.data();
     return {
-      ...data,
+      ...(data as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
       id: doc.id,
       date: (data.date as Timestamp).toDate(),
       deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
       createdAt: (data.createdAt as Timestamp)?.toDate(),
+      history: sanitizeHistory(data.history),
     } as Quotation;
   } catch (error) {
     console.error('Error fetching quotation by ID:', error);
@@ -422,7 +433,7 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
         const result = await addJobSheet(jobSheetDataForCreation);
 
         if (result.success && result.jobSheet) {
-            const historyEntry: QuotationHistory = {
+            const historyEntry = {
                 timestamp: Timestamp.now(),
                 operator: quotationData.operator,
                 action: 'Converted',

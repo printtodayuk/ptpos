@@ -53,6 +53,14 @@ const toDate = (timestamp: any): Date | null => {
     return null;
 };
 
+// Helper to sanitize history for client-side serialization
+const sanitizeHistory = (history?: any[]): TaskHistory[] => {
+    return (history || []).map(h => ({
+        ...h,
+        timestamp: toDate(h.timestamp),
+    }));
+};
+
 const CreateTaskSchema = TaskSchema.omit({ id: true, taskId: true, createdAt: true, history: true });
 const CreateTaskTypeSchema = TaskTypeSchema.omit({ id: true });
 
@@ -101,7 +109,7 @@ export async function addTask(data: z.infer<typeof CreateTaskSchema>) {
     }
     try {
         const taskId = await getNextTaskId();
-        const historyEntry: TaskHistory = {
+        const historyEntry = {
             timestamp: Timestamp.now(),
             operator: validatedData.data.createdBy,
             action: 'Created',
@@ -144,10 +152,11 @@ export async function getTasks(filters?: { searchTerm?: string; assignedTo?: Ope
     let tasks = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
-            ...data,
+            ...(data as Omit<Task, 'id' | 'createdAt' | 'completionDate' | 'history'>),
             id: doc.id,
             createdAt: toDate(data.createdAt),
-            completionDate: toDate(data.completionDate)
+            completionDate: toDate(data.completionDate),
+            history: sanitizeHistory(data.history),
         } as Task;
     });
 
@@ -204,7 +213,7 @@ export async function updateTask(
     }
 
     if (changes.length > 0) {
-        const historyEntry: TaskHistory = {
+        const historyEntry = {
             timestamp: Timestamp.now(),
             operator,
             action: 'Updated',
@@ -215,7 +224,7 @@ export async function updateTask(
 
     // If a new note was added, log it separately
     if (note && note.trim() !== '') {
-        const noteEntry: TaskHistory = {
+        const noteEntry = {
             timestamp: Timestamp.now(),
             operator,
             action: 'Note Added',
@@ -247,7 +256,7 @@ export async function updateTaskStatus(id: string, status: TaskStatus, operator:
     if (!taskSnap.exists()) return { success: false, message: 'Task not found.' };
 
     const originalData = taskSnap.data();
-    const historyEntry: TaskHistory = {
+    const historyEntry = {
         timestamp: Timestamp.now(),
         operator,
         action: 'Status Change',
