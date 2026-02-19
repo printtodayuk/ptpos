@@ -1,4 +1,3 @@
-
 'use server';
 
 import {
@@ -30,41 +29,34 @@ function getCurrentDateString() {
 export async function getOperatorStatus(operator: Operator): Promise<TimeRecord | null> {
   const date = getCurrentDateString();
   
+  // Index-safe simple query: fetch today's records and filter in memory
   const q = query(
     collection(db, 'timeRecords'),
-    where('operator', '==', operator),
     where('date', '==', date)
   );
 
   const querySnapshot = await getDocs(q);
 
-  if (querySnapshot.empty) {
-    return null;
-  }
-  
   const records = querySnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() }))
-    .sort((a, b) => (b.clockInTime as Timestamp).toMillis() - (a.clockInTime as Timestamp).toMillis());
+    .map(doc => ({ id: doc.id, ...doc.data() } as any))
+    .filter(d => d.operator === operator)
+    .sort((a, b) => {
+        const timeA = a.clockInTime instanceof Timestamp ? a.clockInTime.toMillis() : 0;
+        const timeB = b.clockInTime instanceof Timestamp ? b.clockInTime.toMillis() : 0;
+        return timeB - timeA;
+    });
 
-  // Find the most recent record that is not clocked-out, or the most recent clocked-out one if that's all there is
   const activeRecordData = records.find(d => ['clocked-in', 'on-break'].includes(d.status)) || records[0];
 
-
-  if (!activeRecordData) {
+  if (!activeRecordData || activeRecordData.status === 'clocked-out') {
     return null;
   }
 
-   if (activeRecordData.status === 'clocked-out') {
-    return null;
-  }
-
-  const data = activeRecordData;
   return {
-    ...data,
-    id: data.id,
-    clockInTime: (data.clockInTime as Timestamp).toDate(),
-    clockOutTime: data.clockOutTime ? (data.clockOutTime as Timestamp).toDate() : null,
-    breaks: data.breaks.map((b: any) => ({
+    ...activeRecordData,
+    clockInTime: (activeRecordData.clockInTime as Timestamp).toDate(),
+    clockOutTime: activeRecordData.clockOutTime ? (activeRecordData.clockOutTime as Timestamp).toDate() : null,
+    breaks: (activeRecordData.breaks || []).map((b: any) => ({
       startTime: (b.startTime as Timestamp).toDate(),
       endTime: b.endTime ? (b.endTime as Timestamp).toDate() : null,
     })),
@@ -76,60 +68,64 @@ export type OperatorStatusInfo = {
     clockInTime?: Date;
     breakStartTime?: Date;
 }
+
 export async function getAllOperatorStatuses(): Promise<Record<Operator, OperatorStatusInfo>> {
     const date = getCurrentDateString();
-    const statuses: Partial<Record<Operator, OperatorStatusInfo>> = {};
+    const statuses: Record<Operator, OperatorStatusInfo> = {} as any;
+    
+    // Initialize
+    for (const op of operators) {
+        statuses[op] = { status: 'not-clocked-in' };
+    }
 
-    const operatorPromises = operators.map(async (op) => {
+    try {
+        // Index-safe query: fetch all for today
         const q = query(
             collection(db, 'timeRecords'),
-            where('operator', '==', op),
-            where('date', '==', date),
-            orderBy('clockInTime', 'desc'),
-            limit(1)
+            where('date', '==', date)
         );
 
         const snapshot = await getDocs(q);
+        const recordsByOp: Record<string, any[]> = {};
 
-        if (snapshot.empty) {
-            statuses[op] = { status: 'not-clocked-in' };
-            return;
-        }
-        
-        const latestRecord = snapshot.docs[0].data();
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (!recordsByOp[data.operator]) recordsByOp[data.operator] = [];
+            recordsByOp[data.operator].push(data);
+        });
 
-        if (latestRecord.status === 'clocked-out') {
-            statuses[op] = { status: 'clocked-out' };
-            return;
-        }
+        for (const op of operators) {
+            const records = recordsByOp[op];
+            if (!records || records.length === 0) continue;
 
-        const statusInfo: OperatorStatusInfo = {
-            status: latestRecord.status,
-        };
+            records.sort((a, b) => {
+                const timeA = a.clockInTime instanceof Timestamp ? a.clockInTime.toMillis() : 0;
+                const timeB = b.clockInTime instanceof Timestamp ? b.clockInTime.toMillis() : 0;
+                return timeB - timeA;
+            });
 
-        if (latestRecord.status === 'clocked-in' || latestRecord.status === 'on-break') {
-            statusInfo.clockInTime = (latestRecord.clockInTime as Timestamp).toDate();
-            if (latestRecord.status === 'on-break') {
-                const currentBreak = latestRecord.breaks?.find((b: any) => !b.endTime);
-                if (currentBreak) {
-                    statusInfo.breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+            const latest = records[0];
+            if (latest.status === 'clocked-out') {
+                statuses[op] = { status: 'clocked-out' };
+            } else {
+                const info: OperatorStatusInfo = {
+                    status: latest.status,
+                    clockInTime: (latest.clockInTime as Timestamp).toDate(),
+                };
+                if (latest.status === 'on-break') {
+                    const currentBreak = latest.breaks?.find((b: any) => !b.endTime);
+                    if (currentBreak) {
+                        info.breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+                    }
                 }
+                statuses[op] = info;
             }
         }
-        
-        statuses[op] = statusInfo;
-    });
-
-    await Promise.all(operatorPromises);
-
-    // Ensure all operators are in the final object
-    for (const op of operators) {
-        if (!statuses[op]) {
-            statuses[op] = { status: 'not-clocked-in' };
-        }
+    } catch (e) {
+        console.error("Error fetching statuses: ", e);
     }
     
-    return statuses as Record<Operator, OperatorStatusInfo>;
+    return statuses;
 }
 
 
@@ -154,6 +150,7 @@ export async function handleClockIn(operator: Operator) {
     await addDoc(collection(db, 'timeRecords'), newRecord);
     revalidatePath('/attendance');
     revalidatePath('/admin-time');
+    revalidatePath('/dashboard');
     return { success: true, message: 'Clocked in successfully.' };
   } catch (error) {
     return { success: false, message: 'Failed to clock in.' };
@@ -194,6 +191,7 @@ export async function handleClockOut(recordId: string) {
     });
     revalidatePath('/attendance');
     revalidatePath('/admin-time');
+    revalidatePath('/dashboard');
     return { success: true, message: 'Clocked out successfully.' };
   } catch (error) {
     return { success: false, message: 'Failed to clock out.' };
@@ -223,6 +221,7 @@ export async function handleStartBreak(recordId: string) {
     });
     revalidatePath('/attendance');
     revalidatePath('/admin-time');
+    revalidatePath('/dashboard');
     return { success: true, message: 'Break started.' };
   } catch (error) {
     return { success: false, message: 'Failed to start break.' };
@@ -257,6 +256,7 @@ export async function handleEndBreak(recordId: string) {
     });
     revalidatePath('/attendance');
     revalidatePath('/admin-time');
+    revalidatePath('/dashboard');
     return { success: true, message: 'Break ended.' };
   } catch (error) {
     return { success: false, message: 'Failed to end break.' };
@@ -340,6 +340,7 @@ export async function updateTimeRecord(id: string, data: z.infer<typeof UpdateTi
 
         revalidatePath('/admin-time');
         revalidatePath('/attendance-report');
+        revalidatePath('/dashboard');
 
         return { success: true, message: 'Time record updated successfully.' };
 

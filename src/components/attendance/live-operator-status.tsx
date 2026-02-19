@@ -1,15 +1,21 @@
-
 'use client';
 
-import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getAllOperatorStatuses, type OperatorStatusInfo } from '@/lib/server-actions-attendance';
-import type { Operator, TimeRecordStatus } from '@/lib/types';
-import { Loader2, RefreshCw, UserCheck, Coffee, LogOut } from 'lucide-react';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { operators, type Operator, type TimeRecordStatus } from '@/lib/types';
+import { UserCheck, Coffee, LogOut, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { differenceInSeconds } from 'date-fns';
+
+type OperatorStatusInfo = {
+    status: TimeRecordStatus | 'not-clocked-in';
+    clockInTime?: Date;
+    breakStartTime?: Date;
+}
 
 type OperatorStatuses = Record<Operator, OperatorStatusInfo>;
 
@@ -37,33 +43,33 @@ const OperatorWithTimer = ({ name, startTime }: { name: Operator, startTime?: Da
 
     return (
         <div className="flex items-center justify-between w-full">
-            <span className="text-base">{name}</span>
+            <span className="text-base font-semibold">{name}</span>
             {duration && (
-                <span className="font-mono text-sm text-muted-foreground">{duration}</span>
+                <span className="font-mono text-sm opacity-80">{duration}</span>
             )}
         </div>
     );
 };
 
 
-const StatusColumn = ({ title, operators, icon: Icon, badgeClass, statuses, timerType }: { title: string, operators: Operator[], icon: React.ElementType, badgeClass: string, statuses: OperatorStatuses | null, timerType: 'work' | 'break' | 'none' }) => (
-    <div className="space-y-3">
-        <h3 className="text-lg font-semibold flex items-center">
+const StatusColumn = ({ title, operators: opList, icon: Icon, badgeClass, statuses, timerType }: { title: string, operators: Operator[], icon: React.ElementType, badgeClass: string, statuses: OperatorStatuses | null, timerType: 'work' | 'break' | 'none' }) => (
+    <div className="space-y-3 p-4 rounded-xl bg-white/50 border border-white/20 shadow-sm">
+        <h3 className="text-lg font-bold flex items-center text-primary">
             <Icon className="mr-2 h-5 w-5" />
-            {title} ({operators.length})
+            {title} ({opList.length})
         </h3>
         <div className="space-y-2">
-            {operators.length > 0 ? (
-                operators.map(op => {
+            {opList.length > 0 ? (
+                opList.map(op => {
                      const startTime = timerType === 'work' ? statuses?.[op]?.clockInTime : timerType === 'break' ? statuses?.[op]?.breakStartTime : undefined;
                     return (
-                        <Badge key={op} className={cn("text-base px-3 py-1 w-full flex justify-between", badgeClass)}>
+                        <Badge key={op} className={cn("text-base px-4 py-2 w-full flex justify-between border-transparent shadow-sm", badgeClass)}>
                             <OperatorWithTimer name={op} startTime={startTime}/>
                         </Badge>
                     )
                 })
             ) : (
-                <p className="text-sm text-muted-foreground">None</p>
+                <p className="text-sm text-muted-foreground italic">No operators currently {title.toLowerCase()}</p>
             )}
         </div>
     </div>
@@ -72,49 +78,90 @@ const StatusColumn = ({ title, operators, icon: Icon, badgeClass, statuses, time
 
 export function LiveOperatorStatus() {
   const [statuses, setStatuses] = useState<OperatorStatuses | null>(null);
-  const [isFetching, startFetching] = useTransition();
-
-  const fetchStatuses = useCallback(() => {
-    startFetching(async () => {
-      const result = await getAllOperatorStatuses();
-      setStatuses(result);
-    });
-  }, []);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchStatuses();
-    const interval = setInterval(fetchStatuses, 60000); // Refresh every minute
-    return () => clearInterval(interval);
-  }, [fetchStatuses]);
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Index-safe simple query: fetch all for today. 
+    // real-time listener drastically reduces reads and solves the index error.
+    const q = query(
+        collection(db, 'timeRecords'),
+        where('date', '==', today)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const newStatuses: OperatorStatuses = {} as any;
+        operators.forEach(op => newStatuses[op] = { status: 'not-clocked-in' });
+
+        const recordsByOp: Record<string, any[]> = {};
+        snapshot.docs.forEach(d => {
+            const data = d.data();
+            if (!recordsByOp[data.operator]) recordsByOp[data.operator] = [];
+            recordsByOp[data.operator].push(data);
+        });
+
+        for (const op of operators) {
+            const records = recordsByOp[op];
+            if (!records || records.length === 0) continue;
+
+            records.sort((a, b) => {
+                const timeA = a.clockInTime instanceof Timestamp ? a.clockInTime.toMillis() : 0;
+                const timeB = b.clockInTime instanceof Timestamp ? b.clockInTime.toMillis() : 0;
+                return timeB - timeA;
+            });
+
+            const latest = records[0];
+            if (latest.status === 'clocked-out') {
+                newStatuses[op] = { status: 'clocked-out' };
+            } else {
+                const info: OperatorStatusInfo = {
+                    status: latest.status,
+                    clockInTime: (latest.clockInTime as Timestamp).toDate(),
+                };
+                if (latest.status === 'on-break') {
+                    const currentBreak = latest.breaks?.find((b: any) => !b.endTime);
+                    if (currentBreak) {
+                        info.breakStartTime = (currentBreak.startTime as Timestamp).toDate();
+                    }
+                }
+                newStatuses[op] = info;
+            }
+        }
+        setStatuses(newStatuses);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Listener error:", error);
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const clockedIn = statuses ? Object.entries(statuses).filter(([, s]) => s.status === 'clocked-in').map(([op]) => op as Operator) : [];
   const onBreak = statuses ? Object.entries(statuses).filter(([, s]) => s.status === 'on-break').map(([op]) => op as Operator) : [];
   const clockedOut = statuses ? Object.entries(statuses).filter(([, s]) => s.status === 'clocked-out' || s.status === 'not-clocked-in').map(([op]) => op as Operator) : [];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-primary/20 shadow-lg overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-primary/10 via-accent/5 to-primary/10">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Live Operator Status</CardTitle>
-            <CardDescription>A real-time overview of todays attendance.</CardDescription>
+            <CardTitle className="text-2xl font-bold text-primary">Real-Time Operator Attendance</CardTitle>
+            <CardDescription className="font-medium">Updates instantly. No refresh required.</CardDescription>
           </div>
-          <Button onClick={fetchStatuses} variant="outline" size="icon" disabled={isFetching}>
-            {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            <span className="sr-only">Refresh</span>
-          </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        {isFetching && !statuses ? (
+      <CardContent className="p-6 bg-white/30 backdrop-blur-sm">
+        {isLoading && !statuses ? (
             <div className="flex justify-center items-center p-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatusColumn title="Clocked In" operators={clockedIn} icon={UserCheck} badgeClass="bg-green-500 hover:bg-green-600 text-white" statuses={statuses} timerType="work" />
+                <StatusColumn title="Working" operators={clockedIn} icon={UserCheck} badgeClass="bg-green-500 hover:bg-green-600 text-white" statuses={statuses} timerType="work" />
                 <StatusColumn title="On Break" operators={onBreak} icon={Coffee} badgeClass="bg-yellow-500 hover:bg-yellow-600 text-black" statuses={statuses} timerType="break" />
-                <StatusColumn title="Clocked Out" operators={clockedOut} icon={LogOut} badgeClass="bg-gray-400 hover:bg-gray-500 text-white" statuses={statuses} timerType="none" />
+                <StatusColumn title="Offline" operators={clockedOut} icon={LogOut} badgeClass="bg-slate-400 hover:bg-slate-500 text-white" statuses={statuses} timerType="none" />
             </div>
         )}
       </CardContent>
