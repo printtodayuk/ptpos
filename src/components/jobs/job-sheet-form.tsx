@@ -5,8 +5,9 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2, Lock } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2, Lock, UserPlus } from 'lucide-react';
 import { enGB } from 'date-fns/locale';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -279,9 +280,17 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
       />
       <form onSubmit={form.handleSubmit(onSubmit)}>
          {!isEditMode && !isConversionMode && (
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold tracking-tight">Create Job Sheet</h2>
-              <p className="text-muted-foreground">Fill in the details to create a new job sheet.</p>
+            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Create Job Sheet</h2>
+                <p className="text-muted-foreground">Fill in the details to create a new job sheet.</p>
+              </div>
+              <Button variant="outline" asChild className="border-primary/20 hover:bg-primary/5">
+                <Link href="/contact" target="_blank">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add Contact
+                </Link>
+              </Button>
             </div>
         )}
         
