@@ -7,7 +7,7 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
       viewBox="0 0 200 40"
       width="200"
       height="40"
-      aria-label="Print Today Logo"
+      aria-label="AI Studio EPOS Logo"
       {...props}
     >
       <text
@@ -16,11 +16,11 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
         dominantBaseline="middle"
         textAnchor="middle"
         fontFamily="var(--font-headline), sans-serif"
-        fontSize="28"
+        fontSize="24"
         fontWeight="bold"
       >
-        <tspan fill="#012169">Print</tspan>
-        <tspan fill="#C8102E"> Today</tspan>
+        <tspan fill="#012169">AI Studio</tspan>
+        <tspan fill="#C8102E"> EPOS</tspan>
       </text>
     </svg>
   );

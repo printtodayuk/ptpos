@@ -24,13 +24,9 @@ function AppHeader() {
     <header className="flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6">
       <SidebarTrigger className="md:hidden" />
       <div className="flex-1 flex items-center gap-4">
-        <h1 className="text-lg font-semibold sm:hidden">
-          <span style={{ color: '#012169' }}>Print</span>{' '}
-          <span style={{ color: '#C8102E' }}>Today</span>
-        </h1>
-        <h1 className="text-lg font-semibold hidden sm:block">
-          <span style={{ color: '#012169' }}>Print</span>{' '}
-          <span style={{ color: '#C8102E' }}>Today</span> EPOS
+        <h1 className="text-lg font-semibold">
+          <span style={{ color: '#012169' }}>AI Studio</span>{' '}
+          <span style={{ color: '#C8102E' }}>EPOS</span>
         </h1>
         {operator && (
             <Badge variant="outline" className="text-sm">
@@ -69,8 +65,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                <SidebarFooter className="p-4 flex flex-col gap-2">
                  <p className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
                    &copy; {new Date().getFullYear()}{' '}
-                   <span style={{ color: '#012169', fontWeight: 600 }}>Print</span>{' '}
-                   <span style={{ color: '#C8102E', fontWeight: 600 }}>Today</span>
+                   <span style={{ color: '#012169', fontWeight: 600 }}>AI Studio</span>{' '}
+                   <span style={{ color: '#C8102E', fontWeight: 600 }}>EPOS</span>
                  </p>
               </SidebarFooter>
             </Sidebar>
