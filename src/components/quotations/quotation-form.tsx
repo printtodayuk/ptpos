@@ -5,8 +5,9 @@ import { useEffect, useState, useTransition } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2, Lock } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2, Lock, UserPlus } from 'lucide-react';
 import { enGB } from 'date-fns/locale';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -18,7 +19,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addQuotation, updateQuotation } from '@/lib/server-actions-quotations';
-import { QuotationSchema, operators, quotationStatus, type Quotation, type Operator, jobSheetTypes as quotationTypes } from '@/lib/types';
+import { getContacts } from '@/lib/server-actions-contacts';
+import { QuotationSchema, operators, quotationStatus, type Quotation, type Operator, jobSheetTypes as quotationTypes, type Contact } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { QuotationViewDialog } from './quotation-view-dialog';
@@ -38,6 +40,7 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   date: new Date(),
   operator: operator || undefined,
   clientName: '',
+  companyName: '',
   clientDetails: '',
   jobItems: [{ description: '', quantity: 1, price: 0, vatApplied: false }],
   subTotal: 0,
@@ -59,6 +62,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   const { toast } = useToast();
   const { operator: loggedInOperator } = useSession();
   const [lastQuotation, setLastQuotation] = useState<Quotation | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
 
   const isEditMode = !!quotationToEdit;
   const isLocked = isEditMode && !!quotationToEdit.jid;
@@ -74,16 +78,21 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   });
 
   useEffect(() => {
+    getContacts().then(setContacts);
+  }, []);
+
+  useEffect(() => {
     if (quotationToEdit) {
         const deliveryByDate = quotationToEdit.deliveryBy ? new Date(quotationToEdit.deliveryBy) : undefined;
         form.reset({
-            ...(quotationToEdit as any), // Use any to bypass strict type checking for reset
+            ...(quotationToEdit as any),
             date: new Date(quotationToEdit.date),
             deliveryBy: deliveryByDate,
             jid: quotationToEdit.jid || '',
             specialNote: quotationToEdit.specialNote || '',
             clientDetails: quotationToEdit.clientDetails || '',
             tid: quotationToEdit.tid || '',
+            companyName: quotationToEdit.companyName || '',
         });
     } else {
         form.reset(getFreshDefaultValues(loggedInOperator));
@@ -92,7 +101,49 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
 
 
   const watchedJobItems = form.watch('jobItems');
+  const watchedClientName = form.watch('clientName');
+  const watchedCompanyName = form.watch('companyName');
   
+  // Auto-fill logic from contacts (Name match)
+  useEffect(() => {
+    if (!watchedClientName || isEditMode) return;
+
+    const match = contacts.find(c => c.name.toLowerCase() === watchedClientName.toLowerCase());
+    if (match) {
+        form.setValue('companyName', match.companyName || '');
+        
+        const details = [
+            match.companyName,
+            match.phone,
+            match.email,
+            `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+        ].filter(Boolean).join('\n');
+        
+        form.setValue('clientDetails', details);
+    }
+  }, [watchedClientName, contacts, form, isEditMode]);
+
+  // Auto-fill logic from contacts (Company Name match)
+  useEffect(() => {
+    if (!watchedCompanyName || isEditMode) return;
+
+    const match = contacts.find(c => c.companyName?.toLowerCase() === watchedCompanyName.toLowerCase());
+    if (match) {
+        if (!form.getValues('clientName')) {
+            form.setValue('clientName', match.name);
+        }
+        
+        const details = [
+            match.companyName,
+            match.phone,
+            match.email,
+            `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+        ].filter(Boolean).join('\n');
+        
+        form.setValue('clientDetails', details);
+    }
+  }, [watchedCompanyName, contacts, form, isEditMode]);
+
   const subTotal = (watchedJobItems || []).reduce((acc, item) => {
     const price = Number(item?.price) || 0;
     return acc + price;
@@ -168,9 +219,17 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
       />
         <form onSubmit={form.handleSubmit(onSubmit)}>
          {!isEditMode && (
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold tracking-tight">Create Quotation</h2>
-              <p className="text-muted-foreground">Fill in the details to create a new quotation.</p>
+            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Create Quotation</h2>
+                <p className="text-muted-foreground">Fill in the details to create a new quotation.</p>
+              </div>
+              <Button variant="outline" asChild className="border-primary/20 hover:bg-primary/5">
+                <Link href="/contact" target="_blank">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add Contact
+                </Link>
+              </Button>
             </div>
         )}
         
@@ -191,14 +250,40 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
                         <CardTitle>Client Information</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="clientName">Client Name</Label>
-                            <Input id="clientName" {...form.register('clientName')} disabled={isLocked}/>
-                            {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="clientName">Client Name (Full Name)</Label>
+                                <Input 
+                                    id="clientName" 
+                                    {...form.register('clientName')} 
+                                    disabled={isLocked}
+                                    list="quotation-contacts-list"
+                                    autoComplete="off"
+                                />
+                                <datalist id="quotation-contacts-list">
+                                    {contacts.map(c => <option key={c.id} value={c.name} />)}
+                                </datalist>
+                                {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="companyName">Company Name</Label>
+                                <Input 
+                                    id="companyName" 
+                                    {...form.register('companyName')} 
+                                    disabled={isLocked}
+                                    list="quotation-companies-list"
+                                    autoComplete="off"
+                                />
+                                <datalist id="quotation-companies-list">
+                                    {[...new Set(contacts.map(c => c.companyName).filter(Boolean))].map((comp, idx) => (
+                                        <option key={idx} value={comp!} />
+                                    ))}
+                                </datalist>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="clientDetails">Client Details (Address, Phone, etc.)</Label>
-                            <Textarea id="clientDetails" {...form.register('clientDetails')} disabled={isLocked}/>
+                            <Textarea id="clientDetails" {...form.register('clientDetails')} disabled={isLocked} rows={5}/>
                         </div>
                     </CardContent>
                 </Card>
@@ -356,5 +441,3 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
     </>
   );
 }
-
-    

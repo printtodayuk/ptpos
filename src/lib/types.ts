@@ -113,6 +113,7 @@ export const QuotationSchema = z.object({
   date: z.union([z.date(), z.string()]),
   operator: z.enum(operators),
   clientName: z.string().min(1, 'Client name is required.'),
+  companyName: z.string().optional().nullable(),
   clientDetails: z.string().optional().nullable(),
   jobItems: z.array(JobItemSchema).min(1, 'At least one item is required.'),
   subTotal: z.number(),

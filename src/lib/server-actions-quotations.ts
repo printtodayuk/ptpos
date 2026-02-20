@@ -171,7 +171,7 @@ export async function updateQuotation(
 
     const newHistoryEntries: Omit<QuotationHistory, 'timestamp'>[] = [];
     
-    // Compare fields and generate history
+    // Compare fields and generate history for explicit changes
     if (originalQuotation.operator !== validatedData.data.operator) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Operator changed from '${originalQuotation.operator}' to '${validatedData.data.operator}'.` });
     }
@@ -182,7 +182,7 @@ export async function updateQuotation(
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Status changed from '${originalQuotation.status}' to '${validatedData.data.status}'.` });
     }
      if ((originalQuotation.deliveryBy ? format(originalQuotation.deliveryBy as Date, 'yyyy-MM-dd') : null) !== (validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'yyyy-MM-dd') : null)) {
-        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Delivery date changed from '${originalQuotation.deliveryBy ? format(originalQuotation.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}' to '${validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}'.` });
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Delivery date changed from '${originalQuotation.deliveryBy ? format(originalQuotation.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}' to '${validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'dd/MM/yyyy')}'.` });
     }
     if (originalQuotation.type !== validatedData.data.type) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Type changed from '${originalQuotation.type}' to '${validatedData.data.type}'.` });
@@ -190,7 +190,7 @@ export async function updateQuotation(
      if (originalQuotation.tid !== validatedData.data.tid) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Transaction ID changed from '${originalQuotation.tid || 'none'}' to '${validatedData.data.tid || 'none'}'.` });
     }
-     if (JSON.stringify(originalJobSheet.jobItems) !== JSON.stringify(validatedData.data.jobItems)) {
+     if (JSON.stringify(originalQuotation.jobItems) !== JSON.stringify(validatedData.data.jobItems)) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: 'Quotation items, quantities, or prices were modified.' });
     }
 
@@ -296,6 +296,7 @@ export async function searchQuotations(
         return (
           js.quotationId?.toLowerCase().includes(lowercasedTerm) ||
           js.clientName?.toLowerCase().includes(lowercasedTerm) ||
+          js.companyName?.toLowerCase().includes(lowercasedTerm) ||
           js.jobItems.some(item => item.description?.toLowerCase().includes(lowercasedTerm))
         );
       });
@@ -350,6 +351,7 @@ export async function exportAllQuotations(
                 'Date': format(date, 'yyyy-MM-dd'),
                 'Operator': data.operator,
                 'Client Name': data.clientName,
+                'Company Name': data.companyName,
                 'Client Details': data.clientDetails,
                 'Items': data.jobItems.map(item => `${item.quantity}x ${item.description} @ £${item.price.toFixed(2)} (VAT: ${item.vatApplied ? 'Yes' : 'No'})`).join('; '),
                 'Sub-Total': data.subTotal.toFixed(2),
@@ -415,6 +417,7 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
             date: new Date(),
             operator: quotationData.operator,
             clientName: quotationData.clientName,
+            companyName: quotationData.companyName || null,
             clientDetails: quotationData.clientDetails || null,
             jobItems: quotationData.jobItems,
             subTotal: quotationData.subTotal,
