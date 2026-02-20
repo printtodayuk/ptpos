@@ -1,4 +1,3 @@
-
 'use server';
 
 import {
@@ -182,7 +181,7 @@ export async function updateQuotation(
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Status changed from '${originalQuotation.status}' to '${validatedData.data.status}'.` });
     }
      if ((originalQuotation.deliveryBy ? format(originalQuotation.deliveryBy as Date, 'yyyy-MM-dd') : null) !== (validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'yyyy-MM-dd') : null)) {
-        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Delivery date changed from '${originalQuotation.deliveryBy ? format(originalQuotation.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}' to '${validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'dd/MM/yyyy')}'.` });
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Delivery date changed from '${originalQuotation.deliveryBy ? format(originalQuotation.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}' to '${validatedData.data.deliveryBy ? format(validatedData.data.deliveryBy as Date, 'dd/MM/yyyy') : 'N/A'}'.` });
     }
     if (originalQuotation.type !== validatedData.data.type) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Type changed from '${originalQuotation.type}' to '${validatedData.data.type}'.` });
