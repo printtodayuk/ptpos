@@ -2,17 +2,27 @@
 'use client';
 
 import { useEffect, useState, useTransition, useMemo, useCallback } from 'react';
-import { getContacts, updateContact } from '@/lib/server-actions-contacts';
+import { getContacts, updateContact, deleteContact } from '@/lib/server-actions-contacts';
 import type { Contact } from '@/lib/types';
 import { ContactSchema } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Copy, Check, Search, Edit } from 'lucide-react';
+import { Loader2, Copy, Check, Search, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,10 +32,12 @@ import { z } from 'zod';
 export function ContactList() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, startLoadingTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const { toast } = useToast();
 
   const fetchContacts = useCallback(() => {
@@ -60,6 +72,20 @@ export function ContactList() {
     setTimeout(() => setCopiedId(null), 2000);
   };
   
+  const handleDelete = async () => {
+    if (!contactToDelete?.id) return;
+    setIsDeleting(true);
+    const result = await deleteContact(contactToDelete.id);
+    setIsDeleting(false);
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      fetchContacts();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+    setContactToDelete(null);
+  };
+
   const filteredContacts = useMemo(() => {
     if (!debouncedSearchTerm) {
       return contacts;
@@ -84,6 +110,29 @@ export function ContactList() {
             fetchContacts();
         }}
       />
+
+      <AlertDialog open={!!contactToDelete} onOpenChange={(open) => !open && setContactToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the contact for <span className="font-bold">{contactToDelete?.companyName}</span>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-4">
@@ -157,6 +206,15 @@ export function ContactList() {
                                 <Copy className="mr-2 h-4 w-4" />
                                 )}
                                 Copy
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => setContactToDelete(contact)}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
                             </Button>
                         </div>
                       </TableCell>

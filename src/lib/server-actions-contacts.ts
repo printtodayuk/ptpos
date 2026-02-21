@@ -12,6 +12,7 @@ import {
   writeBatch,
   doc,
   updateDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -80,6 +81,21 @@ export async function updateContact(id: string, data: z.infer<typeof CreateConta
         error instanceof Error
           ? error.message
           : 'An unexpected error occurred.',
+    };
+  }
+}
+
+export async function deleteContact(id: string) {
+  try {
+    const contactRef = doc(db, 'contacts', id);
+    await deleteDoc(contactRef);
+    revalidatePath('/contact-list');
+    return { success: true, message: 'Contact deleted successfully.' };
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to delete contact.',
     };
   }
 }
