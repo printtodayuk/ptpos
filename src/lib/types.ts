@@ -147,8 +147,8 @@ export const ContactSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   zip: z.string().optional(),
-  phone: z.string().min(1, 'Phone number is required.'),
-  email: z.string().email('Invalid email address.'),
+  phone: z.string().optional(),
+  email: z.string().email('Invalid email address.').optional().or(z.literal('')),
   createdAt: z.any().optional(),
 });
 

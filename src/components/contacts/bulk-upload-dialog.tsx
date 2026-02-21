@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -53,23 +54,26 @@ export function BulkUploadDialog() {
             row['Address Line3']
           ].filter(Boolean);
 
+          const name = String(row['Name'] || '').trim();
+          const email = String(row['Email'] || '').trim();
+
           return {
-            name: String(row['Name'] || '').trim(),
+            name: name,
             companyName: String(row['Company Name'] || '').trim(),
             street: streetLines.join('\n'),
             city: String(row['City'] || '').trim(),
             state: String(row['State'] || '').trim(),
             zip: String(row['Zip code'] || '').trim(),
             phone: String(row['Phone'] || '').trim(),
-            email: String(row['Email'] || '').trim(),
+            email: email === 'undefined' || email === '' ? undefined : email,
           };
-        }).filter(c => c.name && c.email); // Basic validation: must have name and email
+        }).filter(c => c.name); // Required field is only Name now
 
         if (contactsToImport.length === 0) {
           toast({ 
             variant: 'destructive', 
             title: 'Invalid Format', 
-            description: 'Could not find any valid contacts. Check your column headers (Name, Email, etc.).' 
+            description: 'Could not find any valid contacts. Ensure you have a "Name" column.' 
           });
           return;
         }
@@ -79,7 +83,6 @@ export function BulkUploadDialog() {
         if (result.success) {
           setImportStats({ total: contactsToImport.length });
           toast({ title: 'Import Complete', description: result.message });
-          // Optionally close after a delay or keep open to show stats
           setTimeout(() => {
             setIsOpen(false);
             setFile(null);
@@ -108,7 +111,7 @@ export function BulkUploadDialog() {
           <DialogTitle>Bulk Upload Contacts</DialogTitle>
           <DialogDescription>
             Upload an Excel file to import multiple contacts. 
-            The file should have headers like Name, Company Name, Address Line1, Phone, Email, etc.
+            Only "Name" is required.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

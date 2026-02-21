@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -10,6 +11,7 @@ import {
   Timestamp,
   writeBatch,
   doc,
+  updateDoc,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -52,6 +54,36 @@ export async function addContact(data: z.infer<typeof CreateContactSchema>) {
   }
 }
 
+export async function updateContact(id: string, data: z.infer<typeof CreateContactSchema>) {
+  const validatedData = CreateContactSchema.safeParse(data);
+  if (!validatedData.success) {
+    return {
+      success: false,
+      message: 'Validation failed.',
+      errors: validatedData.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const contactRef = doc(db, 'contacts', id);
+    await updateDoc(contactRef, validatedData.data);
+
+    revalidatePath('/contact-list');
+    revalidatePath('/job-sheet');
+    revalidatePath('/quotation');
+    return { success: true, message: 'Contact updated successfully.' };
+  } catch (error) {
+    console.error('Error updating contact:', error);
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : 'An unexpected error occurred.',
+    };
+  }
+}
+
 export async function bulkAddContacts(contacts: z.infer<typeof CreateContactSchema>[]) {
   if (!contacts || contacts.length === 0) {
     return { success: false, message: 'No contacts provided.' };
@@ -64,6 +96,7 @@ export async function bulkAddContacts(contacts: z.infer<typeof CreateContactSche
       chunks.push(contacts.slice(i, i + 500));
     }
 
+    let successCount = 0;
     for (const chunk of chunks) {
       const batch = writeBatch(db);
       chunk.forEach((contactData) => {
@@ -74,13 +107,14 @@ export async function bulkAddContacts(contacts: z.infer<typeof CreateContactSche
             ...validated.data,
             createdAt: serverTimestamp(),
           });
+          successCount++;
         }
       });
       await batch.commit();
     }
 
     revalidatePath('/contact-list');
-    return { success: true, message: `Successfully imported ${contacts.length} contacts.` };
+    return { success: true, message: `Successfully imported ${successCount} contacts.` };
   } catch (error) {
     console.error('Error bulk adding contacts:', error);
     return { success: false, message: 'Failed to bulk import contacts.' };
