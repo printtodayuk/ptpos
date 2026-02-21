@@ -8,6 +8,8 @@ import {
   orderBy,
   query,
   Timestamp,
+  writeBatch,
+  doc,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -47,6 +49,41 @@ export async function addContact(data: z.infer<typeof CreateContactSchema>) {
           ? error.message
           : 'An unexpected error occurred.',
     };
+  }
+}
+
+export async function bulkAddContacts(contacts: z.infer<typeof CreateContactSchema>[]) {
+  if (!contacts || contacts.length === 0) {
+    return { success: false, message: 'No contacts provided.' };
+  }
+
+  try {
+    // Firestore batches are limited to 500 operations
+    const chunks = [];
+    for (let i = 0; i < contacts.length; i += 500) {
+      chunks.push(contacts.slice(i, i + 500));
+    }
+
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      chunk.forEach((contactData) => {
+        const validated = CreateContactSchema.safeParse(contactData);
+        if (validated.success) {
+          const contactRef = doc(collection(db, 'contacts'));
+          batch.set(contactRef, {
+            ...validated.data,
+            createdAt: serverTimestamp(),
+          });
+        }
+      });
+      await batch.commit();
+    }
+
+    revalidatePath('/contact-list');
+    return { success: true, message: `Successfully imported ${contacts.length} contacts.` };
+  } catch (error) {
+    console.error('Error bulk adding contacts:', error);
+    return { success: false, message: 'Failed to bulk import contacts.' };
   }
 }
 
