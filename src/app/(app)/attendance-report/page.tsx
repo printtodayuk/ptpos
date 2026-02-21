@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
-import { format, differenceInMinutes } from 'date-fns';
-import { Download, Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { format, startOfMonth } from 'date-fns';
+import { Download, Loader2, Calendar as CalendarIcon, User, Clock } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
@@ -11,12 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { getTimeRecordsForReport } from '@/lib/server-actions-attendance';
-import type { TimeRecord } from '@/lib/types';
+import { getTimeRecordsForReport, getMonthlyStats } from '@/lib/server-actions-attendance';
+import type { TimeRecord, Operator } from '@/lib/types';
+import { operators } from '@/lib/types';
 import { cn, exportToCsv } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { SimplePagination } from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const ROWS_PER_PAGE = 10;
@@ -34,6 +35,11 @@ export default function AttendanceReportPage() {
     const [isExporting, startExportTransition] = useTransition();
     const [date, setDate] = useState<DateRange | undefined>();
     const [currentPage, setCurrentPage] = useState(1);
+    
+    const [selectedOperator, setSelectedOperator] = useState<Operator>('PTMGH');
+    const [monthlyMinutes, setMonthlyMinutes] = useState<number | null>(null);
+    const [isStatsLoading, setIsStatsLoading] = useState(false);
+
     const { toast } = useToast();
 
     const totalPages = Math.ceil(records.length / ROWS_PER_PAGE);
@@ -58,6 +64,16 @@ export default function AttendanceReportPage() {
     useEffect(() => {
         performSearch(date);
     }, [date, performSearch]);
+
+    useEffect(() => {
+        if (selectedOperator) {
+            setIsStatsLoading(true);
+            getMonthlyStats(selectedOperator).then(res => {
+                setMonthlyMinutes(res.totalMinutes);
+                setIsStatsLoading(false);
+            });
+        }
+    }, [selectedOperator]);
 
     const handleExport = () => {
         startExportTransition(() => {
@@ -91,6 +107,42 @@ export default function AttendanceReportPage() {
                 <CardTitle>Attendance Report</CardTitle>
                 <CardDescription>View and export operator time records.</CardDescription>
             </CardHeader>
+
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-primary" />
+                        Monthly Work Summary ({format(new Date(), 'MMMM yyyy')})
+                    </CardTitle>
+                    <CardDescription>Select an operator to see their total work hours for this month.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col sm:flex-row items-center gap-6">
+                    <div className="w-full sm:w-[250px] space-y-2">
+                        <label className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1">
+                            <User className="h-3 w-3" /> Select Operator
+                        </label>
+                        <Select value={selectedOperator} onValueChange={(val) => setSelectedOperator(val as Operator)}>
+                            <SelectTrigger className="bg-white">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex-1 p-4 bg-white rounded-xl border border-primary/10 shadow-sm flex items-center justify-center min-h-[80px]">
+                        {isStatsLoading ? (
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        ) : (
+                            <div className="text-center">
+                                <p className="text-xs font-semibold uppercase text-muted-foreground">Total Month Time for {selectedOperator}</p>
+                                <p className="text-3xl font-bold text-primary">{formatDuration(monthlyMinutes)}</p>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row items-center gap-2">

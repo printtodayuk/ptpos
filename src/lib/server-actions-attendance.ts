@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { differenceInMinutes } from 'date-fns';
+import { differenceInMinutes, startOfMonth, endOfMonth } from 'date-fns';
 
 import type { TimeRecord, Operator, TimeRecordStatus } from '@/lib/types';
 import { TimeRecordSchema, UpdateTimeRecordSchema, operators } from '@/lib/types';
@@ -295,6 +295,51 @@ export async function getTimeRecordsForReport({ startDate, endDate }: { startDat
   }
 }
 
+export async function createManualTimeRecord(operator: Operator, data: z.infer<typeof UpdateTimeRecordSchema>) {
+    const validatedData = UpdateTimeRecordSchema.safeParse(data);
+    if (!validatedData.success) {
+        return { success: false, message: 'Validation failed.' };
+    }
+
+    try {
+        const { clockInTime, clockOutTime, breaks, status } = validatedData.data;
+
+        let totalBreakDuration = 0;
+        const processedBreaks = breaks.map(b => {
+            if (b.startTime && b.endTime) {
+                 totalBreakDuration += differenceInMinutes(b.endTime, b.startTime);
+            }
+            return {
+                startTime: b.startTime ? Timestamp.fromDate(b.startTime) : null,
+                endTime: b.endTime ? Timestamp.fromDate(b.endTime) : null,
+            };
+        }).filter(b => b.startTime);
+
+        let totalWorkDuration = 0;
+        if (clockOutTime) {
+            totalWorkDuration = differenceInMinutes(clockOutTime, clockInTime) - totalBreakDuration;
+        }
+
+        const newRecord = {
+            operator,
+            clockInTime: Timestamp.fromDate(clockInTime),
+            clockOutTime: clockOutTime ? Timestamp.fromDate(clockOutTime) : null,
+            breaks: processedBreaks,
+            totalWorkDuration: Math.max(0, totalWorkDuration),
+            totalBreakDuration: Math.max(0, totalBreakDuration),
+            status: status || 'clocked-out',
+            date: clockInTime.toISOString().split('T')[0],
+        };
+
+        await addDoc(collection(db, 'timeRecords'), newRecord);
+        revalidatePath('/admin-time');
+        revalidatePath('/attendance-report');
+        return { success: true, message: 'Manual time record created.' };
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : 'An error occurred.' };
+    }
+}
+
 export async function updateTimeRecord(id: string, data: z.infer<typeof UpdateTimeRecordSchema>) {
     const validatedData = UpdateTimeRecordSchema.safeParse(data);
     if (!validatedData.success) {
@@ -347,5 +392,31 @@ export async function updateTimeRecord(id: string, data: z.infer<typeof UpdateTi
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
         return { success: false, message: errorMessage };
+    }
+}
+
+export async function getMonthlyStats(operator: Operator): Promise<{ totalMinutes: number }> {
+    const start = startOfMonth(new Date());
+    const end = endOfMonth(new Date());
+
+    try {
+        const q = query(
+            collection(db, 'timeRecords'),
+            where('operator', '==', operator),
+            where('clockInTime', '>=', Timestamp.fromDate(start)),
+            where('clockInTime', '<=', Timestamp.fromDate(end))
+        );
+
+        const snapshot = await getDocs(q);
+        let totalMinutes = 0;
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            totalMinutes += (data.totalWorkDuration || 0);
+        });
+
+        return { totalMinutes };
+    } catch (e) {
+        console.error("Error fetching monthly stats:", e);
+        return { totalMinutes: 0 };
     }
 }

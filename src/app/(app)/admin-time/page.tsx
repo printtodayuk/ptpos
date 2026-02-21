@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
-import { Loader2, Edit, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, Edit, Calendar as CalendarIcon, Plus } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { PinLock } from '@/components/admin/pin-lock';
 import { EditTimeRecordDialog } from '@/components/admin/edit-time-record-dialog';
+import { ManualTimeRecordDialog } from '@/components/admin/manual-time-record-dialog';
 import { SimplePagination } from '@/components/ui/pagination';
 
 
@@ -35,6 +35,7 @@ export default function AdminTimePage() {
     const [isSearching, startSearchTransition] = useTransition();
     const [date, setDate] = useState<DateRange | undefined>();
     const [recordToEdit, setRecordToEdit] = useState<TimeRecord | null>(null);
+    const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
 
     const totalPages = Math.ceil(records.length / ROWS_PER_PAGE);
@@ -65,6 +66,11 @@ export default function AdminTimePage() {
         performSearch(date);
     };
 
+    const handleManualSuccess = () => {
+        setIsManualDialogOpen(false);
+        performSearch(date);
+    };
+
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
             setCurrentPage(page);
@@ -79,11 +85,22 @@ export default function AdminTimePage() {
                 onClose={() => setRecordToEdit(null)}
                 onSuccess={handleEditSuccess}
             />
+            <ManualTimeRecordDialog
+                isOpen={isManualDialogOpen}
+                onClose={() => setIsManualDialogOpen(false)}
+                onSuccess={handleManualSuccess}
+            />
             <div className="flex flex-col gap-6">
-                <CardHeader className="p-0">
-                    <CardTitle>Admin Time Management</CardTitle>
-                    <CardDescription>View and edit operator time records.</CardDescription>
-                </CardHeader>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <CardHeader className="p-0">
+                        <CardTitle>Admin Time Management</CardTitle>
+                        <CardDescription>View and edit operator time records.</CardDescription>
+                    </CardHeader>
+                    <Button onClick={() => setIsManualDialogOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Manual Entry
+                    </Button>
+                </div>
                 <Card>
                     <CardContent className="p-4">
                         <div className="flex flex-col sm:flex-row items-center gap-2">
