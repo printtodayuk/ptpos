@@ -67,7 +67,7 @@ export function ContactList() {
     const lowercasedTerm = debouncedSearchTerm.toLowerCase();
     return contacts.filter(contact => 
       (contact.name && contact.name.toLowerCase().includes(lowercasedTerm)) ||
-      contact.companyName.toLowerCase().includes(lowercasedTerm) ||
+      (contact.companyName && contact.companyName.toLowerCase().includes(lowercasedTerm)) ||
       (contact.phone && contact.phone.toLowerCase().includes(lowercasedTerm)) ||
       (contact.email && contact.email.toLowerCase().includes(lowercasedTerm))
     );
@@ -123,7 +123,7 @@ export function ContactList() {
                   {filteredContacts.map((contact) => (
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">
-                          <div className="font-bold">{contact.companyName}</div>
+                          <div className="font-bold">{contact.companyName || 'N/A'}</div>
                           {contact.name && <div className="text-xs text-muted-foreground">{contact.name}</div>}
                       </TableCell>
                       <TableCell>
@@ -184,7 +184,7 @@ function EditContactDialog({ contact, isOpen, onClose, onSuccess }: { contact: C
         if (contact) {
             form.reset({
                 ...contact,
-                companyName: contact.companyName,
+                companyName: contact.companyName || '',
                 name: contact.name || '',
                 email: contact.email || '',
                 phone: contact.phone || '',
@@ -215,7 +215,7 @@ function EditContactDialog({ contact, isOpen, onClose, onSuccess }: { contact: C
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Edit Contact: {contact.companyName}</DialogTitle>
+                    <DialogTitle>Edit Contact: {contact.companyName || 'Unknown'}</DialogTitle>
                     <DialogDescription>Update the customer's information below.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
