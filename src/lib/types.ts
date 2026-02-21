@@ -141,8 +141,8 @@ export type Quotation = Omit<z.infer<typeof QuotationSchema>, 'date' | 'delivery
 
 export const ContactSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, 'Name is required.'),
-  companyName: z.string().optional(),
+  name: z.string().optional(),
+  companyName: z.string().min(1, 'Company name is required.'),
   street: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),

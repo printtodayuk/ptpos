@@ -48,8 +48,8 @@ export function ContactList() {
     ].filter(Boolean).join(', ');
 
     const textToCopy = [
-      contact.name,
       contact.companyName,
+      contact.name,
       contact.phone,
       contact.email,
       addressParts || '',
@@ -66,8 +66,8 @@ export function ContactList() {
     }
     const lowercasedTerm = debouncedSearchTerm.toLowerCase();
     return contacts.filter(contact => 
-      contact.name.toLowerCase().includes(lowercasedTerm) ||
-      (contact.companyName && contact.companyName.toLowerCase().includes(lowercasedTerm)) ||
+      (contact.name && contact.name.toLowerCase().includes(lowercasedTerm)) ||
+      contact.companyName.toLowerCase().includes(lowercasedTerm) ||
       (contact.phone && contact.phone.toLowerCase().includes(lowercasedTerm)) ||
       (contact.email && contact.email.toLowerCase().includes(lowercasedTerm))
     );
@@ -91,7 +91,7 @@ export function ContactList() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                   type="text"
-                  placeholder="Search by name, company, phone or email..."
+                  placeholder="Search by company, name, phone or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10"
@@ -112,7 +112,7 @@ export function ContactList() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Company / Name</TableHead>
                     <TableHead>Phone / Email</TableHead>
                     <TableHead className="hidden md:table-cell">Address</TableHead>
                     <TableHead className="hidden lg:table-cell text-right">Submitted On</TableHead>
@@ -123,8 +123,8 @@ export function ContactList() {
                   {filteredContacts.map((contact) => (
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">
-                          <div>{contact.name}</div>
-                          {contact.companyName && <div className="text-xs text-muted-foreground">{contact.companyName}</div>}
+                          <div className="font-bold">{contact.companyName}</div>
+                          {contact.name && <div className="text-xs text-muted-foreground">{contact.name}</div>}
                       </TableCell>
                       <TableCell>
                         <div>{contact.phone || <span className="text-muted-foreground italic text-xs">No phone</span>}</div>
@@ -184,9 +184,10 @@ function EditContactDialog({ contact, isOpen, onClose, onSuccess }: { contact: C
         if (contact) {
             form.reset({
                 ...contact,
+                companyName: contact.companyName,
+                name: contact.name || '',
                 email: contact.email || '',
                 phone: contact.phone || '',
-                companyName: contact.companyName || '',
                 street: contact.street || '',
                 city: contact.city || '',
                 state: contact.state || '',
@@ -214,19 +215,19 @@ function EditContactDialog({ contact, isOpen, onClose, onSuccess }: { contact: C
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Edit Contact: {contact.name}</DialogTitle>
+                    <DialogTitle>Edit Contact: {contact.companyName}</DialogTitle>
                     <DialogDescription>Update the customer's information below.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Full Name</Label>
-                            <Input id="name" {...form.register('name')} />
-                            {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
+                            <Label htmlFor="companyName">Company Name *</Label>
+                            <Input id="companyName" {...form.register('companyName')} />
+                            {form.formState.errors.companyName && <p className="text-sm text-destructive">{form.formState.errors.companyName.message}</p>}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="companyName">Company Name</Label>
-                            <Input id="companyName" {...form.register('companyName')} />
+                            <Label htmlFor="name">Full Name</Label>
+                            <Input id="name" {...form.register('name')} />
                         </div>
                     </div>
 

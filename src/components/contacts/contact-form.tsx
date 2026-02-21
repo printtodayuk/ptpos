@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -68,32 +69,31 @@ export function ContactForm() {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input id="name" {...form.register('name')} />
-                {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
+                <Label htmlFor="companyName">Company Name *</Label>
+                <Input id="companyName" {...form.register('companyName')} placeholder="Required" />
+                {form.formState.errors.companyName && <p className="text-sm text-destructive">{form.formState.errors.companyName.message}</p>}
             </div>
-             <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name</Label>
-                <Input id="companyName" {...form.register('companyName')} />
-             </div>
+            <div className="space-y-2">
+                <Label htmlFor="name">Contact Person (Full Name)</Label>
+                <Input id="name" {...form.register('name')} placeholder="Optional" />
+            </div>
        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
-            <Input id="email" type="email" {...form.register('email')} />
+            <Input id="email" type="email" {...form.register('email')} placeholder="Optional" />
             {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
         </div>
         <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
-            <Input id="phone" {...form.register('phone')} />
-            {form.formState.errors.phone && <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>}
+            <Input id="phone" {...form.register('phone')} placeholder="Optional" />
         </div>
       </div>
       
       <div className="space-y-2">
         <Label htmlFor="street">Street Address</Label>
-        <Input id="street" {...form.register('street')} />
+        <Input id="street" {...form.register('street')} placeholder="Optional" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -118,5 +118,3 @@ export function ContactForm() {
     </form>
   );
 }
-
-    

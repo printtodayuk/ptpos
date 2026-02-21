@@ -54,12 +54,13 @@ export function BulkUploadDialog() {
             row['Address Line3']
           ].filter(Boolean);
 
+          const companyName = String(row['Company Name'] || '').trim();
           const name = String(row['Name'] || '').trim();
           const email = String(row['Email'] || '').trim();
 
           return {
-            name: name,
-            companyName: String(row['Company Name'] || '').trim(),
+            companyName: companyName,
+            name: name === 'undefined' || name === '' ? undefined : name,
             street: streetLines.join('\n'),
             city: String(row['City'] || '').trim(),
             state: String(row['State'] || '').trim(),
@@ -67,13 +68,13 @@ export function BulkUploadDialog() {
             phone: String(row['Phone'] || '').trim(),
             email: email === 'undefined' || email === '' ? undefined : email,
           };
-        }).filter(c => c.name); // Required field is only Name now
+        }).filter(c => c.companyName); // Required field is only Company Name now
 
         if (contactsToImport.length === 0) {
           toast({ 
             variant: 'destructive', 
             title: 'Invalid Format', 
-            description: 'Could not find any valid contacts. Ensure you have a "Name" column.' 
+            description: 'Could not find any valid contacts. Ensure you have a "Company Name" column.' 
           });
           return;
         }
@@ -111,7 +112,7 @@ export function BulkUploadDialog() {
           <DialogTitle>Bulk Upload Contacts</DialogTitle>
           <DialogDescription>
             Upload an Excel file to import multiple contacts. 
-            Only "Name" is required.
+            Only "Company Name" is required.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -128,7 +129,7 @@ export function BulkUploadDialog() {
                 {file ? file.name : "Click or drag to select .xlsx or .xls file"}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Supported: Name, Company Name, Address Line1-3, City, State, Zip, Phone, Email
+                Required: Company Name. Optional: Name, Address Line1-3, City, State, Zip, Phone, Email
               </p>
             </div>
           ) : (
@@ -145,7 +146,7 @@ export function BulkUploadDialog() {
             <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800 leading-relaxed">
-                Ensure your column names match: <strong>Name, Company Name, Address Line1, Address Line2, Address Line3, City, State, Zip code, Phone, Email</strong>.
+                Ensure your column names match: <strong>Company Name, Name, Address Line1, Address Line2, Address Line3, City, State, Zip code, Phone, Email</strong>.
               </p>
             </div>
           )}
