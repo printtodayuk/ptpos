@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { differenceInMinutes, startOfMonth, endOfMonth } from 'date-fns';
+import { differenceInMinutes, startOfMonth, endOfMonth, format } from 'date-fns';
 
 import type { TimeRecord, Operator, TimeRecordStatus } from '@/lib/types';
 import { TimeRecordSchema, UpdateTimeRecordSchema, operators } from '@/lib/types';
@@ -396,22 +396,26 @@ export async function updateTimeRecord(id: string, data: z.infer<typeof UpdateTi
 }
 
 export async function getMonthlyStats(operator: Operator): Promise<{ totalMinutes: number }> {
-    const start = startOfMonth(new Date());
-    const end = endOfMonth(new Date());
+    const now = new Date();
+    const monthStartStr = format(startOfMonth(now), 'yyyy-MM-dd');
 
     try {
+        // Index-safe: Query by operator only, then filter dates in memory.
+        // This avoids requiring a composite index on (operator, clockInTime).
         const q = query(
             collection(db, 'timeRecords'),
-            where('operator', '==', operator),
-            where('clockInTime', '>=', Timestamp.fromDate(start)),
-            where('clockInTime', '<=', Timestamp.fromDate(end))
+            where('operator', '==', operator)
         );
 
         const snapshot = await getDocs(q);
         let totalMinutes = 0;
+        
         snapshot.docs.forEach(doc => {
             const data = doc.data();
-            totalMinutes += (data.totalWorkDuration || 0);
+            // date is a string "YYYY-MM-DD"
+            if (data.date && data.date >= monthStartStr) {
+                totalMinutes += (data.totalWorkDuration || 0);
+            }
         });
 
         return { totalMinutes };
