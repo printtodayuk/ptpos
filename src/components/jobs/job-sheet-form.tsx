@@ -94,7 +94,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             date: new Date(),
             operator: loggedInOperator || undefined,
             clientName: jobSheetToCreateFromQuotation.clientName,
-            companyName: '',
+            companyName: jobSheetToCreateFromQuotation.companyName || '',
             clientDetails: jobSheetToCreateFromQuotation.clientDetails || '',
             jobItems: jobSheetToCreateFromQuotation.jobItems,
             subTotal: jobSheetToCreateFromQuotation.subTotal,
@@ -146,18 +146,22 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   useEffect(() => {
     if (!watchedClientName || isEditMode || isConversionMode) return;
 
-    const match = contacts.find(c => c.name.toLowerCase() === watchedClientName.toLowerCase());
+    const match = contacts.find(c => c.name && c.name.toLowerCase() === watchedClientName.toLowerCase());
     if (match) {
-        form.setValue('companyName', match.companyName || '');
-        
-        const details = [
-            match.companyName,
-            match.phone,
-            match.email,
-            `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
-        ].filter(Boolean).join('\n');
-        
-        form.setValue('clientDetails', details);
+        // Only auto-fill if details are currently empty, to avoid overwriting manual edits
+        const currentDetails = form.getValues('clientDetails');
+        if (!currentDetails || currentDetails.trim() === '') {
+            form.setValue('companyName', match.companyName || '');
+            
+            const details = [
+                match.companyName,
+                match.phone,
+                match.email,
+                `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+            ].filter(Boolean).join('\n');
+            
+            form.setValue('clientDetails', details);
+        }
     }
   }, [watchedClientName, contacts, form, isEditMode, isConversionMode]);
 
@@ -167,19 +171,21 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
 
     const match = contacts.find(c => c.companyName?.toLowerCase() === watchedCompanyName.toLowerCase());
     if (match) {
-        // Only set client name if it's currently empty to avoid overwriting user's intentional input
-        if (!form.getValues('clientName')) {
-            form.setValue('clientName', match.name);
+        const currentDetails = form.getValues('clientDetails');
+        if (!currentDetails || currentDetails.trim() === '') {
+            if (!form.getValues('clientName')) {
+                form.setValue('clientName', match.name || '');
+            }
+            
+            const details = [
+                match.companyName,
+                match.phone,
+                match.email,
+                `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+            ].filter(Boolean).join('\n');
+            
+            form.setValue('clientDetails', details);
         }
-        
-        const details = [
-            match.companyName,
-            match.phone,
-            match.email,
-            `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
-        ].filter(Boolean).join('\n');
-        
-        form.setValue('clientDetails', details);
     }
   }, [watchedCompanyName, contacts, form, isEditMode, isConversionMode]);
 
@@ -283,12 +289,12 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">Create Job Sheet</h2>
-                <p className="text-muted-foreground">Fill in the details to create a new job sheet.</p>
+                <p className="text-muted-foreground">Fill in the details below. Custom entries are allowed and won't be saved to the contact list.</p>
               </div>
               <Button variant="outline" asChild className="border-primary/20 hover:bg-primary/5">
                 <Link href="/contact" target="_blank">
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Add Contact
+                  Add New Contact
                 </Link>
               </Button>
             </div>
@@ -344,7 +350,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="clientDetails">Client Details (Address, Phone, etc.)</Label>
-                            <Textarea id="clientDetails" {...form.register('clientDetails')} disabled={isPaid} rows={5} />
+                            <Textarea id="clientDetails" {...form.register('clientDetails')} disabled={isPaid} rows={5} placeholder="Manual entry allowed. Will not affect contact list." />
                         </div>
                     </CardContent>
                 </Card>
