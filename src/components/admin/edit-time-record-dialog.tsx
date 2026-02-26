@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -15,10 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { type TimeRecord, UpdateTimeRecordSchema, timeRecordStatus, type TimeRecordStatus } from '@/lib/types';
+import { type TimeRecord, UpdateTimeRecordSchema, timeRecordStatus } from '@/lib/types';
 import { updateTimeRecord } from '@/lib/server-actions-attendance';
-import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type EditTimeRecordDialogProps = {
   record: TimeRecord | null;
@@ -41,11 +39,11 @@ const DateTimePicker = ({ value, onChange }: { value?: Date | null, onChange: (d
     }, [value]);
 
     const handleDateTimeChange = (newDate: Date | undefined, newTime: string) => {
-        if (!newDate) return;
-        
+        const baseDate = newDate || date || new Date();
         const [hours, minutes] = newTime.split(':').map(Number);
-        const combinedDate = new Date(newDate);
-        combinedDate.setHours(hours, minutes, 0, 0);
+        
+        const combinedDate = new Date(baseDate);
+        combinedDate.setHours(hours || 0, minutes || 0, 0, 0);
         
         setDate(combinedDate);
         onChange(combinedDate);
@@ -96,19 +94,18 @@ export function EditTimeRecordDialog({ record, isOpen, onClose, onSuccess }: Edi
   });
 
   useEffect(() => {
-    if (record) {
+    if (record && isOpen) {
       form.reset({
-        ...record,
         clockInTime: new Date(record.clockInTime),
         clockOutTime: record.clockOutTime ? new Date(record.clockOutTime) : null,
         status: record.status,
-        breaks: record.breaks.map(b => ({
-            startTime: new Date(b.startTime),
+        breaks: (record.breaks || []).map(b => ({
+            startTime: b.startTime ? new Date(b.startTime) : new Date(),
             endTime: b.endTime ? new Date(b.endTime) : null,
         }))
       });
     }
-  }, [record, form]);
+  }, [record, isOpen, form]);
 
   const onSubmit = (data: FormValues) => {
     if (!record?.id) return;
@@ -159,24 +156,32 @@ export function EditTimeRecordDialog({ record, isOpen, onClose, onSuccess }: Edi
             </div>
 
             <div className="space-y-4">
-                <Label>Breaks</Label>
-                {fields.map((field, index) => (
-                    <div key={field.id} className="flex items-center gap-2">
-                         <Controller
-                            name={`breaks.${index}.startTime`}
-                            control={form.control}
-                            render={({ field }) => <DateTimePicker value={field.value} onChange={field.onChange} />}
-                        />
-                         <Controller
-                            name={`breaks.${index}.endTime`}
-                            control={form.control}
-                            render={({ field }) => <DateTimePicker value={field.value} onChange={field.onChange} />}
-                        />
-                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
-                ))}
+                <Label className="text-lg font-bold">Breaks</Label>
+                <div className="space-y-3">
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/30">
+                            <div className="space-y-1">
+                                <Label className="text-xs">Start</Label>
+                                <Controller
+                                    name={`breaks.${index}.startTime`}
+                                    control={form.control}
+                                    render={({ field }) => <DateTimePicker value={field.value} onChange={field.onChange} />}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs">End</Label>
+                                <Controller
+                                    name={`breaks.${index}.endTime`}
+                                    control={form.control}
+                                    render={({ field }) => <DateTimePicker value={field.value} onChange={field.onChange} />}
+                                />
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="mt-5 text-destructive" onClick={() => remove(index)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => append({ startTime: new Date(), endTime: null })}>
                     <PlusCircle className="h-4 w-4 mr-2" /> Add Break
                 </Button>

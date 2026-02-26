@@ -16,10 +16,10 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { differenceInMinutes, startOfMonth, endOfMonth, format } from 'date-fns';
+import { differenceInMinutes, startOfMonth, format } from 'date-fns';
 
 import type { TimeRecord, Operator, TimeRecordStatus } from '@/lib/types';
-import { TimeRecordSchema, UpdateTimeRecordSchema, operators } from '@/lib/types';
+import { UpdateTimeRecordSchema, operators } from '@/lib/types';
 import { db } from '@/lib/firebase';
 
 function getCurrentDateString() {
@@ -29,7 +29,6 @@ function getCurrentDateString() {
 export async function getOperatorStatus(operator: Operator): Promise<TimeRecord | null> {
   const date = getCurrentDateString();
   
-  // Index-safe simple query: fetch today's records and filter in memory
   const q = query(
     collection(db, 'timeRecords'),
     where('date', '==', date)
@@ -62,72 +61,6 @@ export async function getOperatorStatus(operator: Operator): Promise<TimeRecord 
     })),
   } as TimeRecord;
 }
-
-export type OperatorStatusInfo = {
-    status: TimeRecordStatus | 'not-clocked-in';
-    clockInTime?: Date;
-    breakStartTime?: Date;
-}
-
-export async function getAllOperatorStatuses(): Promise<Record<Operator, OperatorStatusInfo>> {
-    const date = getCurrentDateString();
-    const statuses: Record<Operator, OperatorStatusInfo> = {} as any;
-    
-    // Initialize
-    for (const op of operators) {
-        statuses[op] = { status: 'not-clocked-in' };
-    }
-
-    try {
-        // Index-safe query: fetch all for today
-        const q = query(
-            collection(db, 'timeRecords'),
-            where('date', '==', date)
-        );
-
-        const snapshot = await getDocs(q);
-        const recordsByOp: Record<string, any[]> = {};
-
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            if (!recordsByOp[data.operator]) recordsByOp[data.operator] = [];
-            recordsByOp[data.operator].push(data);
-        });
-
-        for (const op of operators) {
-            const records = recordsByOp[op];
-            if (!records || records.length === 0) continue;
-
-            records.sort((a, b) => {
-                const timeA = a.clockInTime instanceof Timestamp ? a.clockInTime.toMillis() : 0;
-                const timeB = b.clockInTime instanceof Timestamp ? b.clockInTime.toMillis() : 0;
-                return timeB - timeA;
-            });
-
-            const latest = records[0];
-            if (latest.status === 'clocked-out') {
-                statuses[op] = { status: 'clocked-out' };
-            } else {
-                const info: OperatorStatusInfo = {
-                    status: latest.status,
-                    clockInTime: (latest.clockInTime as Timestamp).toDate(),
-                };
-                if (latest.status === 'on-break') {
-                    const currentBreak = latest.breaks?.find((b: any) => !b.endTime);
-                    if (currentBreak) {
-                        info.breakStartTime = (currentBreak.startTime as Timestamp).toDate();
-                    }
-                }
-                statuses[op] = info;
-            }
-        }
-    } catch (e) {
-        console.error("Error fetching statuses: ", e);
-    }
-    
-    return statuses;
-}
-
 
 export async function handleClockIn(operator: Operator) {
   const existingRecord = await getOperatorStatus(operator);
@@ -305,7 +238,7 @@ export async function createManualTimeRecord(operator: Operator, data: z.infer<t
         const { clockInTime, clockOutTime, breaks, status } = validatedData.data;
 
         let totalBreakDuration = 0;
-        const processedBreaks = breaks.map(b => {
+        const processedBreaks = (breaks || []).map(b => {
             if (b.startTime && b.endTime) {
                  totalBreakDuration += differenceInMinutes(b.endTime, b.startTime);
             }
@@ -328,7 +261,7 @@ export async function createManualTimeRecord(operator: Operator, data: z.infer<t
             totalWorkDuration: Math.max(0, totalWorkDuration),
             totalBreakDuration: Math.max(0, totalBreakDuration),
             status: status || 'clocked-out',
-            date: clockInTime.toISOString().split('T')[0],
+            date: format(clockInTime, 'yyyy-MM-dd'),
         };
 
         await addDoc(collection(db, 'timeRecords'), newRecord);
@@ -356,7 +289,7 @@ export async function updateTimeRecord(id: string, data: z.infer<typeof UpdateTi
         const { clockInTime, clockOutTime, breaks, status } = validatedData.data;
 
         let totalBreakDuration = 0;
-        const processedBreaks = breaks.map(b => {
+        const processedBreaks = (breaks || []).map(b => {
             if (b.startTime && b.endTime) {
                  totalBreakDuration += differenceInMinutes(b.endTime, b.startTime);
             }
@@ -372,13 +305,13 @@ export async function updateTimeRecord(id: string, data: z.infer<typeof UpdateTi
         }
 
         const dataToUpdate = {
-            ...validatedData.data,
             clockInTime: Timestamp.fromDate(clockInTime),
             clockOutTime: clockOutTime ? Timestamp.fromDate(clockOutTime) : null,
             breaks: processedBreaks,
             totalWorkDuration: Math.max(0, totalWorkDuration),
             totalBreakDuration: Math.max(0, totalBreakDuration),
-            status: status || (clockOutTime ? 'clocked-out' : 'clocked-in')
+            status: status || (clockOutTime ? 'clocked-out' : 'clocked-in'),
+            date: format(clockInTime, 'yyyy-MM-dd'),
         };
         
         await updateDoc(recordRef, dataToUpdate);
@@ -400,8 +333,6 @@ export async function getMonthlyStats(operator: Operator): Promise<{ totalMinute
     const monthStartStr = format(startOfMonth(now), 'yyyy-MM-dd');
 
     try {
-        // Index-safe: Query by operator only, then filter dates in memory.
-        // This avoids requiring a composite index on (operator, clockInTime).
         const q = query(
             collection(db, 'timeRecords'),
             where('operator', '==', operator)
@@ -412,7 +343,6 @@ export async function getMonthlyStats(operator: Operator): Promise<{ totalMinute
         
         snapshot.docs.forEach(doc => {
             const data = doc.data();
-            // date is a string "YYYY-MM-DD"
             if (data.date && data.date >= monthStartStr) {
                 totalMinutes += (data.totalWorkDuration || 0);
             }
