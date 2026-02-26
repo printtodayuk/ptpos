@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addDays, format } from 'date-fns';
@@ -17,9 +17,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { InvoiceSchema } from '@/lib/types';
+import { InvoiceSchema, type Contact } from '@/lib/types';
 import type { CompanyProfile, Invoice } from '@/lib/types';
 import { saveInvoice } from '@/lib/server-actions-invoices';
+import { getContacts } from '@/lib/server-actions-contacts';
 import { useToast } from '@/hooks/use-toast';
 
 const CreateInvoiceSchema = InvoiceSchema.omit({ id: true, invoiceId: true, createdAt: true });
@@ -33,7 +34,10 @@ type InvoiceFormProps = {
 
 export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCancel }: InvoiceFormProps) {
     const [isPending, startTransition] = useTransition();
+    const [contacts, setContacts] = useState<Contact[]>([]);
     const { toast } = useToast();
+
+    const isEditMode = !!invoiceToEdit;
 
     const form = useForm<z.infer<typeof CreateInvoiceSchema>>({
         resolver: zodResolver(CreateInvoiceSchema),
@@ -68,6 +72,35 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
     const watchedItems = form.watch('items');
     const watchedDiscountType = form.watch('discountType');
     const watchedDiscountValue = form.watch('discountValue');
+    const watchedClientName = form.watch('clientName');
+
+    useEffect(() => {
+        getContacts().then(setContacts);
+    }, []);
+
+    // Auto-fill logic from contacts
+    useEffect(() => {
+        if (!watchedClientName || isEditMode) return;
+
+        const match = contacts.find(c => 
+            (c.name && c.name.toLowerCase() === watchedClientName.toLowerCase()) ||
+            (c.companyName && c.companyName.toLowerCase() === watchedClientName.toLowerCase())
+        );
+
+        if (match) {
+            const currentAddress = form.getValues('clientAddress');
+            if (!currentAddress || currentAddress.trim() === '') {
+                const details = [
+                    match.companyName,
+                    match.phone,
+                    match.email,
+                    `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+                ].filter(Boolean).join('\n');
+                
+                form.setValue('clientAddress', details);
+            }
+        }
+    }, [watchedClientName, contacts, form, isEditMode]);
     
     const subTotal = (watchedItems || []).reduce((acc, item) => {
         return acc + (item.price || 0);
@@ -173,12 +206,20 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
 
             <div className="space-y-2">
                 <Label htmlFor="clientName">Client Name</Label>
-                <Input id="clientName" {...form.register('clientName')} />
+                <Input 
+                    id="clientName" 
+                    {...form.register('clientName')} 
+                    list="invoice-contacts-list"
+                    autoComplete="off"
+                />
+                <datalist id="invoice-contacts-list">
+                    {contacts.map(c => <option key={c.id} value={c.name || c.companyName} />)}
+                </datalist>
                 {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
             </div>
             <div className="space-y-2">
                 <Label htmlFor="clientAddress">Client Address</Label>
-                <Textarea id="clientAddress" {...form.register('clientAddress')} />
+                <Textarea id="clientAddress" {...form.register('clientAddress')} rows={4} placeholder="Address, Phone, Email..."/>
                 {form.formState.errors.clientAddress && <p className="text-sm text-destructive">{form.formState.errors.clientAddress.message}</p>}
             </div>
 
@@ -221,7 +262,7 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
                 </div>
                 {fields.map((field, index) => (
                     <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
-                        <Textarea className="col-span-6" {...form.register(`items.${index}.description`)} placeholder="Item description"/>
+                        <Textarea className="col-span-6 min-h-[40px]" {...form.register(`items.${index}.description`)} placeholder="Item description"/>
                         <Input className="col-span-2" type="number" {...form.register(`items.${index}.quantity`, { valueAsNumber: true })} placeholder="1"/>
                         <Input className="col-span-2" type="number" step="0.01" {...form.register(`items.${index}.price`, { valueAsNumber: true })} placeholder="0.00"/>
                         <div className="col-span-1 flex items-center justify-center h-full">
