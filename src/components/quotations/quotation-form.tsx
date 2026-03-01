@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -8,6 +7,8 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2, Lock, UserPlus } from 'lucide-react';
 import { enGB } from 'date-fns/locale';
 import Link from 'next/link';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -19,7 +20,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addQuotation, updateQuotation } from '@/lib/server-actions-quotations';
-import { getContacts } from '@/lib/server-actions-contacts';
 import { QuotationSchema, operators, quotationStatus, type Quotation, type Operator, jobSheetTypes as quotationTypes, type Contact } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -77,8 +77,21 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
     name: 'jobItems',
   });
 
+  // Real-time contacts listener to ensure latest data is always available
   useEffect(() => {
-    getContacts().then(setContacts);
+    const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          ...d,
+          id: doc.id,
+          createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        } as Contact;
+      });
+      setContacts(data);
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -105,13 +118,14 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   const watchedCompanyName = form.watch('companyName');
   
   // Auto-fill logic from contacts (Name match)
+  // Logic updated to allow triggers in Edit Mode if details are empty
   useEffect(() => {
-    if (!watchedClientName || isEditMode) return;
+    if (!watchedClientName) return;
 
     const match = contacts.find(c => c.name && c.name.toLowerCase() === watchedClientName.toLowerCase());
     if (match) {
-        // Only auto-fill if details are currently empty, to avoid overwriting manual edits
         const currentDetails = form.getValues('clientDetails');
+        // Only auto-fill if details are currently empty, to avoid overwriting manual edits
         if (!currentDetails || currentDetails.trim() === '') {
             form.setValue('companyName', match.companyName || '');
             
@@ -125,11 +139,11 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
             form.setValue('clientDetails', details);
         }
     }
-  }, [watchedClientName, contacts, form, isEditMode]);
+  }, [watchedClientName, contacts, form]);
 
   // Auto-fill logic from contacts (Company Name match)
   useEffect(() => {
-    if (!watchedCompanyName || isEditMode) return;
+    if (!watchedCompanyName) return;
 
     const match = contacts.find(c => c.companyName?.toLowerCase() === watchedCompanyName.toLowerCase());
     if (match) {
@@ -149,7 +163,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
             form.setValue('clientDetails', details);
         }
     }
-  }, [watchedCompanyName, contacts, form, isEditMode]);
+  }, [watchedCompanyName, contacts, form]);
 
   const subTotal = (watchedJobItems || []).reduce((acc, item) => {
     const price = Number(item?.price) || 0;

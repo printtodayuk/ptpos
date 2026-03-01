@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -8,6 +7,8 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Loader2, PlusCircle, Trash2, Lock, UserPlus } from 'lucide-react';
 import { enGB } from 'date-fns/locale';
 import Link from 'next/link';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -19,7 +20,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addJobSheet, updateJobSheet } from '@/lib/server-actions-jobs';
-import { getContacts } from '@/lib/server-actions-contacts';
 import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses, type Quotation, type Contact } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
@@ -80,8 +80,21 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     name: 'jobItems',
   });
 
+  // Real-time contacts listener to ensure latest data is always available
   useEffect(() => {
-    getContacts().then(setContacts);
+    const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          ...d,
+          id: doc.id,
+          createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        } as Contact;
+      });
+      setContacts(data);
+    });
+    return () => unsubscribe();
   }, []);
   
   useEffect(() => {
@@ -143,13 +156,15 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const watchedCompanyName = form.watch('companyName');
 
   // Auto-fill logic from contacts (Name match)
+  // Logic updated to allow triggers in Edit Mode if details are empty
   useEffect(() => {
-    if (!watchedClientName || isEditMode || isConversionMode) return;
+    if (!watchedClientName) return;
 
     const match = contacts.find(c => c.name && c.name.toLowerCase() === watchedClientName.toLowerCase());
     if (match) {
-        // Only auto-fill if details are currently empty, to avoid overwriting manual edits
         const currentDetails = form.getValues('clientDetails');
+        // Only fill if details are empty. This prevents overwriting existing job data on load
+        // while allowing users to "re-add" by clearing the details field first.
         if (!currentDetails || currentDetails.trim() === '') {
             form.setValue('companyName', match.companyName || '');
             
@@ -163,11 +178,11 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             form.setValue('clientDetails', details);
         }
     }
-  }, [watchedClientName, contacts, form, isEditMode, isConversionMode]);
+  }, [watchedClientName, contacts, form]);
 
   // Auto-fill logic from contacts (Company Name match)
   useEffect(() => {
-    if (!watchedCompanyName || isEditMode || isConversionMode) return;
+    if (!watchedCompanyName) return;
 
     const match = contacts.find(c => c.companyName?.toLowerCase() === watchedCompanyName.toLowerCase());
     if (match) {
@@ -187,7 +202,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             form.setValue('clientDetails', details);
         }
     }
-  }, [watchedCompanyName, contacts, form, isEditMode, isConversionMode]);
+  }, [watchedCompanyName, contacts, form]);
 
   const subTotal = (watchedJobItems || []).reduce((acc, item) => {
     const price = Number(item.price) || 0;
@@ -206,7 +221,6 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
       if (item.vatApplied) {
           const price = Number(item.price) || 0;
-          // Distribute discount proportionally before calculating VAT
           const itemProportion = subTotal > 0 ? price / subTotal : 0;
           const itemDiscount = discountAmount * itemProportion;
           const itemPriceAfterDiscount = price - itemDiscount;

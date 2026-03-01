@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -7,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { addDays, format } from 'date-fns';
 import { Loader2, PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { z } from 'zod';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,6 @@ import { cn } from '@/lib/utils';
 import { InvoiceSchema, type Contact } from '@/lib/types';
 import type { CompanyProfile, Invoice } from '@/lib/types';
 import { saveInvoice } from '@/lib/server-actions-invoices';
-import { getContacts } from '@/lib/server-actions-contacts';
 import { useToast } from '@/hooks/use-toast';
 
 const CreateInvoiceSchema = InvoiceSchema.omit({ id: true, invoiceId: true, createdAt: true });
@@ -78,13 +78,27 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
     const watchedClientName = form.watch('clientName');
     const watchedCompanyName = form.watch('companyName');
 
+    // Real-time contacts listener to ensure latest data is always available
     useEffect(() => {
-        getContacts().then(setContacts);
+        const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map((doc) => {
+                const d = doc.data();
+                return {
+                    ...d,
+                    id: doc.id,
+                    createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+                } as Contact;
+            });
+            setContacts(data);
+        });
+        return () => unsubscribe();
     }, []);
 
     // Auto-fill logic from contacts (Name match)
+    // Logic updated to allow triggers in Edit Mode if address is empty
     useEffect(() => {
-        if (!watchedClientName || isEditMode) return;
+        if (!watchedClientName) return;
 
         const match = contacts.find(c => 
             c.name && c.name.toLowerCase() === watchedClientName.toLowerCase()
@@ -92,6 +106,8 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
 
         if (match) {
             const currentAddress = form.getValues('clientAddress');
+            // Only fill if address is empty. This prevents overwriting existing invoice data on load
+            // while allowing users to "re-add" by clearing the field first.
             if (!currentAddress || currentAddress.trim() === '') {
                 form.setValue('companyName', match.companyName || '');
                 
@@ -105,11 +121,11 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
                 form.setValue('clientAddress', details);
             }
         }
-    }, [watchedClientName, contacts, form, isEditMode]);
+    }, [watchedClientName, contacts, form]);
 
     // Auto-fill logic from contacts (Company Name match)
     useEffect(() => {
-        if (!watchedCompanyName || isEditMode) return;
+        if (!watchedCompanyName) return;
 
         const match = contacts.find(c => 
             c.companyName?.toLowerCase() === watchedCompanyName.toLowerCase()
@@ -132,7 +148,7 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
                 form.setValue('clientAddress', details);
             }
         }
-    }, [watchedCompanyName, contacts, form, isEditMode]);
+    }, [watchedCompanyName, contacts, form]);
     
     const subTotal = (watchedItems || []).reduce((acc, item) => {
         return acc + (item.price || 0);
