@@ -39,6 +39,7 @@ export function InvoiceView({ invoice, companyProfile }: InvoiceViewProps) {
           <div className="text-right">
             <h2 className="font-bold mb-2">To:</h2>
             <p className="font-bold">{invoice.clientName}</p>
+            {invoice.companyName && <p className="font-semibold italic">{invoice.companyName}</p>}
             <p className="whitespace-pre-wrap">{invoice.clientAddress}</p>
           </div>
         </div>
@@ -103,5 +104,3 @@ export function InvoiceView({ invoice, companyProfile }: InvoiceViewProps) {
     </div>
   );
 }
-
-    

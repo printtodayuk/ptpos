@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -43,11 +44,13 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
         resolver: zodResolver(CreateInvoiceSchema),
         defaultValues: invoiceToEdit ? {
             ...invoiceToEdit,
+            companyName: invoiceToEdit.companyName || '',
             date: new Date(invoiceToEdit.date),
             dueDate: new Date(invoiceToEdit.dueDate),
         } : {
             companyProfileId: companyProfiles[0]?.id || '',
             clientName: '',
+            companyName: '',
             clientAddress: '',
             date: new Date(),
             dueDate: addDays(new Date(), 30),
@@ -73,23 +76,25 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
     const watchedDiscountType = form.watch('discountType');
     const watchedDiscountValue = form.watch('discountValue');
     const watchedClientName = form.watch('clientName');
+    const watchedCompanyName = form.watch('companyName');
 
     useEffect(() => {
         getContacts().then(setContacts);
     }, []);
 
-    // Auto-fill logic from contacts
+    // Auto-fill logic from contacts (Name match)
     useEffect(() => {
         if (!watchedClientName || isEditMode) return;
 
         const match = contacts.find(c => 
-            (c.name && c.name.toLowerCase() === watchedClientName.toLowerCase()) ||
-            (c.companyName && c.companyName.toLowerCase() === watchedClientName.toLowerCase())
+            c.name && c.name.toLowerCase() === watchedClientName.toLowerCase()
         );
 
         if (match) {
             const currentAddress = form.getValues('clientAddress');
             if (!currentAddress || currentAddress.trim() === '') {
+                form.setValue('companyName', match.companyName || '');
+                
                 const details = [
                     match.companyName,
                     match.phone,
@@ -101,6 +106,33 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
             }
         }
     }, [watchedClientName, contacts, form, isEditMode]);
+
+    // Auto-fill logic from contacts (Company Name match)
+    useEffect(() => {
+        if (!watchedCompanyName || isEditMode) return;
+
+        const match = contacts.find(c => 
+            c.companyName?.toLowerCase() === watchedCompanyName.toLowerCase()
+        );
+
+        if (match) {
+            const currentAddress = form.getValues('clientAddress');
+            if (!currentAddress || currentAddress.trim() === '') {
+                if (!form.getValues('clientName')) {
+                    form.setValue('clientName', match.name || '');
+                }
+                
+                const details = [
+                    match.companyName,
+                    match.phone,
+                    match.email,
+                    `${match.street || ''}${match.zip ? ', ' + match.zip : ''}`
+                ].filter(Boolean).join('\n');
+                
+                form.setValue('clientAddress', details);
+            }
+        }
+    }, [watchedCompanyName, contacts, form, isEditMode]);
     
     const subTotal = (watchedItems || []).reduce((acc, item) => {
         return acc + (item.price || 0);
@@ -118,7 +150,6 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
     const vatAmount = (watchedItems || []).reduce((acc, item) => {
         if (item.vatApplied) {
             const itemPrice = item.price || 0;
-            // Distribute discount proportionally before calculating VAT
             const itemProportion = subTotal > 0 ? itemPrice / subTotal : 0;
             const itemDiscount = discountAmount * itemProportion;
             const itemPriceAfterDiscount = itemPrice - itemDiscount;
@@ -161,7 +192,6 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
                     title: "Uh oh! Something went wrong.",
                     description: result.message || "Could not save invoice.",
                 });
-                console.error("Failed to save invoice", result.errors || result.message);
             }
         });
     };
@@ -204,22 +234,39 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="clientName">Client Name</Label>
-                <Input 
-                    id="clientName" 
-                    {...form.register('clientName')} 
-                    list="invoice-contacts-list"
-                    autoComplete="off"
-                />
-                <datalist id="invoice-contacts-list">
-                    {contacts.map(c => <option key={c.id} value={c.name || c.companyName} />)}
-                </datalist>
-                {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="clientName">Client Name</Label>
+                    <Input 
+                        id="clientName" 
+                        {...form.register('clientName')} 
+                        list="invoice-contacts-list"
+                        autoComplete="off"
+                    />
+                    <datalist id="invoice-contacts-list">
+                        {contacts.map(c => <option key={c.id} value={c.name} />)}
+                    </datalist>
+                    {form.formState.errors.clientName && <p className="text-sm text-destructive">{form.formState.errors.clientName.message}</p>}
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <Input 
+                        id="companyName" 
+                        {...form.register('companyName')} 
+                        list="invoice-companies-list"
+                        autoComplete="off"
+                    />
+                    <datalist id="invoice-companies-list">
+                        {[...new Set(contacts.map(c => c.companyName).filter(Boolean))].map((comp, idx) => (
+                            <option key={idx} value={comp!} />
+                        ))}
+                    </datalist>
+                </div>
             </div>
+
             <div className="space-y-2">
-                <Label htmlFor="clientAddress">Client Address</Label>
-                <Textarea id="clientAddress" {...form.register('clientAddress')} rows={4} placeholder="Address, Phone, Email..."/>
+                <Label htmlFor="clientAddress">Client Details (Address, Phone, Email...)</Label>
+                <Textarea id="clientAddress" {...form.register('clientAddress')} rows={4} placeholder="Manual entry allowed. Will not affect contact list."/>
                 {form.formState.errors.clientAddress && <p className="text-sm text-destructive">{form.formState.errors.clientAddress.message}</p>}
             </div>
 
