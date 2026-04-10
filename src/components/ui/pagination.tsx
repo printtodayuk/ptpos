@@ -6,10 +6,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button, type ButtonProps } from '@/components/ui/button';
-<<<<<<< HEAD
 import { Input } from '@/components/ui/input';
-=======
->>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
 
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   <nav
@@ -122,7 +119,6 @@ type SimplePaginationProps = {
 };
 
 const SimplePagination = ({ currentPage, totalPages, onPageChange, className }: SimplePaginationProps) => {
-<<<<<<< HEAD
   const [inputPage, setInputPage] = React.useState(currentPage.toString());
 
   React.useEffect(() => {
@@ -182,31 +178,6 @@ const SimplePagination = ({ currentPage, totalPages, onPageChange, className }: 
             >
                 Next
                 <ChevronRight className="h-4 w-4 ml-1" />
-=======
-  if (totalPages <= 1) return null;
-
-  return (
-    <div className={cn("flex items-center justify-between pt-4", className)}>
-        <div className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
-        </div>
-        <div className="flex items-center gap-2">
-            <Button
-                variant="outline"
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage <= 1}
-            >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-            </Button>
-            <Button
-                variant="outline"
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage >= totalPages}
-            >
-                Next
-                <ChevronRight className="h-4 w-4" />
->>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
             </Button>
         </div>
     </div>
