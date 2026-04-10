@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 280 30% 98%;
+    --foreground: 280 50% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 280 50% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 280 50% 10%;
+    --primary: 320 100% 50%; /* Vibrant Pink/Magenta */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 280 20% 94%;
+    --secondary-foreground: 280 50% 10%;
+    --muted: 280 10% 96%;
+    --muted-foreground: 280 20% 45%;
+    --accent: 45 100% 50%; /* Bright Gold */
+    --accent-foreground: 280 50% 10%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 320 30% 90%;
+    --input: 320 30% 90%;
+    --ring: 320 100% 50%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 280 50% 5%;
+    --foreground: 280 10% 95%;
+    --card: 280 50% 8%;
+    --card-foreground: 280 10% 95%;
+    --popover: 280 50% 8%;
+    --popover-foreground: 280 10% 95%;
+    --primary: 320 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 280 30% 15%;
+    --secondary-foreground: 280 10% 95%;
+    --muted: 280 30% 12%;
+    --muted-foreground: 280 10% 60%;
+    --accent: 45 100% 50%;
+    --accent-foreground: 280 10% 5%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 280 30% 20%;
+    --input: 280 30% 20%;
+    --ring: 320 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* Make inputs and textareas more colourful */
+  input, textarea, select {
+    @apply border-primary/20 bg-primary/5 focus:bg-white transition-all duration-200 focus:border-primary/60;
+  }
+
+  /* Vibrant card headers */
+  .card-header-vibrant {
+    @apply bg-gradient-to-r from-primary/10 to-accent/10;
+  }
+}
+
+@layer utilities {
+  .print-only {
+    display: none;
+  }
+  @media print {
+    body {
+      background-color: white !important;
+    }
+    .print-hide {
+      display: none !important;
+    }
+    .print-only {
+      display: block !important;
+    }
+  }
+}

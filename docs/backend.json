@@ -1,0 +1,671 @@
+
+{
+  "entities": {
+    "Contact": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Contact",
+      "type": "object",
+      "description": "Represents a customer's contact information.",
+      "properties": {
+        "name": { "type": "string", "description": "Customer's full name." },
+        "companyName": { "type": "string", "description": "Customer's company name." },
+        "street": { "type": "string", "description": "Street address." },
+        "city": { "type": "string", "description": "City." },
+        "state": { "type": "string", "description": "State or province." },
+        "zip": { "type": "string", "description": "ZIP or postal code." },
+        "phone": { "type": "string", "description": "Phone number." },
+        "email": { "type": "string", "format": "email", "description": "Email address." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyName", "createdAt"]
+    },
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a transaction record in the EPOS system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the transaction document."
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "Auto-incrementing transaction ID (e.g., TID0001)."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of transaction (invoicing or non-invoicing)."
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Invoice number (optional)."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the transaction (UK time).",
+          "format": "date-time"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "jobDescription": {
+          "type": "string",
+          "description": "Description of the job (optional)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount in pounds."
+        },
+        "vatApplied": {
+          "type": "boolean",
+          "description": "Indicates if VAT is applied."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total amount including VAT."
+        },
+        "paidAmount": {
+            "type": "number",
+            "description": "The amount paid by the client."
+        },
+        "dueAmount": {
+            "type": "number",
+            "description": "The remaining amount due from the client."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment terms (Bank Transfer, Card Payment, Cash)."
+        },
+        "reference": {
+          "type": "string",
+          "description": "Reference information (optional)."
+        },
+        "operator": {
+          "type": "string",
+          "description": "Username of the operator."
+        },
+        "adminChecked": {
+          "type": "boolean",
+          "description": "Indicates if the transaction has been checked by the admin."
+        },
+        "checkedBy": {
+          "type": "string",
+          "description": "Admin who checked the transaction."
+        }
+      },
+      "required": [
+        "id",
+        "transactionId",
+        "type",
+        "date",
+        "clientName",
+        "amount",
+        "vatApplied",
+        "totalAmount",
+        "paidAmount",
+        "dueAmount",
+        "paymentMethod",
+        "operator",
+        "adminChecked"
+      ]
+    },
+    "Counter": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Counter",
+      "type": "object",
+      "description": "A generic counter document for sequential IDs.",
+      "properties": {
+        "count": {
+          "type": "number",
+          "description": "The current count."
+        }
+      },
+      "required": ["count"]
+    },
+    "JobSheet": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Job Sheet",
+      "type": "object",
+      "description": "Represents a job sheet with multiple job items.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the job sheet document."
+        },
+        "jobId": {
+          "type": "string",
+          "description": "Auto-incrementing job ID (e.g., JID0001)."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date of the job sheet creation."
+        },
+        "operator": {
+          "type": "string",
+          "description": "Username of the operator who created the job sheet."
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the client's company."
+        },
+        "clientDetails": {
+            "type": "string",
+            "description": "Additional details about the client (address, phone, etc.)."
+        },
+        "jobItems": {
+          "type": "array",
+          "description": "A list of individual jobs in the sheet.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "vatApplied": { "type": "boolean" }
+            },
+            "required": ["description", "quantity", "price", "vatApplied"]
+          }
+        },
+        "subTotal": {
+          "type": "number",
+          "description": "The sum of all job item prices."
+        },
+        "discountType": { "type": "string", "enum": ["percentage", "amount"], "description": "The type of discount applied." },
+        "discountValue": { "type": "number", "description": "The value of the discount (percentage or amount)." },
+        "discountAmount": { "type": "number", "description": "The calculated amount of the discount." },
+        "subTotalAfterDiscount": { "type": "number", "description": "The sub-total after the discount is applied." },
+        "vatAmount": {
+            "type": "number",
+            "description": "The calculated VAT amount."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount including VAT."
+        },
+        "paidAmount": {
+          "type": "number",
+          "description": "Total amount paid against the job sheet."
+        },
+        "dueAmount": {
+          "type": "number",
+          "description": "The remaining amount due for the job sheet."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Hold", "Studio", "Production", "Cancel", "Ready Pickup", "DPD", "Delivered", "MGH"],
+          "description": "The current status of the job sheet."
+        },
+         "paymentStatus": {
+          "type": "string",
+          "enum": ["Unpaid", "Partially Paid", "Paid"],
+          "description": "The current payment status of the job sheet."
+        },
+        "specialNote": {
+          "type": "string",
+          "description": "Any special notes for the job."
+        },
+        "irNumber": {
+          "type": "string",
+          "description": "The IR number associated with the job."
+        },
+        "deliveryBy": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date the job is scheduled for delivery."
+        },
+        "type": {
+            "type": "string",
+            "enum": ["Invoice", "Quotation", "N/A", "STR", "AIR"],
+            "description": "The type of the job sheet."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "history": {
+            "type": "array",
+            "description": "A log of all changes made to the job sheet.",
+            "items": {
+                "$ref": "#/backend/entities/JobSheetHistory"
+            }
+        }
+      },
+      "required": [
+        "jobId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "paidAmount", "dueAmount", "status", "paymentStatus", "type"
+      ]
+    },
+    "JobSheetHistory": {
+        "title": "Job Sheet History",
+        "type": "object",
+        "description": "Represents a single entry in the history log of a job sheet.",
+        "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "operator": { "type": "string" },
+            "action": { "type": "string", "description": "The action performed (e.g., 'Created', 'Updated')." },
+            "details": { "type": "string", "description": "A detailed description of the change." }
+        },
+        "required": ["timestamp", "operator", "action", "details"]
+    },
+    "Quotation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Quotation",
+      "type": "object",
+      "description": "Represents a quotation with multiple items.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the quotation document."
+        },
+        "quotationId": {
+          "type": "string",
+          "description": "Auto-incrementing quotation ID (e.g., QU0001)."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date of the quotation creation."
+        },
+        "operator": {
+          "type": "string",
+          "description": "Username of the operator who created the quotation."
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the client's company."
+        },
+        "clientDetails": {
+            "type": "string",
+            "description": "Additional details about the client (address, phone, etc.)."
+        },
+        "jobItems": {
+          "type": "array",
+          "description": "A list of individual items in the quotation.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "vatApplied": { "type": "boolean" }
+            },
+            "required": ["description", "quantity", "price", "vatApplied"]
+          }
+        },
+        "subTotal": {
+          "type": "number",
+          "description": "The sum of all item prices."
+        },
+        "vatAmount": {
+            "type": "number",
+            "description": "The calculated VAT amount."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount including VAT."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Hold", "Studio", "Production", "Cancel", "Ready Pickup", "DPD", "Delivered", "MGH"],
+          "description": "The current status of the quotation."
+        },
+        "specialNote": {
+          "type": "string",
+          "description": "Any special notes for the quotation."
+        },
+        "jid": {
+          "type": "string",
+          "description": "The Job ID (JID) associated with the quotation if a job has been created from it."
+        },
+        "deliveryBy": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date the quotation is scheduled for delivery."
+        },
+        "type": {
+            "type": "string",
+            "enum": ["Invoice", "Quotation", "N/A", "STR", "AIR"],
+            "description": "The type of the document."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "history": {
+            "type": "array",
+            "description": "A log of all changes made to the quotation.",
+            "items": {
+                "$ref": "#/backend/entities/QuotationHistory"
+            }
+        }
+      },
+      "required": [
+        "quotationId", "date", "operator", "clientName", "jobItems", "subTotal", "vatAmount", "totalAmount", "status", "type"
+      ]
+    },
+    "QuotationHistory": {
+        "title": "Quotation History",
+        "type": "object",
+        "description": "Represents a single entry in the history log of a quotation.",
+        "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "operator": { "type": "string" },
+            "action": { "type": "string", "description": "The action performed (e.g., 'Created', 'Updated')." },
+            "details": { "type": "string", "description": "A detailed description of the change." }
+        },
+        "required": ["timestamp", "operator", "action", "details"]
+    },
+    "TimeRecord": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Time Record",
+      "type": "object",
+      "description": "Represents an operator's work session, including breaks.",
+      "properties": {
+        "id": { "type": "string" },
+        "operator": { "type": "string" },
+        "clockInTime": { "type": "string", "format": "date-time" },
+        "clockOutTime": { "type": "string", "format": "date-time", "nullable": true },
+        "status": { "type": "string", "enum": ["clocked-in", "on-break", "clocked-out"] },
+        "breaks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "startTime": { "type": "string", "format": "date-time" },
+              "endTime": { "type": "string", "format": "date-time", "nullable": true }
+            },
+            "required": ["startTime"]
+          }
+        },
+        "totalWorkDuration": { "type": "number", "description": "Total work duration in minutes." },
+        "totalBreakDuration": { "type": "number", "description": "Total break duration in minutes." },
+        "date": { "type": "string", "format": "date", "description": "The date of the clock-in (YYYY-MM-DD)." }
+      },
+      "required": ["operator", "clockInTime", "status", "date"]
+    },
+    "CompanyProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Company Profile",
+      "type": "object",
+      "description": "Stores details for a company that can issue invoices.",
+      "properties": {
+        "name": { "type": "string", "description": "Company name." },
+        "logoUrl": { "type": "string", "description": "URL for the company logo." },
+        "address": { "type": "string", "description": "Company address." },
+        "email": { "type": "string", "format": "email", "description": "Company contact email." },
+        "website": { "type": "string", "description": "Company website." },
+        "bankDetails": { "type": "string", "description": "Bank details for payment." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "address"]
+    },
+    "Invoice": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invoice",
+      "type": "object",
+      "description": "Represents a customer invoice.",
+      "properties": {
+        "invoiceId": { "type": "string", "description": "Auto-incrementing invoice ID (e.g., Inv-00001)." },
+        "companyProfileId": { "type": "string", "description": "ID of the company profile used for this invoice." },
+        "clientName": { "type": "string" },
+        "clientAddress": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "vatApplied": { "type": "boolean" }
+            },
+            "required": ["description", "quantity", "price"]
+          }
+        },
+        "subTotal": { "type": "number" },
+        "discountType": { "type": "string", "enum": ["percentage", "amount"] },
+        "discountValue": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "subTotalAfterDiscount": { "type": "number" },
+        "vatAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Draft", "Paid", "Sent"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoiceId", "companyProfileId", "clientName", "clientAddress", "date", "dueDate", "items", "totalAmount", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "type": "object",
+      "description": "Represents a task or request in the system.",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "type": { "type": "string" },
+        "details": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "completionDate": { "type": "string", "format": "date-time", "nullable": true, "description": "The date the task is due." },
+        "status": { "type": "string", "enum": ["To Do", "In Progress", "Done", "Cancelled"] },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/TaskHistory" }
+        }
+      },
+      "required": ["taskId", "createdAt", "createdBy", "type", "details", "assignedTo", "status"]
+    },
+    "TaskHistory": {
+      "title": "Task History",
+      "type": "object",
+      "description": "Represents a single entry in the history log of a task.",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "operator": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["timestamp", "operator", "action", "details"]
+    },
+    "TaskType": {
+      "title": "Task Type",
+      "type": "object",
+      "description": "Represents a user-definable type for a task.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "type": "object",
+      "description": "A dashboard announcement.",
+      "properties": {
+        "content": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["content", "updatedAt"]
+    }
+  },
+  "auth": {
+    "providers": []
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores all transaction data.",
+          "params": [
+            {
+              "name": "transactionId",
+              "description": "Unique identifier for the transaction document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/counters/{counterId}",
+        "definition": {
+          "entityName": "Counter",
+          "schema": {
+            "$ref": "#/backend/entities/Counter"
+          },
+          "description": "Stores counter documents for generating sequential IDs for transactions, job sheets, quotations, invoices, and tasks.",
+          "params": [
+            {
+              "name": "counterId",
+              "description": "The name of the counter (e.g., 'transactions', 'jobSheets', 'quotations', 'invoices', 'tasks')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/jobSheets/{jobSheetId}",
+        "definition": {
+          "entityName": "JobSheet",
+          "schema": {
+            "$ref": "#/backend/entities/JobSheet"
+          },
+          "description": "Stores all job sheet data.",
+          "params": [
+            {
+              "name": "jobSheetId",
+              "description": "Unique identifier for the job sheet document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/quotations/{quotationId}",
+        "definition": {
+          "entityName": "Quotation",
+          "schema": {
+            "$ref": "#/backend/entities/Quotation"
+          },
+          "description": "Stores all quotation data.",
+          "params": [
+            {
+              "name": "quotationId",
+              "description": "Unique identifier for the quotation document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/contacts/{contactId}",
+        "definition": {
+          "entityName": "Contact",
+          "schema": {
+            "$ref": "#/backend/entities/Contact"
+          },
+          "description": "Stores customer contact information.",
+          "params": [
+            {
+              "name": "contactId",
+              "description": "Unique identifier for the contact document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/timeRecords/{timeRecordId}",
+        "definition": {
+            "entityName": "TimeRecord",
+            "schema": {
+                "$ref": "#/backend/entities/TimeRecord"
+            },
+            "description": "Stores operator clock-in/clock-out and break data.",
+            "params": [
+                {
+                    "name": "timeRecordId",
+                    "description": "Unique identifier for the time record."
+                }
+            ]
+        }
+      },
+      {
+        "path": "/companyProfiles/{profileId}",
+        "definition": {
+            "entityName": "CompanyProfile",
+            "schema": {
+                "$ref": "#/backend/entities/CompanyProfile"
+            },
+            "description": "Stores company profiles for invoicing.",
+            "params": [
+                {
+                    "name": "profileId",
+                    "description": "Unique identifier for the company profile."
+                }
+            ]
+        }
+      },
+      {
+        "path": "/invoices/{invoiceId}",
+        "definition": {
+            "entityName": "Invoice",
+            "schema": {
+                "$ref": "#/backend/entities/Invoice"
+            },
+            "description": "Stores generated invoices.",
+            "params": [
+                {
+                    "name": "invoiceId",
+                    "description": "Unique identifier for the invoice."
+                }
+            ]
+        }
+      },
+       {
+        "path": "/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": {
+            "$ref": "#/backend/entities/Task"
+          },
+          "description": "Stores all tasks and requests."
+        }
+      },
+      {
+        "path": "/taskTypes/{typeId}",
+        "definition": {
+          "entityName": "TaskType",
+          "schema": {
+            "$ref": "#/backend/entities/TaskType"
+          },
+          "description": "Stores user-defined task types."
+        }
+      },
+      {
+        "path": "/notices/{noticeId}",
+        "definition": {
+          "entityName": "Notice",
+          "schema": {
+            "$ref": "#/backend/entities/Notice"
+          },
+          "description": "Stores dashboard notices."
+        }
+      }
+    ],
+    "reasoning": "A single 'transactions' collection simplifies the data model significantly. A 'counters' collection is added to manage auto-incrementing IDs for transactions, job sheets, quotations, and invoices in a reliable way. A 'jobSheets' collection stores detailed job information. A 'quotations' collection stores quotation data. A 'contacts' collection stores customer-submitted contact details. A 'timeRecords' collection is added to manage operator attendance. 'companyProfiles' and 'invoices' collections are added for the new invoice generator feature. The 'tasks' and 'taskTypes' collections support the task management feature. The 'notices' collection allows admins to post dashboard announcements."
+  }
+}
