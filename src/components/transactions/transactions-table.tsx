@@ -30,7 +30,11 @@ import { markTransactionAsChecked } from '@/lib/server-actions';
 import { ReceiptDialog } from './receipt-dialog';
 import { SimplePagination } from '../ui/pagination';
 
+<<<<<<< HEAD
 const ROWS_PER_PAGE = 100;
+=======
+const ROWS_PER_PAGE = 10;
+>>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
 
 type TransactionsTableProps = {
   transactions: Transaction[];

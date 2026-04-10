@@ -8,7 +8,11 @@ import { ContactSchema } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+<<<<<<< HEAD
 import { Loader2, Copy, Check, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+=======
+import { Loader2, Copy, Check, Search, Edit, Trash2 } from 'lucide-react';
+>>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
 import { format } from 'date-fns';
 import { useDebounce } from '@/hooks/use-debounce';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -38,9 +42,12 @@ export function ContactList() {
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [contactToEdit, setContactToEdit] = useState<Contact | null>(null);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+<<<<<<< HEAD
   const [currentPage, setCurrentPage] = useState(1);
   const [inputPage, setInputPage] = useState('1');
   const itemsPerPage = 100;
+=======
+>>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
   const { toast } = useToast();
 
   const fetchContacts = useCallback(() => {
@@ -102,6 +109,7 @@ export function ContactList() {
     );
   }, [contacts, debouncedSearchTerm]);
 
+<<<<<<< HEAD
   useEffect(() => {
     setCurrentPage(1);
     setInputPage('1');
@@ -129,6 +137,8 @@ export function ContactList() {
     setInputPage(page.toString());
   };
 
+=======
+>>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
   return (
     <>
       <EditContactDialog 
@@ -187,10 +197,16 @@ export function ContactList() {
               {searchTerm ? 'No contacts match your search.' : 'No contacts have been submitted yet.'}
             </div>
           ) : (
+<<<<<<< HEAD
             <div className="space-y-4">
               <div className="border rounded-lg">
                 <Table>
                   <TableHeader>
+=======
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+>>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
                   <TableRow>
                     <TableHead>Company / Name</TableHead>
                     <TableHead>Phone / Email</TableHead>
@@ -200,7 +216,11 @@ export function ContactList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+<<<<<<< HEAD
                   {currentContacts.map((contact) => (
+=======
+                  {filteredContacts.map((contact) => (
+>>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">
                           <div className="font-bold">{contact.companyName || 'N/A'}</div>
@@ -254,6 +274,7 @@ export function ContactList() {
                 </TableBody>
               </Table>
             </div>
+<<<<<<< HEAD
 
             <div className="flex flex-col sm:flex-row items-center justify-between text-sm text-muted-foreground gap-4">
               <div>
@@ -304,6 +325,8 @@ export function ContactList() {
               )}
             </div>
           </div>
+=======
+>>>>>>> 17b9b0d58aa610a39f92457dc167e3f1bcc01956
           )}
         </CardContent>
       </Card>
