@@ -12,7 +12,7 @@ import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { SimplePagination } from '../ui/pagination';
 
-const ROWS_PER_PAGE = 100;
+const ROWS_PER_PAGE = 50;
 
 type JobSheetsTableProps = {
   jobSheets: JobSheet[];
@@ -100,6 +100,12 @@ export function JobSheetsTable({
 
   return (
     <>
+    <SimplePagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        className="pb-4 pt-0"
+    />
     <div className="rounded-lg border-t">
       <Table>
         <TableHeader>

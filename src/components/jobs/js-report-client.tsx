@@ -6,7 +6,16 @@ import { searchJobSheets, exportAllJobSheets, deleteJobSheet } from '@/lib/serve
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Download } from 'lucide-react';
+import { Loader2, Search, Download, Filter } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import type { JobSheet, JobSheetStatus, PaymentStatus, Operator } from '@/lib/types';
 import { jobSheetStatus, paymentStatuses, operators } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -265,72 +274,85 @@ export function JsReportClient() {
             </Button>
           </div>
           
-          <div className="flex flex-col gap-4">
-             <div>
-                <span className="text-sm font-medium text-muted-foreground mr-2">Operator:</span>
-                <div className="flex flex-wrap items-center gap-2">
-                    {operatorFilters.map(op => (
-                    <Button
-                        key={op}
-                        variant={operatorFilter === op ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setOperatorFilter(op)}
-                        className="capitalize"
-                    >
-                        {op}
-                    </Button>
-                    ))}
-                </div>
-            </div>
-             <div>
-                <span className="text-sm font-medium text-muted-foreground mr-2">Job Status:</span>
-                <div className="flex flex-wrap items-center gap-2">
-                    {jobStatusFilters.map(status => (
-                    <Button
-                        key={status}
-                        variant={jobStatusFilter === status ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setJobStatusFilter(status)}
-                        className="capitalize"
-                    >
-                        {status}
-                    </Button>
-                    ))}
-                </div>
-            </div>
-             <div>
-                <span className="text-sm font-medium text-muted-foreground mr-2">Payment Status:</span>
-                <div className="flex flex-wrap items-center gap-2">
-                    {paymentStatusFilters.map(status => (
-                    <Button
-                        key={status}
-                        variant={paymentStatusFilter === status ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setPaymentStatusFilter(status)}
-                        className="capitalize"
-                    >
-                        {status}
-                    </Button>
-                    ))}
-                </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto">
+                      <Filter className="mr-2 h-4 w-4" />
+                      <span>Operator: <span className="font-semibold capitalize">{operatorFilter}</span></span>
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Operator</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={operatorFilter} onValueChange={(v) => setOperatorFilter(v as Operator | 'all')}>
+                      {operatorFilters.map((op) => (
+                          <DropdownMenuRadioItem key={op} value={op} className="capitalize">
+                              {op}
+                          </DropdownMenuRadioItem>
+                      ))}
+                  </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto">
+                      <Filter className="mr-2 h-4 w-4" />
+                      <span>Job Status: <span className="font-semibold capitalize">{jobStatusFilter}</span></span>
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Job Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={jobStatusFilter} onValueChange={(v) => setJobStatusFilter(v as JobSheetStatus | 'all')}>
+                      {jobStatusFilters.map((status) => (
+                          <DropdownMenuRadioItem key={status} value={status} className="capitalize">
+                              {status}
+                          </DropdownMenuRadioItem>
+                      ))}
+                  </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto">
+                      <Filter className="mr-2 h-4 w-4" />
+                      <span>Payment Status: <span className="font-semibold capitalize">{paymentStatusFilter}</span></span>
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Payment Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={paymentStatusFilter} onValueChange={(v) => setPaymentStatusFilter(v as PaymentStatus | 'all')}>
+                      {paymentStatusFilters.map((status) => (
+                          <DropdownMenuRadioItem key={status} value={status} className="capitalize">
+                              {status}
+                          </DropdownMenuRadioItem>
+                      ))}
+                  </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          {isSearching ? (
+          {isSearching && results.length === 0 ? (
             <div className="flex justify-center items-center p-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <JobSheetsTable
-              jobSheets={results}
-              onEdit={handleEdit}
-              onView={handleView}
-              onDelete={handleDeleteRequest}
-              onPay={handlePay}
-              onViewHistory={handleViewHistory}
-              onPrint={handlePrint}
-              onDeliveryNote={handleDeliveryNote}
-            />
+            <div className={isSearching ? "opacity-50 pointer-events-none transition-opacity" : ""}>
+              <JobSheetsTable
+                jobSheets={results}
+                onEdit={handleEdit}
+                onView={handleView}
+                onDelete={handleDeleteRequest}
+                onPay={handlePay}
+                onViewHistory={handleViewHistory}
+                onPrint={handlePrint}
+                onDeliveryNote={handleDeliveryNote}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

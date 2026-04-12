@@ -30,7 +30,7 @@ import { markTransactionAsChecked } from '@/lib/server-actions';
 import { ReceiptDialog } from './receipt-dialog';
 import { SimplePagination } from '../ui/pagination';
 
-const ROWS_PER_PAGE = 100;
+const ROWS_PER_PAGE = 50;
 
 type TransactionsTableProps = {
   transactions: Transaction[];
@@ -70,9 +70,14 @@ export function TransactionsTable({
   }, [selectedRows, onSelectionChange]);
   
   useEffect(() => {
-    setSelectedRows([]);
-    setCurrentPage(1);
+    setSelectedRows((prev) => prev.filter(id => transactions.some(t => t.id === id)));
   }, [transactions]);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
 
   const handleCheck = (id: string) => {
@@ -128,6 +133,12 @@ export function TransactionsTable({
         isOpen={!!transactionToView}
         onClose={() => setTransactionToView(null)}
       />
+      <SimplePagination 
+        currentPage={currentPage} 
+        totalPages={totalPages} 
+        onPageChange={handlePageChange}
+        className="pb-4 pt-0"
+      />
       <div className="rounded-lg border-t">
         <Table>
           <TableHeader>
@@ -142,7 +153,6 @@ export function TransactionsTable({
                 </TableHead>
               )}
               <TableHead>TID</TableHead>
-              {showAdminControls && <TableHead>Type</TableHead>}
               <TableHead>Date</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="hidden md:table-cell">Invoice #</TableHead>
@@ -173,13 +183,6 @@ export function TransactionsTable({
                 <TableCell>
                   <Badge variant="secondary">{tx.transactionId}</Badge>
                 </TableCell>
-                {showAdminControls && (
-                  <TableCell>
-                    <Badge variant={tx.type === 'invoicing' ? 'default' : 'secondary'}>
-                      {tx.type === 'invoicing' ? 'Xero' : 'PT Till'}
-                    </Badge>
-                  </TableCell>
-                )}
                 <TableCell className="font-medium">
                   {format(new Date(tx.date), 'dd/MM/yy')}
                 </TableCell>

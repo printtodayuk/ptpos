@@ -305,20 +305,22 @@ export default function AdminPage() {
             </div>
 
             <div className="mt-4">
-              {isSearching ? (
+              {isSearching && results.length === 0 ? (
                 <div className="flex justify-center items-center p-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <TransactionsTable
-                  transactions={results}
-                  onDelete={handleDeleteRequest}
-                  onEdit={handleEditRequest}
-                  onTransactionChecked={onTransactionChecked}
-                  showAdminControls={true}
-                  selectable={true}
-                  onSelectionChange={handleSelectionChange}
-                />
+                <div className={isSearching ? "opacity-50 pointer-events-none transition-opacity" : ""}>
+                  <TransactionsTable
+                    transactions={results}
+                    onDelete={handleDeleteRequest}
+                    onEdit={handleEditRequest}
+                    onTransactionChecked={onTransactionChecked}
+                    showAdminControls={true}
+                    selectable={true}
+                    onSelectionChange={handleSelectionChange}
+                  />
+                </div>
               )}
             </div>
           </CardContent>

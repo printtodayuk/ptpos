@@ -40,7 +40,7 @@ export function ContactList() {
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [inputPage, setInputPage] = useState('1');
-  const itemsPerPage = 100;
+  const itemsPerPage = 50;
   const { toast } = useToast();
 
   const fetchContacts = useCallback(() => {
@@ -188,6 +188,48 @@ export function ContactList() {
             </div>
           ) : (
             <div className="space-y-4">
+              {totalPages > 1 && (
+                <div className="flex flex-wrap items-center justify-end gap-2 pb-2 text-sm text-muted-foreground">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center space-x-2">
+                    <span>Page</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={inputPage}
+                      onChange={(e) => setInputPage(e.target.value)}
+                      onBlur={handlePageSubmit}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handlePageSubmit(e);
+                        }
+                      }}
+                      className="w-16 h-8 text-center px-1"
+                    />
+                    <span>of {totalPages}</span>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
               <div className="border rounded-lg">
                 <Table>
                   <TableHeader>
