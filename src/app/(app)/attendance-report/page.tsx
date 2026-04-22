@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { SimplePagination } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FeatureGuard } from '@/components/features/feature-guard';
 
 
 const ROWS_PER_PAGE = 10;
@@ -102,6 +103,7 @@ export default function AttendanceReportPage() {
     };
 
     return (
+      <FeatureGuard featureKey="reports">
         <div className="flex flex-col gap-6">
             <CardHeader className="p-0">
                 <CardTitle>Attendance Report</CardTitle>
@@ -240,5 +242,6 @@ export default function AttendanceReportPage() {
                 </CardContent>
             </Card>
         </div>
+      </FeatureGuard>
     );
 }

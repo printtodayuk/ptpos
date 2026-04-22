@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { useSession } from '@/components/auth/session-provider';
+import { FeatureGuard } from '@/components/features/feature-guard';
 
 function formatDurationWithSeconds(seconds: number) {
   if (isNaN(seconds) || seconds < 0) return '00:00:00';
@@ -131,15 +132,17 @@ export default function AttendancePage() {
   };
   
   return (
-    <div className="flex flex-col gap-6">
-      <CardHeader className="p-0">
-          <CardTitle>Operator Attendance</CardTitle>
-          <CardDescription>Clock in, clock out, and manage breaks.</CardDescription>
-      </CardHeader>
-      
-       <Card className="w-full max-w-2xl mx-auto min-h-[200px]">
-        {renderStatus()}
-       </Card>
-    </div>
+    <FeatureGuard featureKey="attendance">
+      <div className="flex flex-col gap-6">
+        <CardHeader className="p-0">
+            <CardTitle>Operator Attendance</CardTitle>
+            <CardDescription>Clock in, clock out, and manage breaks.</CardDescription>
+        </CardHeader>
+        
+        <Card className="w-full max-w-2xl mx-auto min-h-[200px]">
+          {renderStatus()}
+        </Card>
+      </div>
+    </FeatureGuard>
   );
 }

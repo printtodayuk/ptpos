@@ -39,6 +39,11 @@ import { useToast } from '@/hooks/use-toast';
 import { PinLock } from '@/components/admin/pin-lock';
 import { EditTransactionDialog } from '@/components/transactions/edit-transaction-dialog';
 import { useSession } from '@/components/auth/session-provider';
+import { Switch } from '@/components/ui/switch';
+import { useFeatures } from '@/components/features/feature-provider';
+import { updateAppFeatures } from '@/lib/server-actions-features';
+import { AppFeatures } from '@/lib/types';
+import { Settings } from 'lucide-react';
 
 const filterablePaymentMethods: ('All' | PaymentMethod)[] = ['All', ...paymentMethods];
 
@@ -58,6 +63,10 @@ export default function AdminPage() {
   // Notice state
   const [noticeContent, setNoticeContent] = useState('');
   const [isSavingNotice, setIsSavingNotice] = useState(false);
+
+  // Features state
+  const { features, refreshFeatures, isLoading: featuresLoading } = useFeatures();
+  const [isUpdatingFeature, setIsUpdatingFeature] = useState(false);
 
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -88,6 +97,18 @@ export default function AdminPage() {
     setIsSavingNotice(false);
     if (result.success) {
       toast({ title: 'Notice Updated', description: 'The dashboard announcement has been saved.' });
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+  };
+
+  const handleFeatureToggle = async (featureKey: keyof AppFeatures, newValue: boolean) => {
+    setIsUpdatingFeature(true);
+    const result = await updateAppFeatures({ [featureKey]: newValue });
+    setIsUpdatingFeature(false);
+    if (result.success) {
+      toast({ title: 'Success', description: `Feature ${featureKey} updated successfully.` });
+      await refreshFeatures();
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -213,6 +234,46 @@ export default function AdminPage() {
           <CardTitle>Admin Control Panel</CardTitle>
           <CardDescription>Search, view, and verify all transactions.</CardDescription>
         </CardHeader>
+
+        {/* Feature Management Section */}
+        <Card className="border-primary/20 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 flex flex-row items-center gap-2">
+            <Settings className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Application Features</CardTitle>
+              <CardDescription>Enable or disable specific features across the application.</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {featuresLoading ? (
+              <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { key: 'createJobSheet' as keyof AppFeatures, label: 'Create Job Sheet', description: 'Allow operators to create new Job Sheets.' },
+                  { key: 'transactions' as keyof AppFeatures, label: 'Transactions', description: 'Allow processing of non-invoicing and other transactions.' },
+                  { key: 'createQuotation' as keyof AppFeatures, label: 'Create Quotation', description: 'Allow creation of new quotations.' },
+                  { key: 'createInvoice' as keyof AppFeatures, label: 'Create Invoice', description: 'Allow generation of new invoices.' },
+                  { key: 'manageContacts' as keyof AppFeatures, label: 'Manage Contacts', description: 'Allow adding and editing contacts.' },
+                  { key: 'attendance' as keyof AppFeatures, label: 'Attendance', description: 'Allow staff to clock in and out.' },
+                  { key: 'reports' as keyof AppFeatures, label: 'Reports', description: 'Allow viewing of application reports.' },
+                ].map((feature) => (
+                  <div key={feature.key} className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">{feature.label}</Label>
+                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                    </div>
+                    <Switch
+                      checked={features[feature.key]}
+                      onCheckedChange={(checked) => handleFeatureToggle(feature.key, checked)}
+                      disabled={isUpdatingFeature}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Notice Board Management Section */}
         <Card className="border-primary/20 overflow-hidden">

@@ -15,6 +15,7 @@ import { Logo } from '@/components/logo';
 import { Nav } from '@/components/nav';
 import { PinLock } from '@/components/auth/pin-lock';
 import { SessionProvider, useSession } from '@/components/auth/session-provider';
+import { FeatureProvider } from '@/components/features/feature-provider';
 import { Badge } from '@/components/ui/badge';
 import { WorldClock } from '@/components/dashboard/world-clock';
 
@@ -47,9 +48,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   
   return (
     <SessionProvider>
-      <PinLock>
-        <SidebarProvider>
-          <div id="app-container" className="flex min-h-screen print-hide">
+      <FeatureProvider>
+        <PinLock>
+          <SidebarProvider>
+            <div id="app-container" className="flex min-h-screen print-hide">
             <Sidebar collapsible="icon" className="border-r bg-card">
               <SidebarHeader className="p-4">
                 <Link href="/dashboard" className="block group-data-[collapsible=icon]:hidden">
@@ -89,6 +91,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarProvider>
       </PinLock>
+      </FeatureProvider>
     </SessionProvider>
   );
 }

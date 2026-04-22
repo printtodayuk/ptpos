@@ -288,3 +288,16 @@ export const NoticeSchema = z.object({
 });
 
 export type Notice = z.infer<typeof NoticeSchema>;
+
+export const AppFeaturesSchema = z.object({
+  createJobSheet: z.boolean().default(true),
+  transactions: z.boolean().default(true),
+  createQuotation: z.boolean().default(true),
+  createInvoice: z.boolean().default(true),
+  manageContacts: z.boolean().default(true),
+  manageTasks: z.boolean().default(true),
+  attendance: z.boolean().default(true),
+  reports: z.boolean().default(true),
+});
+
+export type AppFeatures = z.infer<typeof AppFeaturesSchema>;

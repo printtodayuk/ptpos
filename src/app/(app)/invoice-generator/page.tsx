@@ -12,6 +12,7 @@ import { InvoiceForm } from '@/components/invoices/invoice-form';
 import { InvoicesTable } from '@/components/invoices/invoices-table';
 import { InvoiceViewDialog } from '@/components/invoices/invoice-view-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { FeatureGuard } from '@/components/features/feature-guard';
 
 import { getCompanyProfiles, deleteCompanyProfile, getInvoices, deleteInvoice } from '@/lib/server-actions-invoices';
 import type { CompanyProfile, Invoice } from '@/lib/types';
@@ -100,6 +101,7 @@ export default function InvoiceGeneratorPage() {
 
 
     return (
+        <FeatureGuard featureKey="createInvoice">
         <div className="flex flex-col gap-6">
             <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
                 <DialogContent>
@@ -238,6 +240,7 @@ export default function InvoiceGeneratorPage() {
                 </CardContent>
             </Card>
         </div>
+    </FeatureGuard>
     );
 }
     
