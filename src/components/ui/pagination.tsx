@@ -116,9 +116,20 @@ type SimplePaginationProps = {
   totalPages: number;
   onPageChange: (page: number) => void;
   className?: string;
+  rowsPerPage?: number;
+  onRowsPerPageChange?: (value: number) => void;
+  rowsPerPageOptions?: number[];
 };
 
-const SimplePagination = ({ currentPage, totalPages, onPageChange, className }: SimplePaginationProps) => {
+const SimplePagination = ({ 
+  currentPage, 
+  totalPages, 
+  onPageChange, 
+  className,
+  rowsPerPage = 15,
+  onRowsPerPageChange,
+  rowsPerPageOptions = [15, 30, 50, 100]
+}: SimplePaginationProps) => {
   const [inputPage, setInputPage] = React.useState(currentPage.toString());
 
   React.useEffect(() => {
@@ -136,10 +147,30 @@ const SimplePagination = ({ currentPage, totalPages, onPageChange, className }: 
     setInputPage(page.toString());
   };
 
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1 && (!onRowsPerPageChange || totalPages === 0)) return null;
 
   return (
-    <div className={cn("flex flex-col sm:flex-row items-center justify-end text-sm text-muted-foreground gap-4 pt-4", className)}>
+    <div className={cn("flex flex-col sm:flex-row items-center justify-between text-sm text-muted-foreground gap-4 pt-4", className)}>
+        {onRowsPerPageChange ? (
+          <div className="flex items-center space-x-2">
+            <span>Rows per page</span>
+            <select
+              className="h-8 rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={rowsPerPage}
+              onChange={(e) => {
+                onRowsPerPageChange(Number(e.target.value));
+                onPageChange(1); // Reset to first page when changing page size
+              }}
+            >
+              {rowsPerPageOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : <div />}
+        
         <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
                 variant="outline"

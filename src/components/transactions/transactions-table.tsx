@@ -30,7 +30,6 @@ import { markTransactionAsChecked } from '@/lib/server-actions';
 import { ReceiptDialog } from './receipt-dialog';
 import { SimplePagination } from '../ui/pagination';
 
-const ROWS_PER_PAGE = 50;
 
 type TransactionsTableProps = {
   transactions: Transaction[];
@@ -55,13 +54,14 @@ export function TransactionsTable({
   const [isPending, startTransition] = useTransition();
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
   const { toast } = useToast();
   
-  const totalPages = Math.ceil(transactions.length / ROWS_PER_PAGE);
+  const totalPages = Math.ceil(transactions.length / rowsPerPage);
 
   const paginatedTransactions = useMemo(() => {
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    return transactions.slice(startIndex, startIndex + ROWS_PER_PAGE);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return transactions.slice(startIndex, startIndex + rowsPerPage);
   }, [transactions, currentPage]);
 
 
@@ -137,6 +137,8 @@ export function TransactionsTable({
         currentPage={currentPage} 
         totalPages={totalPages} 
         onPageChange={handlePageChange}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={setRowsPerPage}
         className="pb-4 pt-0"
       />
       <div className="rounded-lg border-t">
@@ -245,6 +247,8 @@ export function TransactionsTable({
         currentPage={currentPage} 
         totalPages={totalPages} 
         onPageChange={handlePageChange} 
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={setRowsPerPage}
       />
     </>
   );

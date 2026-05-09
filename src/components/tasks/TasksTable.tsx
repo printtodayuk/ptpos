@@ -15,7 +15,6 @@ import { updateTaskStatus } from '@/lib/server-actions-tasks';
 import { useToast } from '@/hooks/use-toast';
 import { SimplePagination } from '../ui/pagination';
 
-const ROWS_PER_PAGE = 7;
 
 type TasksTableProps = {
     tasks: Task[];
@@ -30,13 +29,14 @@ export function TasksTable({ tasks, onEdit, onDelete, onStatusChange, onViewTask
     const { toast } = useToast();
     const [isUpdating, startUpdateTransition] = useTransition();
     const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(15);
 
-    const totalPages = Math.ceil(tasks.length / ROWS_PER_PAGE);
+    const totalPages = Math.ceil(tasks.length / rowsPerPage);
 
     const paginatedTasks = useMemo(() => {
-        const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-        return tasks.slice(startIndex, startIndex + ROWS_PER_PAGE);
-    }, [tasks, currentPage]);
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        return tasks.slice(startIndex, startIndex + rowsPerPage);
+    }, [tasks, currentPage, rowsPerPage]);
     
     useEffect(() => {
         // Reset to first page when the tasks data changes (e.g., due to filtering)
@@ -146,6 +146,8 @@ export function TasksTable({ tasks, onEdit, onDelete, onStatusChange, onViewTask
                 currentPage={currentPage} 
                 totalPages={totalPages} 
                 onPageChange={handlePageChange}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={setRowsPerPage}
                 className="pt-4"
             />
         </>

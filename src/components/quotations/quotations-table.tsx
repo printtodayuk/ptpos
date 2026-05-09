@@ -13,7 +13,6 @@ import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { SimplePagination } from '../ui/pagination';
 
-const ROWS_PER_PAGE = 10;
 
 type QuotationsTableProps = {
   quotations: Quotation[];
@@ -33,12 +32,13 @@ export function QuotationsTable({
   onCreateJob,
 }: QuotationsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(quotations.length / ROWS_PER_PAGE);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+  const totalPages = Math.ceil(quotations.length / rowsPerPage);
 
   const paginatedQuotations = useMemo(() => {
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    return quotations.slice(startIndex, startIndex + ROWS_PER_PAGE);
-  }, [quotations, currentPage]);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return quotations.slice(startIndex, startIndex + rowsPerPage);
+  }, [quotations, currentPage, rowsPerPage]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -73,6 +73,14 @@ export function QuotationsTable({
 
   return (
     <>
+    <SimplePagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={setRowsPerPage}
+        className="pb-4 pt-0"
+    />
     <div className="rounded-lg border-t">
       <Table>
         <TableHeader>
@@ -152,6 +160,8 @@ export function QuotationsTable({
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={setRowsPerPage}
     />
     </>
   );

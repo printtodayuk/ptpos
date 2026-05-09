@@ -12,8 +12,6 @@ import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { SimplePagination } from '../ui/pagination';
 
-const ROWS_PER_PAGE = 50;
-
 type JobSheetsTableProps = {
   jobSheets: JobSheet[];
   onView: (jobSheet: JobSheet) => void;
@@ -36,11 +34,12 @@ export function JobSheetsTable({
   onDeliveryNote
 }: JobSheetsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(jobSheets.length / ROWS_PER_PAGE);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+  const totalPages = Math.ceil(jobSheets.length / rowsPerPage);
 
   const paginatedJobSheets = useMemo(() => {
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    return jobSheets.slice(startIndex, startIndex + ROWS_PER_PAGE);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return jobSheets.slice(startIndex, startIndex + rowsPerPage);
   }, [jobSheets, currentPage]);
 
   const handlePageChange = (page: number) => {
@@ -104,6 +103,8 @@ export function JobSheetsTable({
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={setRowsPerPage}
         className="pb-4 pt-0"
     />
     <div className="rounded-lg border-t">
@@ -199,6 +200,8 @@ export function JobSheetsTable({
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={setRowsPerPage}
     />
     </>
   );
