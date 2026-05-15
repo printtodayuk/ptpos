@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { addDays, format } from 'date-fns';
 import { Loader2, PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { z } from 'zod';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 import { Button } from '@/components/ui/button';
@@ -80,7 +80,7 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
 
     // Real-time contacts listener to ensure latest data is always available
     useEffect(() => {
-        const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
+        const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'), limit(100));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map((doc) => {
                 const d = doc.data();

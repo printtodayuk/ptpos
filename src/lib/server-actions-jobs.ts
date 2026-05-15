@@ -293,7 +293,22 @@ export async function searchJobSheets(
   operator?: Operator
 ): Promise<JobSheet[]> {
   try {
-    const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
+    let q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
+
+    // Apply exact filters if possible (though Firebase requires composite indexes for multiple where clauses)
+    if (jobStatus) {
+      q = query(q, where('status', '==', jobStatus));
+    }
+    if (paymentStatus) {
+      q = query(q, where('paymentStatus', '==', paymentStatus));
+    }
+    if (operator) {
+      q = query(q, where('operator', '==', operator));
+    }
+
+    // Limit to 100 to prevent quota exhaustion
+    q = query(q, limit(100));
+
     const querySnapshot = await getDocs(q);
 
     let jobSheets = querySnapshot.docs.map((doc) => {
@@ -308,15 +323,8 @@ export async function searchJobSheets(
       } as JobSheet;
     });
 
-    if (jobStatus) {
-      jobSheets = jobSheets.filter(js => js.status === jobStatus);
-    }
-    if (paymentStatus) {
-      jobSheets = jobSheets.filter(js => (js.paymentStatus || 'Unpaid') === paymentStatus);
-    }
-    if (operator) {
-      jobSheets = jobSheets.filter(js => js.operator === operator);
-    }
+    // Client-side text filtering
+
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
@@ -330,16 +338,7 @@ export async function searchJobSheets(
       });
     }
 
-    if (returnAllOnEmpty && !searchTerm && !jobStatus && !paymentStatus && !operator) {
-        return jobSheets;
-    }
-    
-    // if any filter is applied, return all matches, otherwise limit to 50
-    if (searchTerm || jobStatus || paymentStatus || operator) {
-      return jobSheets;
-    }
-
-    return jobSheets.slice(0, 50);
+    return jobSheets;
   } catch (e) {
     console.error('Error searching job sheets: ', e);
     return [];
