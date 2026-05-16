@@ -295,7 +295,7 @@ export async function searchJobSheets(
   try {
     let q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
 
-    // Apply exact filters if possible (though Firebase requires composite indexes for multiple where clauses)
+    // Apply exact filters if possible
     if (jobStatus) {
       q = query(q, where('status', '==', jobStatus));
     }
@@ -305,9 +305,6 @@ export async function searchJobSheets(
     if (operator) {
       q = query(q, where('operator', '==', operator));
     }
-
-    // Limit to 100 to prevent quota exhaustion
-    q = query(q, limit(100));
 
     const querySnapshot = await getDocs(q);
 

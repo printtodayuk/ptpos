@@ -82,7 +82,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
 
   // Real-time contacts listener to ensure latest data is always available
   useEffect(() => {
-    const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'), limit(100));
+    const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => {
         const d = doc.data();

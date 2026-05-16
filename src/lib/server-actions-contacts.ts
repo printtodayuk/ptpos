@@ -13,6 +13,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  limit,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -141,6 +142,7 @@ export async function getContacts(): Promise<Contact[]> {
   try {
     const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
+    
     return querySnapshot.docs.map((doc) => {
       const data = doc.data();
       const createdAtTimestamp = data.createdAt as Timestamp;
