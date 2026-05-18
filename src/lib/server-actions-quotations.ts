@@ -267,14 +267,7 @@ export async function searchQuotations(
   operator?: Operator
 ): Promise<Quotation[]> {
   try {
-    let q = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'));
-    // Apply exact filters if possible
-    if (quotationStatus) {
-      q = query(q, where('status', '==', quotationStatus));
-    }
-    if (operator) {
-      q = query(q, where('operator', '==', operator));
-    }
+    const q = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'));
 
     const querySnapshot = await getDocs(q);
 
@@ -291,6 +284,13 @@ export async function searchQuotations(
     });
 
     // Client-side text filtering
+
+    if (quotationStatus) {
+        quotations = quotations.filter(q => q.status === quotationStatus);
+    }
+    if (operator) {
+        quotations = quotations.filter(q => q.operator === operator);
+    }
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();

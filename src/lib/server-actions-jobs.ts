@@ -293,18 +293,7 @@ export async function searchJobSheets(
   operator?: Operator
 ): Promise<JobSheet[]> {
   try {
-    let q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
-
-    // Apply exact filters if possible
-    if (jobStatus) {
-      q = query(q, where('status', '==', jobStatus));
-    }
-    if (paymentStatus) {
-      q = query(q, where('paymentStatus', '==', paymentStatus));
-    }
-    if (operator) {
-      q = query(q, where('operator', '==', operator));
-    }
+    const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
 
     const querySnapshot = await getDocs(q);
 
@@ -322,6 +311,16 @@ export async function searchJobSheets(
 
     // Client-side text filtering
 
+
+    if (jobStatus) {
+        jobSheets = jobSheets.filter(js => js.status === jobStatus);
+    }
+    if (paymentStatus) {
+        jobSheets = jobSheets.filter(js => js.paymentStatus === paymentStatus);
+    }
+    if (operator) {
+        jobSheets = jobSheets.filter(js => js.operator === operator);
+    }
 
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
