@@ -19,8 +19,9 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { Quotation, Transaction, JobSheetStatus as QuotationStatus, PaymentStatus, Operator, QuotationHistory, JobSheet } from '@/lib/types';
-import { QuotationSchema, operators } from '@/lib/types';
+import type { Quotation, Transaction, QuotationStatus, PaymentStatus, Operator, QuotationHistory, JobSheet } from '@/lib/types';
+import { QuotationSchema } from '@/lib/types';
+import { isValidOperator } from './server-actions-operators';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { addJobSheet } from './server-actions-jobs';
@@ -60,7 +61,7 @@ async function getNextQuotationId(): Promise<string> {
 
 
 export async function addQuotation(
-  data: z.infer<typeof CreateQuotationSchema>
+  data: z.input<typeof CreateQuotationSchema>
 ) {
   const validatedData = CreateQuotationSchema.safeParse(data);
   if (!validatedData.success) {
@@ -142,7 +143,7 @@ export async function addQuotation(
 
 export async function updateQuotation(
   id: string,
-  data: z.infer<typeof UpdateQuotationSchema>,
+  data: z.input<typeof UpdateQuotationSchema>,
   changeOperator: Operator
 ) {
   const validatedData = UpdateQuotationSchema.safeParse(data);
@@ -150,7 +151,8 @@ export async function updateQuotation(
     return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
   }
   
-  if (!operators.includes(changeOperator)) {
+  const isValid = await isValidOperator(changeOperator);
+  if (!isValid) {
       return { success: false, message: 'Invalid operator performing the change.' };
   }
 

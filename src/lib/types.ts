@@ -2,7 +2,7 @@
 import { z } from 'zod';
 
 export const operators = ['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK'] as const;
-export type Operator = (typeof operators)[number];
+export type Operator = string;
 
 export const paymentMethods = ['Bank Transfer', 'Card Payment', 'Cash', 'ST Bank Transfer', 'AIR Bank Transfer'] as const;
 export type PaymentMethod = (typeof paymentMethods)[number];
@@ -23,7 +23,7 @@ export const TransactionSchema = z.object({
   dueAmount: z.number(),
   paymentMethod: z.enum(paymentMethods),
   reference: z.string().optional().nullable(),
-  operator: z.enum(operators),
+  operator: z.string().min(1, 'Operator is required'),
   adminChecked: z.boolean().default(false),
   checkedBy: z.string().nullable().default(null),
   createdAt: z.any().optional(),
@@ -67,7 +67,7 @@ export const JobSheetSchema = z.object({
   invoiceNumber: z.string().optional().nullable(),
   tid: z.string().optional().nullable(),
   date: z.union([z.date(), z.string()]),
-  operator: z.enum(operators),
+  operator: z.string().min(1, 'Operator is required'),
   clientName: z.string().min(1, 'Client name is required.'),
   companyName: z.string().optional().nullable(),
   clientDetails: z.string().optional().nullable(),
@@ -111,7 +111,7 @@ export const QuotationSchema = z.object({
   invoiceNumber: z.string().optional().nullable(),
   tid: z.string().optional().nullable(),
   date: z.union([z.date(), z.string()]),
-  operator: z.enum(operators),
+  operator: z.string().min(1, 'Operator is required'),
   clientName: z.string().min(1, 'Client name is required.'),
   companyName: z.string().optional().nullable(),
   clientDetails: z.string().optional().nullable(),
@@ -164,7 +164,7 @@ const BreakRecordSchema = z.object({
 
 export const TimeRecordSchema = z.object({
   id: z.string().optional(),
-  operator: z.enum(operators),
+  operator: z.string().min(1, 'Operator is required'),
   clockInTime: z.any(),
   clockOutTime: z.any().nullable(),
   status: z.enum(timeRecordStatus),
@@ -265,10 +265,10 @@ export const TaskSchema = z.object({
   id: z.string().optional(),
   taskId: z.string(),
   createdAt: z.any(),
-  createdBy: z.enum(operators),
+  createdBy: z.string().min(1, 'Operator is required'),
   type: z.string().min(1, 'Task type is required.'),
   details: z.string().min(1, 'Details are required.'),
-  assignedTo: z.enum(operators),
+  assignedTo: z.string().min(1, 'Operator is required'),
   completionDate: z.date().nullable(),
   status: z.enum(taskStatus).default('To Do'),
   history: z.array(TaskHistorySchema).optional().default([]),

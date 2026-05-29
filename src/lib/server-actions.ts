@@ -104,7 +104,7 @@ async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude
 
 
 export async function addTransaction(
-  data: z.infer<typeof CreateTransactionSchema>
+  data: z.input<typeof CreateTransactionSchema>
 ) {
   const validatedData = CreateTransactionSchema.safeParse(data);
   if (!validatedData.success) {
@@ -167,7 +167,7 @@ export async function addTransaction(
 
 export async function updateTransaction(
   id: string,
-  data: z.infer<typeof UpdateTransactionSchema>
+  data: z.input<typeof UpdateTransactionSchema>
 ) {
   const validatedData = UpdateTransactionSchema.safeParse(data);
   if (!validatedData.success) {

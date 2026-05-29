@@ -14,9 +14,10 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { UpdateTimeRecordSchema, operators, timeRecordStatus, type Operator } from '@/lib/types';
+import { UpdateTimeRecordSchema, timeRecordStatus, type Operator } from '@/lib/types';
 import { createManualTimeRecord } from '@/lib/server-actions-attendance';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useSession } from '@/components/auth/session-provider';
 
 type ManualTimeRecordDialogProps = {
   isOpen: boolean;
@@ -27,7 +28,7 @@ type ManualTimeRecordDialogProps = {
 type FormValues = z.infer<typeof UpdateTimeRecordSchema> & { operator: Operator };
 
 const ExtendedSchema = UpdateTimeRecordSchema.extend({
-    operator: z.enum(operators),
+    operator: z.string().min(1, 'Operator is required'),
 });
 
 const DateTimePicker = ({ value, onChange }: { value?: Date | null, onChange: (date: Date) => void }) => {
@@ -77,6 +78,7 @@ const DateTimePicker = ({ value, onChange }: { value?: Date | null, onChange: (d
 };
 
 export function ManualTimeRecordDialog({ isOpen, onClose, onSuccess }: ManualTimeRecordDialogProps) {
+  const { operators: dynamicOperators } = useSession();
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -131,7 +133,7 @@ export function ManualTimeRecordDialog({ isOpen, onClose, onSuccess }: ManualTim
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}
+                                {dynamicOperators.map(op => <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     )}

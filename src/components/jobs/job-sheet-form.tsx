@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addJobSheet, updateJobSheet } from '@/lib/server-actions-jobs';
-import { JobSheetSchema, operators, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses, type Quotation, type Contact } from '@/lib/types';
+import { JobSheetSchema, jobSheetStatus, type JobSheet, type Operator, jobSheetTypes, jobSheetStatus as jobSheetStatuses, type Quotation, type Contact } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { JobSheetViewDialog } from './job-sheet-view-dialog';
@@ -62,7 +62,7 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
 export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreateFromQuotation }: JobSheetFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { operator: loggedInOperator } = useSession();
+  const { operator: loggedInOperator, operators: dynamicOperators } = useSession();
   const [lastJobSheet, setLastJobSheet] = useState<JobSheet | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   
@@ -71,7 +71,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
   const isPaid = isEditMode && (jobSheetToEdit.paymentStatus === 'Paid' || jobSheetToEdit.paymentStatus === 'Partially Paid');
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(JobSheetSchema.omit({ id: true, createdAt: true, jobId: true })),
+    resolver: zodResolver(JobSheetSchema.omit({ id: true, createdAt: true, jobId: true })) as any,
     defaultValues: getFreshDefaultValues(loggedInOperator),
   });
   
@@ -254,10 +254,15 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
+      const sanitizedData = {
+        ...data,
+        date: data.date ? new Date(data.date) : new Date(),
+        deliveryBy: data.deliveryBy ? new Date(data.deliveryBy) : null,
+      };
       
       const result = isEditMode && jobSheetToEdit?.id
-        ? await updateJobSheet(jobSheetToEdit.id, data, loggedInOperator!)
-        : await addJobSheet(data, jobSheetToCreateFromQuotation);
+        ? await updateJobSheet(jobSheetToEdit.id, sanitizedData as any, loggedInOperator!)
+        : await addJobSheet(sanitizedData as any, jobSheetToCreateFromQuotation);
 
       if (result.success && result.jobSheet) {
         if (isEditMode) {
@@ -445,7 +450,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                             <Controller name="operator" control={form.control} render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value} disabled={isConversionMode || !isEditMode}>
                                 <SelectTrigger><SelectValue placeholder="Select Operator" /></SelectTrigger>
-                                <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
+                                <SelectContent>{dynamicOperators.map(op => <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>)}</SelectContent>
                             </Select>
                             )} />
                         </div>
@@ -459,7 +464,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                                     {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
                                 </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus /></PopoverContent>
                             </Popover>
                             )} />
                         </div>
@@ -473,7 +478,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                                     {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
                                 </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent>
                             </Popover>
                             )} />
                         </div>

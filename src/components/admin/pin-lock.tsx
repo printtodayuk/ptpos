@@ -7,16 +7,20 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const CORRECT_PIN = '5206';
+import { useSession } from '@/components/auth/session-provider';
 
 export function PinLock({ children }: { children: React.ReactNode }) {
   const [pin, setPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
+  const { operators } = useSession();
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === CORRECT_PIN) {
+    const adminOp = operators.find(op => op.id === 'PTITAdmin');
+    const correctPin = adminOp ? adminOp.pin : '5206';
+    
+    if (pin === correctPin) {
       setIsAuthenticated(true);
       toast({
         title: 'Access Granted',

@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { addQuotation, updateQuotation } from '@/lib/server-actions-quotations';
-import { QuotationSchema, operators, quotationStatus, type Quotation, type Operator, jobSheetTypes as quotationTypes, type Contact } from '@/lib/types';
+import { QuotationSchema, quotationStatus, type Quotation, type Operator, jobSheetTypes as quotationTypes, type Contact } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { QuotationViewDialog } from './quotation-view-dialog';
@@ -60,7 +60,7 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
 export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { operator: loggedInOperator } = useSession();
+  const { operator: loggedInOperator, operators: dynamicOperators } = useSession();
   const [lastQuotation, setLastQuotation] = useState<Quotation | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
 
@@ -68,7 +68,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   const isLocked = isEditMode && !!quotationToEdit.jid;
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(QuotationSchema.omit({ id: true, createdAt: true, quotationId: true })),
+    resolver: zodResolver(QuotationSchema.omit({ id: true, createdAt: true, quotationId: true })) as any,
     defaultValues: getFreshDefaultValues(loggedInOperator),
   });
 
@@ -202,9 +202,15 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
       
+      const sanitizedData = {
+        ...data,
+        date: data.date ? new Date(data.date) : new Date(),
+        deliveryBy: data.deliveryBy ? new Date(data.deliveryBy) : null,
+      };
+      
       const result = isEditMode && quotationToEdit?.id
-        ? await updateQuotation(quotationToEdit.id, data, loggedInOperator!)
-        : await addQuotation({ ...data, quotationId: undefined });
+        ? await updateQuotation(quotationToEdit.id, sanitizedData as any, loggedInOperator!)
+        : await addQuotation({ ...sanitizedData, quotationId: undefined } as any);
 
       if (result.success && result.quotation) {
         if (isEditMode) {
@@ -381,7 +387,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
                             <Controller name="operator" control={form.control} render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
                                 <SelectTrigger><SelectValue placeholder="Select Operator" /></SelectTrigger>
-                                <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
+                                <SelectContent>{dynamicOperators.map(op => <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>)}</SelectContent>
                             </Select>
                             )} />
                         </div>
@@ -395,7 +401,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
                                     {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
                                 </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus /></PopoverContent>
                             </Popover>
                             )} />
                         </div>
@@ -409,7 +415,7 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
                                     {field.value ? format(field.value, 'PPP', { locale: enGB }) : <span>Pick a date</span>}
                                 </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} /></PopoverContent>
                             </Popover>
                             )} />
                         </div>

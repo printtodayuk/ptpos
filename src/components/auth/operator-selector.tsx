@@ -5,15 +5,17 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { operators, type Operator } from '@/lib/types';
+import { type Operator } from '@/lib/types';
 import { User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useSession } from './session-provider';
 
 type OperatorSelectorProps = {
     onSelect: (operator: Operator) => void;
 };
 
 export function OperatorSelector({ onSelect }: OperatorSelectorProps) {
+    const { operators, isLoadingOperators } = useSession();
     const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
     const { toast } = useToast();
 
@@ -46,15 +48,15 @@ export function OperatorSelector({ onSelect }: OperatorSelectorProps) {
                 <CardContent>
                     <Select onValueChange={(value: Operator) => setSelectedOperator(value)}>
                         <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select your name..." />
+                            <SelectValue placeholder={isLoadingOperators ? "Loading operators..." : "Select your name..."} />
                         </SelectTrigger>
                         <SelectContent>
-                            {operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}
+                            {operators.map(op => <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleContinue} className="w-full">
+                    <Button onClick={handleContinue} className="w-full" disabled={isLoadingOperators}>
                         Continue
                     </Button>
                 </CardFooter>

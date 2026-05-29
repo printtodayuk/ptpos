@@ -4,8 +4,9 @@
 import { useEffect, useState, useCallback, useTransition } from 'react';
 import { searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
 import { getCurrentNotice, saveNotice } from '@/lib/server-actions-notices';
+import { saveOperator, deleteOperator } from '@/lib/server-actions-operators';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, Trash2, CheckCircle, Edit, Filter, Megaphone, Send } from 'lucide-react';
+import { Loader2, Search, Trash2, CheckCircle, Edit, Filter, Megaphone, Send, Users, Key, UserPlus, X, ShieldCheck } from 'lucide-react';
 import type { Transaction, PaymentMethod } from '@/lib/types';
 import { paymentMethods } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -48,7 +49,14 @@ import { Settings } from 'lucide-react';
 const filterablePaymentMethods: ('All' | PaymentMethod)[] = ['All', ...paymentMethods];
 
 export default function AdminPage() {
-  const { operator } = useSession();
+  const { operator, operators, refreshOperators } = useSession();
+  const [newOpId, setNewOpId] = useState('');
+  const [newOpPin, setNewOpPin] = useState('');
+  const [editingOpId, setEditingOpId] = useState<string | null>(null);
+  const [editingOpPin, setEditingOpPin] = useState('');
+  const [isAddingOperator, setIsAddingOperator] = useState(false);
+  const [isUpdatingPin, setIsUpdatingPin] = useState(false);
+  const [operatorToDelete, setOperatorToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<'All' | PaymentMethod>('All');
   const [results, setResults] = useState<Transaction[]>([]);
@@ -100,6 +108,60 @@ export default function AdminPage() {
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
+  };
+
+  const handleAddOperator = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOpId.trim() || !newOpPin.trim()) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please fill in all fields.' });
+      return;
+    }
+    if (newOpPin.trim().length < 4) {
+      toast({ variant: 'destructive', title: 'Error', description: 'PIN must be at least 4 digits.' });
+      return;
+    }
+    setIsAddingOperator(true);
+    const result = await saveOperator(newOpId, newOpPin);
+    setIsAddingOperator(false);
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      setNewOpId('');
+      setNewOpPin('');
+      await refreshOperators();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+  };
+
+  const handleUpdatePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOpId || !editingOpPin.trim()) return;
+    if (editingOpPin.trim().length < 4) {
+      toast({ variant: 'destructive', title: 'Error', description: 'PIN must be at least 4 digits.' });
+      return;
+    }
+    setIsUpdatingPin(true);
+    const result = await saveOperator(editingOpId, editingOpPin);
+    setIsUpdatingPin(false);
+    if (result.success) {
+      toast({ title: 'Success', description: `PIN updated for ${editingOpId}.` });
+      setEditingOpId(null);
+      setEditingOpPin('');
+      await refreshOperators();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+  };
+
+  const handleDeleteOperator = async (id: string) => {
+    const result = await deleteOperator(id);
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      await refreshOperators();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+    setOperatorToDelete(null);
   };
 
   const handleFeatureToggle = async (featureKey: keyof AppFeatures, newValue: boolean) => {
@@ -210,6 +272,27 @@ export default function AdminPage() {
         onClose={() => setTransactionToEdit(null)}
         onSuccess={handleUpdateSuccess}
       />
+
+      <AlertDialog open={!!operatorToDelete} onOpenChange={() => setOperatorToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the operator account <span className="font-bold">{operatorToDelete}</span>. 
+              They will no longer be able to log in to the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => operatorToDelete && handleDeleteOperator(operatorToDelete)}
+              className="bg-destructive hover:bg-destructive/90 text-white"
+            >
+              Continue & Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <AlertDialog open={!!bulkAction} onOpenChange={() => setBulkAction(null)}>
         <AlertDialogContent>
@@ -300,6 +383,150 @@ export default function AdminPage() {
                 {isSavingNotice ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 Post Notice
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Staff Access Control & User Creation Section */}
+        <Card className="border-primary/20 overflow-hidden shadow-md">
+          <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 flex flex-row items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Staff Access Control & User Creation</CardTitle>
+              <CardDescription>Manage active operators, modify their login PINs, or register new operator accounts.</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Operator Accounts List (Takes 2 columns on lg) */}
+              <div className="lg:col-span-2 space-y-4">
+                <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-green-600" /> Active Operator Accounts
+                </h3>
+                <div className="rounded-md border overflow-hidden bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left border-collapse">
+                      <thead>
+                        <tr className="bg-muted/50 border-b">
+                          <th className="p-3 font-semibold text-muted-foreground">Operator ID</th>
+                          <th className="p-3 font-semibold text-muted-foreground">App Access PIN</th>
+                          <th className="p-3 font-semibold text-muted-foreground text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {operators && operators.length > 0 ? (
+                          operators.map((op) => (
+                            <tr key={op.id} className="border-b hover:bg-muted/30 transition-colors">
+                              <td className="p-3 font-medium text-foreground">
+                                {op.id}
+                                {op.id === 'PTITAdmin' && (
+                                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    Master Admin
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 font-mono">
+                                {editingOpId === op.id ? (
+                                  <form onSubmit={handleUpdatePin} className="flex items-center gap-2">
+                                    <Input
+                                      type="password"
+                                      placeholder="New PIN (4 digits)"
+                                      maxLength={4}
+                                      value={editingOpPin}
+                                      onChange={(e) => setEditingOpPin(e.target.value.replace(/\D/g, ''))}
+                                      className="h-8 w-32 text-sm text-center"
+                                      autoFocus
+                                    />
+                                    <Button type="submit" size="icon" className="h-8 w-8 bg-green-600 hover:bg-green-700 text-white" disabled={isUpdatingPin}>
+                                      {isUpdatingPin ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                                    </Button>
+                                    <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingOpId(null)}>
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </form>
+                                ) : (
+                                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                                    •••• <span className="text-xs">({op.pin})</span>
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 text-right">
+                                <div className="flex justify-end gap-1.5">
+                                  {editingOpId !== op.id && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setEditingOpId(op.id);
+                                        setEditingOpPin(op.pin);
+                                      }}
+                                      className="h-8 w-8 text-primary hover:text-primary/80"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    disabled={op.id === 'PTITAdmin'}
+                                    onClick={() => setOperatorToDelete(op.id)}
+                                    className="h-8 w-8 text-destructive hover:text-destructive/80 disabled:opacity-30"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={3} className="p-4 text-center text-muted-foreground italic">
+                              Loading operator list...
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Create Operator Account Form (Takes 1 column on lg) */}
+              <div className="space-y-4 rounded-xl border p-4 bg-muted/30">
+                <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-primary" /> Create Operator Account
+                </h3>
+                <form onSubmit={handleAddOperator} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-op-id">Operator ID / Name</Label>
+                    <Input
+                      id="new-op-id"
+                      placeholder="e.g. PTNEW"
+                      value={newOpId}
+                      onChange={(e) => setNewOpId(e.target.value.trim().toUpperCase())}
+                      className="bg-white border-primary/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-op-pin">App Access PIN</Label>
+                    <Input
+                      id="new-op-pin"
+                      type="password"
+                      maxLength={4}
+                      placeholder="e.g. 1234"
+                      value={newOpPin}
+                      onChange={(e) => setNewOpPin(e.target.value.replace(/\D/g, ''))}
+                      className="bg-white border-primary/20 text-center tracking-[0.2em] font-mono font-bold"
+                    />
+                  </div>
+                  <Button type="submit" disabled={isAddingOperator} className="w-full bg-primary hover:bg-primary/90 text-white font-semibold">
+                    {isAddingOperator ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                    Register Operator
+                  </Button>
+                </form>
+              </div>
+
             </div>
           </CardContent>
         </Card>

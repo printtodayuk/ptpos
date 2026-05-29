@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { operators, type Operator, type TimeRecordStatus } from '@/lib/types';
+import { type Operator, type TimeRecordStatus } from '@/lib/types';
+import { useSession } from '@/components/auth/session-provider';
 import { UserCheck, Coffee, LogOut, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -77,6 +78,7 @@ const StatusColumn = ({ title, operators: opList, icon: Icon, badgeClass, status
 
 
 export function LiveOperatorStatus() {
+  const { operators: dynamicOperators } = useSession();
   const [statuses, setStatuses] = useState<OperatorStatuses | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -92,7 +94,7 @@ export function LiveOperatorStatus() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const newStatuses: OperatorStatuses = {} as any;
-        operators.forEach(op => newStatuses[op] = { status: 'not-clocked-in' });
+        dynamicOperators.forEach(op => newStatuses[op.id] = { status: 'not-clocked-in' });
 
         const recordsByOp: Record<string, any[]> = {};
         snapshot.docs.forEach(d => {
@@ -101,7 +103,7 @@ export function LiveOperatorStatus() {
             recordsByOp[data.operator].push(data);
         });
 
-        for (const op of operators) {
+        for (const op of dynamicOperators.map(o => o.id)) {
             const records = recordsByOp[op];
             if (!records || records.length === 0) continue;
 

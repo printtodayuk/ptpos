@@ -17,7 +17,8 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import type { JobSheet, JobSheetStatus, PaymentStatus, Operator } from '@/lib/types';
-import { jobSheetStatus, paymentStatuses, operators } from '@/lib/types';
+import { jobSheetStatus, paymentStatuses } from '@/lib/types';
+import { useSession } from '@/components/auth/session-provider';
 import { useDebounce } from '@/hooks/use-debounce';
 import { JobSheetsTable } from './job-sheets-table';
 import { JobSheetForm } from './job-sheet-form';
@@ -34,9 +35,8 @@ import { JobSheetHistoryDialog } from './job-sheet-history-dialog';
 import { JobSheetPrintDialog } from './job-sheet-print-dialog';
 import { DeliveryNoteDialog } from './delivery-note-dialog';
 
-const DELETE_PIN = '5206';
-
 export function JsReportClient() {
+  const { operators: dynamicOperators } = useSession();
   const [searchTerm, setSearchTerm] = useState('');
   const [jobStatusFilter, setJobStatusFilter] = useState<JobSheetStatus | 'all'>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatus | 'all'>('all');
@@ -146,7 +146,9 @@ export function JsReportClient() {
   };
   
   const handlePinSubmit = () => {
-    if (pin !== DELETE_PIN) {
+    const adminOp = dynamicOperators.find(op => op.id === 'PTITAdmin');
+    const deletePin = adminOp ? adminOp.pin : '5206';
+    if (pin !== deletePin) {
         toast({ variant: 'destructive', title: 'Incorrect PIN', description: 'The PIN you entered is incorrect.' });
         setPin('');
         return;
@@ -171,7 +173,7 @@ export function JsReportClient() {
 
   const jobStatusFilters: (JobSheetStatus | 'all')[] = ['all', ...jobSheetStatus];
   const paymentStatusFilters: (PaymentStatus | 'all')[] = ['all', ...paymentStatuses];
-  const operatorFilters: (Operator | 'all')[] = ['all', ...operators];
+  const operatorFilters: (string | 'all')[] = ['all', ...dynamicOperators.map(op => op.id)];
 
 
   return (

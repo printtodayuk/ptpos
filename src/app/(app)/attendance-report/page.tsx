@@ -12,8 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { getTimeRecordsForReport, getMonthlyStats } from '@/lib/server-actions-attendance';
 import type { TimeRecord, Operator } from '@/lib/types';
-import { operators } from '@/lib/types';
 import { cn, exportToCsv } from '@/lib/utils';
+import { useSession } from '@/components/auth/session-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { SimplePagination } from '@/components/ui/pagination';
@@ -31,6 +31,7 @@ function formatDuration(minutes: number | null | undefined) {
 }
 
 export default function AttendanceReportPage() {
+    const { operators: dynamicOperators } = useSession();
     const [records, setRecords] = useState<TimeRecord[]>([]);
     const [isSearching, startSearchTransition] = useTransition();
     const [isExporting, startExportTransition] = useTransition();
@@ -40,6 +41,12 @@ export default function AttendanceReportPage() {
     const [selectedOperator, setSelectedOperator] = useState<Operator>('PTMGH');
     const [monthlyMinutes, setMonthlyMinutes] = useState<number | null>(null);
     const [isStatsLoading, setIsStatsLoading] = useState(false);
+
+    useEffect(() => {
+        if (dynamicOperators.length > 0 && selectedOperator === 'PTMGH' && !dynamicOperators.some(op => op.id === 'PTMGH')) {
+            setSelectedOperator(dynamicOperators[0].id);
+        }
+    }, [dynamicOperators, selectedOperator]);
 
     const { toast } = useToast();
 
@@ -128,7 +135,7 @@ export default function AttendanceReportPage() {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}
+                                {dynamicOperators.map(op => <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>

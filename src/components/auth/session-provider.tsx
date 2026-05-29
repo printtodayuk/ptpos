@@ -2,12 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Operator } from '@/lib/types';
+import { getOperators } from '@/lib/server-actions-operators';
 
 interface SessionContextType {
     isAuthenticated: boolean;
     operator: Operator | null;
     login: (operator: Operator) => void;
     logout: () => void;
+    operators: { id: string; pin: string }[];
+    isLoadingOperators: boolean;
+    refreshOperators: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | null>(null);
@@ -18,6 +22,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const [operator, setOperator] = useState<Operator | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [operators, setOperators] = useState<{ id: string; pin: string }[]>([]);
+    const [isLoadingOperators, setIsLoadingOperators] = useState(true);
+
+    const refreshOperators = useCallback(async () => {
+        setIsLoadingOperators(true);
+        try {
+            const list = await getOperators();
+            setOperators(list);
+        } catch (error) {
+            console.error("Failed to load operators", error);
+        } finally {
+            setIsLoadingOperators(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        refreshOperators();
+    }, [refreshOperators]);
 
     useEffect(() => {
         try {
@@ -54,7 +76,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <SessionContext.Provider value={{ isAuthenticated, operator, login, logout }}>
+        <SessionContext.Provider value={{ 
+            isAuthenticated, 
+            operator, 
+            login, 
+            logout,
+            operators,
+            isLoadingOperators,
+            refreshOperators
+        }}>
             {children}
         </SessionContext.Provider>
     );

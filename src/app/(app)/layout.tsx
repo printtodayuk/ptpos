@@ -50,7 +50,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <FeatureProvider>
         <PinLock>
-          <SidebarProvider>
+          <SidebarProvider defaultOpen={false}>
             <div id="app-container" className="flex min-h-screen print-hide">
             <Sidebar collapsible="icon" className="border-r bg-card">
               <SidebarHeader className="p-4">

@@ -20,7 +20,8 @@ import {
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { JobSheet, Transaction, JobSheetStatus, PaymentStatus, Operator, JobSheetHistory, Quotation, QuotationStatus } from '@/lib/types';
-import { JobSheetSchema, operators } from '@/lib/types';
+import { JobSheetSchema } from '@/lib/types';
+import { isValidOperator } from './server-actions-operators';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { addTransaction } from './server-actions';
@@ -60,7 +61,7 @@ async function getNextJobId(): Promise<string> {
 
 
 export async function addJobSheet(
-  data: z.infer<typeof CreateJobSheetSchema>,
+  data: z.input<typeof CreateJobSheetSchema>,
   fromQuotation?: Quotation | null
 ) {
   const validatedData = CreateJobSheetSchema.safeParse(data);
@@ -167,7 +168,7 @@ export async function addJobSheet(
 
 export async function updateJobSheet(
   id: string,
-  data: z.infer<typeof UpdateJobSheetSchema>,
+  data: z.input<typeof UpdateJobSheetSchema>,
   changeOperator: Operator
 ) {
   const validatedData = UpdateJobSheetSchema.safeParse(data);
@@ -175,7 +176,8 @@ export async function updateJobSheet(
     return { success: false, message: 'Validation failed.', errors: validatedData.error.flatten().fieldErrors };
   }
   
-  if (!operators.includes(changeOperator)) {
+  const isValid = await isValidOperator(changeOperator);
+  if (!isValid) {
       return { success: false, message: 'Invalid operator performing the change.' };
   }
 
@@ -439,7 +441,7 @@ const PaymentDataSchema = z.object({
     paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative'),
     dueAmount: z.number(),
     paymentMethod: z.enum(['Bank Transfer', 'Card Payment', 'Cash', 'ST Bank Transfer', 'AIR Bank Transfer']),
-    operator: z.enum(['PTMGH', 'PTASAD', 'PTM', 'PTITAdmin', 'PTASH', 'PTRK']),
+    operator: z.string().min(1, 'Operator is required'),
     reference: z.string().optional().nullable(),
     date: z.date(),
 });

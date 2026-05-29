@@ -27,9 +27,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useSession } from '@/components/auth/session-provider';
 import { addTransaction, updateTransaction } from '@/lib/server-actions';
 import { getJobSheetByJobId } from '@/lib/server-actions-jobs';
-import { TransactionSchema, operators, paymentMethods, type Transaction, type Operator } from '@/lib/types';
+import { TransactionSchema, paymentMethods, type Transaction, type Operator } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { ReceiptDialog } from './receipt-dialog';
@@ -91,6 +92,7 @@ const getFreshDefaultValues = (type: 'invoicing' | 'non-invoicing', operator: Op
 
 
 export function TransactionForm({ type, onTransactionAdded, transactionToEdit }: TransactionFormProps) {
+  const { operators: dynamicOperators } = useSession();
   const [isPending, startTransition] = useTransition();
   const [isFetchingJob, startFetchingJobTransition] = useTransition();
   const { toast } = useToast();
@@ -353,8 +355,8 @@ export function TransactionForm({ type, onTransactionAdded, transactionToEdit }:
                       <SelectValue placeholder="Select operator" />
                     </SelectTrigger>
                     <SelectContent>
-                      {operators.map((op) => (
-                        <SelectItem key={op} value={op}>{op}</SelectItem>
+                      {dynamicOperators.map((op) => (
+                        <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

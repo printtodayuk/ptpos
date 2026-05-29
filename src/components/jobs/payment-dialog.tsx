@@ -15,11 +15,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { type JobSheet, type Transaction, operators, paymentMethods } from '@/lib/types';
+import { type JobSheet, type Transaction, paymentMethods } from '@/lib/types';
 import { addTransactionFromJobSheet } from '@/lib/server-actions-jobs';
 import { Popover, PopoverContent, PopoverTrigger } from './../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { cn } from '@/lib/utils';
+import { useSession } from '@/components/auth/session-provider';
 
 
 const createPaymentFormSchema = (maxAmount: number) => z.object({
@@ -32,7 +33,7 @@ const createPaymentFormSchema = (maxAmount: number) => z.object({
       .max(maxAmount, { message: `Cannot pay more than the due amount of £${maxAmount.toFixed(2)}` }),
     dueAmount: z.number(),
     paymentMethod: z.enum(paymentMethods),
-    operator: z.enum(operators),
+    operator: z.string().min(1, 'Operator is required'),
     reference: z.string().optional().nullable(),
     date: z.date(),
 });
@@ -48,6 +49,7 @@ type PaymentDialogProps = {
 };
 
 export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: PaymentDialogProps) {
+  const { operators: dynamicOperators } = useSession();
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [maxPayment, setMaxPayment] = useState(0);
@@ -228,8 +230,8 @@ export function PaymentDialog({ jobSheet, isOpen, onClose, onPaymentSuccess }: P
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {operators.map((op) => (
-                        <SelectItem key={op} value={op}>{op}</SelectItem>
+                      {dynamicOperators.map((op) => (
+                        <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

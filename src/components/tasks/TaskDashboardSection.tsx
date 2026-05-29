@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Plus, ListTodo, Search, Filter } from 'lucide-react';
 import { getTasks, deleteTask } from '@/lib/server-actions-tasks';
 import type { Task, Operator } from '@/lib/types';
-import { operators } from '@/lib/types';
+import { useSession } from '@/components/auth/session-provider';
 import { useDebounce } from '@/hooks/use-debounce';
 import { TaskFormDialog } from './TaskFormDialog';
 import { TasksTable } from './TasksTable';
@@ -16,11 +16,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { TaskViewDialog } from './TaskViewDialog';
 
-const filterableOperators: ('All' | Operator)[] = ['All', ...operators];
-
 export function TaskDashboardSection() {
+    const { operators: dynamicOperators } = useSession();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [isLoading, startLoading] = useTransition();
+    
+    const filterableOperators = useMemo(() => ['All', ...dynamicOperators.map(op => op.id)], [dynamicOperators]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);

@@ -18,7 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/components/auth/session-provider';
 import { cn } from '@/lib/utils';
-import { operators, TaskSchema, type Task, type TaskType } from '@/lib/types';
+import { TaskSchema, type Task, type TaskType } from '@/lib/types';
 import { getTaskTypes, addTaskType, addTask, updateTask } from '@/lib/server-actions-tasks';
 
 type TaskFormDialogProps = {
@@ -32,7 +32,7 @@ const FormSchema = TaskSchema.omit({ id: true, taskId: true, createdAt: true, hi
 
 export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskFormDialogProps) {
     const [isPending, startTransition] = useTransition();
-    const { operator } = useSession();
+    const { operator, operators: dynamicOperators } = useSession();
     const { toast } = useToast();
     const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
     const [isAddTypeOpen, setIsAddTypeOpen] = useState(false);
@@ -171,7 +171,7 @@ export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskF
                                     render={({ field }) => (
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>{operators.map(op => <SelectItem key={op} value={op}>{op}</SelectItem>)}</SelectContent>
+                                            <SelectContent>{dynamicOperators.map(op => <SelectItem key={op.id} value={op.id}>{op.id}</SelectItem>)}</SelectContent>
                                         </Select>
                                     )}
                                 />
@@ -192,7 +192,7 @@ export function TaskFormDialog({ isOpen, onClose, onSuccess, taskToEdit }: TaskF
                                                     {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} /></PopoverContent>
                                         </Popover>
                                     )}
                                 />

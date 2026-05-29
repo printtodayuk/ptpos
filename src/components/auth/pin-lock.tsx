@@ -11,18 +11,8 @@ import { ShieldCheck, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Operator } from '@/lib/types';
 
-const OPERATOR_PINS: Record<Operator, string> = {
-    'PTMGH': '7044',
-    'PTM': '1414',
-    'PTRK': '1593',
-    'PTASAD': '2563',
-    'PTASH': '6969',
-    'PTITAdmin': '5206',
-};
-
-
 export function PinLock({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated, operator, login } = useSession();
+    const { isAuthenticated, operator, login, operators, isLoadingOperators } = useSession();
     const [pin, setPin] = useState('');
     const { toast } = useToast();
     const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
@@ -33,7 +23,8 @@ export function PinLock({ children }: { children: React.ReactNode }) {
 
     const handlePinSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (selectedOperator && pin === OPERATOR_PINS[selectedOperator]) {
+        const opRecord = operators.find(op => op.id === selectedOperator);
+        if (selectedOperator && opRecord && pin === opRecord.pin) {
             login(selectedOperator);
             toast({
                 title: 'Access Granted',

@@ -17,13 +17,14 @@ import { Label } from '../ui/label';
 import { QuotationHistoryDialog } from './quotation-history-dialog';
 import { JobSheetForm } from '../jobs/job-sheet-form';
 
-const DELETE_PIN = '5206';
+import { useSession } from '@/components/auth/session-provider';
 
 type SearchQuotationsProps = {
   onQuotationUpdated: () => void;
 };
 
 export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) {
+  const { operators } = useSession();
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<Quotation[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
@@ -88,7 +89,9 @@ export function SearchQuotations({ onQuotationUpdated }: SearchQuotationsProps) 
   };
 
   const handlePinSubmit = () => {
-    if (pin !== DELETE_PIN) {
+    const adminOp = operators.find(op => op.id === 'PTITAdmin');
+    const deletePin = adminOp ? adminOp.pin : '5206';
+    if (pin !== deletePin) {
         toast({ variant: 'destructive', title: 'Incorrect PIN', description: 'The PIN you entered is incorrect.' });
         setPin('');
         return;
