@@ -3,6 +3,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Operator } from '@/lib/types';
 import { getOperators } from '@/lib/server-actions-operators';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface SessionContextType {
     isAuthenticated: boolean;
@@ -37,8 +39,32 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
+    // Set up real-time sync for operators list
     useEffect(() => {
-        refreshOperators();
+        setIsLoadingOperators(true);
+        const colRef = collection(db, 'operators');
+        const unsubscribe = onSnapshot(colRef, (snapshot) => {
+            if (snapshot.empty) {
+                // Seeding defaults if database is unhydrated
+                getOperators().then(list => {
+                    setOperators(list);
+                    setIsLoadingOperators(false);
+                });
+            } else {
+                const list = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    pin: doc.data().pin || '',
+                }));
+                setOperators(list);
+                setIsLoadingOperators(false);
+            }
+        }, (error) => {
+            console.error("Failed to sync operators in real-time", error);
+            // Fallback to one-time server-action fetch
+            refreshOperators();
+        });
+
+        return () => unsubscribe();
     }, [refreshOperators]);
 
     useEffect(() => {
