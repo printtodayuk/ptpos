@@ -73,32 +73,42 @@ export function Nav() {
   });
 
   return (
-    <SidebarMenu>
-      {visibleNavItems.map((item) => (
-        <SidebarMenuItem key={item.href}>
-          <Link href={item.href} onClick={handleLinkClick}>
-            <SidebarMenuButton
-              asChild
-              isActive={pathname === item.href}
-              className={cn(pathname === item.href && 'bg-primary/10 text-primary')}
-              tooltip={item.label}
-            >
-              <div>
-                <item.icon />
-                <span>{item.label}</span>
-              </div>
-            </SidebarMenuButton>
-          </Link>
-        </SidebarMenuItem>
-      ))}
-       <SidebarMenuItem>
-          <SidebarMenuButton onClick={logout} className="mt-4" tooltip={`Logout ${operator || ''}`}>
-            <>
-              <LogOut />
-              <span>Logout</span>
-            </>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+    <SidebarMenu className="gap-1 px-2 py-2">
+      {visibleNavItems.map((item) => {
+        const isActive = pathname === item.href;
+        return (
+          <SidebarMenuItem key={item.href}>
+            <Link href={item.href} onClick={handleLinkClick} className="w-full">
+              <SidebarMenuButton
+                asChild
+                isActive={isActive}
+                className={cn(
+                  'h-10 rounded-xl transition-all duration-200 group font-medium text-slate-600 dark:text-slate-300 hover:text-primary hover:bg-primary/5',
+                  isActive && 'bg-primary/10 text-primary font-bold shadow-sm border-l-4 border-primary rounded-l-none'
+                )}
+                tooltip={item.label}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon className={cn('h-4 w-4 transition-transform duration-200 group-hover:scale-110', isActive && 'text-primary')} />
+                  <span className="text-sm">{item.label}</span>
+                </div>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+        );
+      })}
+      <SidebarMenuItem className="mt-4 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+        <SidebarMenuButton 
+          onClick={logout} 
+          className="h-10 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 font-semibold transition-all duration-200" 
+          tooltip={`Logout ${operator || ''}`}
+        >
+          <div className="flex items-center gap-3">
+            <LogOut className="h-4 w-4" />
+            <span className="text-sm">Logout</span>
+          </div>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
     </SidebarMenu>
   );
 }

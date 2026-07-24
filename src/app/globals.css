@@ -4,48 +4,48 @@
 
 @layer base {
   :root {
-    --background: 280 30% 98%;
-    --foreground: 280 50% 10%;
+    --background: 220 25% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 280 50% 10%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 280 50% 10%;
-    --primary: 320 100% 50%; /* Vibrant Pink/Magenta */
+    --popover-foreground: 222 47% 11%;
+    --primary: 234 89% 56%; /* Modern Vibrant Indigo */
     --primary-foreground: 0 0% 100%;
-    --secondary: 280 20% 94%;
-    --secondary-foreground: 280 50% 10%;
-    --muted: 280 10% 96%;
-    --muted-foreground: 280 20% 45%;
-    --accent: 45 100% 50%; /* Bright Gold */
-    --accent-foreground: 280 50% 10%;
-    --destructive: 0 100% 50%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 262 83% 58%; /* Rich Purple Accent */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 320 30% 90%;
-    --input: 320 30% 90%;
-    --ring: 320 100% 50%;
-    --radius: 1rem;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 234 89% 56%;
+    --radius: 0.85rem;
   }
 
   .dark {
-    --background: 280 50% 5%;
-    --foreground: 280 10% 95%;
-    --card: 280 50% 8%;
-    --card-foreground: 280 10% 95%;
-    --popover: 280 50% 8%;
-    --popover-foreground: 280 10% 95%;
-    --primary: 320 100% 60%;
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 10%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 10%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 234 89% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 280 30% 15%;
-    --secondary-foreground: 280 10% 95%;
-    --muted: 280 30% 12%;
-    --muted-foreground: 280 10% 60%;
-    --accent: 45 100% 50%;
-    --accent-foreground: 280 10% 5%;
-    --destructive: 0 100% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 280 30% 20%;
-    --input: 280 30% 20%;
-    --ring: 320 100% 60%;
+    --secondary: 217 33% 15%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 262 83% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 234 89% 65%;
   }
 }
 
@@ -54,21 +54,34 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/20 selection:text-primary;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   
-  /* Make inputs and textareas more colourful */
+  /* Modern Input aesthetics */
   input, textarea, select {
-    @apply border-primary/20 bg-primary/5 focus:bg-white transition-all duration-200 focus:border-primary/60;
+    @apply border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 focus:bg-white dark:focus:bg-slate-900 transition-all duration-200 shadow-sm focus:shadow-md focus:ring-2 focus:ring-primary/20;
   }
 
   /* Vibrant card headers */
   .card-header-vibrant {
-    @apply bg-gradient-to-r from-primary/10 to-accent/10;
+    @apply bg-gradient-to-r from-primary/10 via-accent/10 to-transparent border-b border-primary/10;
   }
 }
 
 @layer utilities {
+  .glass-card {
+    @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 shadow-sm hover:shadow-md transition-all duration-300;
+  }
+
+  .glass-header {
+    @apply bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-400 dark:via-purple-400 dark:to-pink-400 font-extrabold;
+  }
+
   .print-only {
     display: none;
   }

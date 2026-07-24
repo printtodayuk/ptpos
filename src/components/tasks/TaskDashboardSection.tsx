@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Plus, ListTodo, Search, Filter } from 'lucide-react';
+import { Loader2, Plus, ListTodo, Search, Filter, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { getTasks, deleteTask } from '@/lib/server-actions-tasks';
 import type { Task, Operator } from '@/lib/types';
 import { useSession } from '@/components/auth/session-provider';
@@ -21,6 +21,9 @@ export function TaskDashboardSection() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [isLoading, startLoading] = useTransition();
     
+    // Collapsible state: default off (false) as requested by user
+    const [isExpanded, setIsExpanded] = useState(false);
+
     const filterableOperators = useMemo(() => ['All', ...dynamicOperators.map(op => op.id)], [dynamicOperators]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
@@ -111,53 +114,107 @@ export function TaskDashboardSection() {
                 onSuccess={fetchTasks}
             />
 
-            <Card>
-                <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                        <CardTitle className="text-xl flex items-center gap-2"><ListTodo /> Tasks & Requests</CardTitle>
-                        <CardDescription>An overview of all internal tasks and requests.</CardDescription>
-                    </div>
-                    <Button onClick={() => setIsDialogOpen(true)} className="w-full md:w-auto">
-                        <Plus className="mr-2 h-4 w-4" /> Create Task/Request
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                     <div className="flex flex-col sm:flex-row items-center gap-2 mb-4">
-                        <div className="relative w-full">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Search by ID, details, or type..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10"
-                            />
+            <Card className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-md overflow-hidden transition-all duration-300">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800/60 p-6">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                            <ListTodo className="h-5 w-5" />
                         </div>
-                        <Select value={assignedToFilter} onValueChange={(value) => setAssignedToFilter(value as 'All' | Operator)}>
-                            <SelectTrigger className="w-full sm:w-[200px] flex-shrink-0">
-                                <Filter className="mr-2 h-4 w-4" />
-                                <SelectValue placeholder="Filter by assignee" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {filterableOperators.map((op) => (
-                                    <SelectItem key={op} value={op}>{op}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div>
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100">Tasks & Requests</CardTitle>
+                              <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
+                                {tasks.length} {tasks.length === 1 ? 'Task' : 'Tasks'}
+                              </span>
+                            </div>
+                            <CardDescription className="text-xs mt-0.5">Internal task list and operation request tracking.</CardDescription>
+                        </div>
                     </div>
 
-                    {isLoading ? (
-                        <div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
-                    ) : (
-                        <TasksTable
-                          tasks={tasks}
-                          onEdit={handleEdit}
-                          onDelete={handleDeleteRequest}
-                          onStatusChange={fetchTasks}
-                          onViewTask={handleViewTask}
-                        />
-                    )}
-                </CardContent>
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="rounded-2xl border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-extrabold flex-1 sm:flex-none h-10 transition-all duration-200"
+                        >
+                            {isExpanded ? (
+                                <>
+                                    <ChevronUp className="mr-1.5 h-4 w-4 text-indigo-500" />
+                                    <span>Hide Tasks</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Eye className="mr-1.5 h-4 w-4 text-indigo-500" />
+                                    <span>View Tasks</span>
+                                    <ChevronDown className="ml-1 h-4 w-4 text-indigo-500 animate-bounce" />
+                                </>
+                            )}
+                        </Button>
+
+                        <Button onClick={() => setIsDialogOpen(true)} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold shadow-md h-10 flex-1 sm:flex-none">
+                            <Plus className="mr-1.5 h-4 w-4" /> Create Task
+                        </Button>
+                    </div>
+                </CardHeader>
+
+                {/* Collapsible Content with smooth slide-down animation */}
+                {isExpanded && (
+                    <CardContent className="p-6 space-y-4 animate-in fade-in-50 slide-in-from-top-3 duration-300">
+                         <div className="flex flex-col sm:flex-row items-center gap-3">
+                            <div className="relative w-full">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <Input
+                                    type="text"
+                                    placeholder="Search by Task ID, details, or type..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 rounded-2xl h-11"
+                                />
+                            </div>
+                            <Select value={assignedToFilter} onValueChange={(value) => setAssignedToFilter(value as 'All' | Operator)}>
+                                <SelectTrigger className="w-full sm:w-[220px] flex-shrink-0 rounded-2xl h-11 font-semibold">
+                                    <Filter className="mr-2 h-4 w-4 text-slate-400" />
+                                    <SelectValue placeholder="Filter by assignee" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {filterableOperators.map((op) => (
+                                        <SelectItem key={op} value={op}>{op}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center p-12 space-y-2">
+                              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                              <p className="text-xs text-muted-foreground font-semibold">Fetching tasks...</p>
+                            </div>
+                        ) : (
+                            <TasksTable
+                              tasks={tasks}
+                              onEdit={handleEdit}
+                              onDelete={handleDeleteRequest}
+                              onStatusChange={fetchTasks}
+                              onViewTask={handleViewTask}
+                            />
+                        )}
+                    </CardContent>
+                )}
+
+                {!isExpanded && (
+                    <div 
+                      onClick={() => setIsExpanded(true)}
+                      className="p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-xs text-slate-500 font-semibold cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <ListTodo className="h-3.5 w-3.5 text-indigo-500" />
+                        Click view tasks button or click here to expand {tasks.length} task entries.
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-extrabold">
+                        View Tasks Table <ChevronDown className="h-4 w-4" />
+                      </span>
+                    </div>
+                )}
             </Card>
         </>
     );

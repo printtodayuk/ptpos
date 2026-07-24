@@ -16,26 +16,27 @@ import { Nav } from '@/components/nav';
 import { PinLock } from '@/components/auth/pin-lock';
 import { SessionProvider, useSession } from '@/components/auth/session-provider';
 import { FeatureProvider } from '@/components/features/feature-provider';
-import { Badge } from '@/components/ui/badge';
 import { WorldClock } from '@/components/dashboard/world-clock';
+import { PageTransition } from '@/components/common/page-transition';
 
 function AppHeader() {
   const { operator } = useSession();
   return (
-    <header className="flex h-16 items-center gap-4 border-b bg-card px-4 sm:px-6">
+    <header className="glass-header sticky top-0 z-30 flex h-16 items-center gap-4 px-4 sm:px-6 shadow-sm">
       <SidebarTrigger className="md:hidden" />
-      <div className="flex-1 flex items-center gap-4">
-        <h1 className="text-lg font-semibold">
-          <span style={{ color: '#012169' }}>AI Studio</span>{' '}
-          <span style={{ color: '#C8102E' }}>EPOS</span>
+      <div className="flex-1 flex items-center gap-3">
+        <h1 className="text-lg font-bold tracking-tight">
+          <span className="text-[#012169] dark:text-indigo-400">AI Studio</span>{' '}
+          <span className="text-[#C8102E] dark:text-rose-500">EPOS</span>
         </h1>
         {operator && (
-            <Badge variant="outline" className="text-sm">
-                {operator}
-            </Badge>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{operator}</span>
+          </div>
         )}
       </div>
-      <div className="hidden md:flex items-center gap-4">
+      <div className="hidden md:flex items-center gap-3">
         <WorldClock city="London" timeZone="Europe/London" />
         <WorldClock city="Dhaka" timeZone="Asia/Dhaka" />
       </div>
@@ -74,8 +75,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Sidebar>
             <SidebarInset>
               <AppHeader />
-              <main className="flex-1 flex flex-col p-4 md:p-6 bg-secondary/20">
-                {children}
+              <main className="flex-1 flex flex-col p-4 md:p-6 bg-secondary/20 overflow-x-hidden">
+                <PageTransition>
+                  {children}
+                </PageTransition>
               </main>
               <footer className="text-center p-4 text-xs text-muted-foreground border-t">
                 Developed by{' '}
