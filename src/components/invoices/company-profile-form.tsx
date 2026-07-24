@@ -4,6 +4,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTransition } from 'react';
+import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,8 @@ export function CompanyProfileForm({ companyProfile, onSuccess, onCancel }: Comp
             email: companyProfile?.email || '',
             website: companyProfile?.website || '',
             bankDetails: companyProfile?.bankDetails || '',
+            defaultNotes: companyProfile?.defaultNotes || '',
+            footerText: companyProfile?.footerText || '',
         },
     });
 
@@ -44,7 +47,6 @@ export function CompanyProfileForm({ companyProfile, onSuccess, onCancel }: Comp
             if (result.success) {
                 onSuccess();
             } else {
-                // You might want to handle errors here, e.g., show a toast
                 console.error(result.message);
             }
         });
@@ -70,7 +72,7 @@ export function CompanyProfileForm({ companyProfile, onSuccess, onCancel }: Comp
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="website">Website</Label>
-                    <Input id="website" placeholder="https://example.com" {...form.register('website')} />
+                    <Input id="website" placeholder="e.g. www.printtoday.co.uk or printtoday.co.uk" {...form.register('website')} />
                     {form.formState.errors.website && <p className="text-sm text-destructive">{form.formState.errors.website.message}</p>}
                 </div>
             </div>
@@ -80,8 +82,16 @@ export function CompanyProfileForm({ companyProfile, onSuccess, onCancel }: Comp
                  {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label htmlFor="bankDetails">Bank Details</Label>
-                <Textarea id="bankDetails" placeholder="Bank Name, Account Number, Sort Code, etc." {...form.register('bankDetails')} />
+                <Label htmlFor="bankDetails" className="font-bold">Payment Details & Bank Account (Highlighted on Invoice)</Label>
+                <Textarea id="bankDetails" placeholder="Bank: HSBC | Account: 12345678 | Sort Code: 40-00-00 | Terms: Payment due within 14 days" rows={3} {...form.register('bankDetails')} />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="defaultNotes">Default Notes (Appears below Payment Details on Invoice)</Label>
+                <Textarea id="defaultNotes" placeholder="e.g. Thank you for your business! Please quote invoice number on all payments." rows={2} {...form.register('defaultNotes')} />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="footerText">Footer Text Line (Appears at the very bottom of Invoice)</Label>
+                <Input id="footerText" placeholder="e.g. Print Today POS Ltd • Registered in England & Wales No. 12345678 • VAT Reg No. GB 123 456 789" {...form.register('footerText')} />
             </div>
 
             <DialogFooter>

@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { JobSheetView } from './job-sheet-view';
 import type { JobSheet } from '@/lib/types';
-import { Printer, Download, Loader2 } from 'lucide-react';
+import { Printer, Download, Loader2, FileText } from 'lucide-react';
 import React, { useState } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -13,9 +13,10 @@ type JobSheetViewDialogProps = {
   jobSheet: JobSheet | null;
   isOpen: boolean;
   onClose: () => void;
+  onCreateInvoice?: (jobSheet: JobSheet) => void;
 };
 
-export function JobSheetViewDialog({ jobSheet, isOpen, onClose }: JobSheetViewDialogProps) {
+export function JobSheetViewDialog({ jobSheet, isOpen, onClose, onCreateInvoice }: JobSheetViewDialogProps) {
   const viewRef = React.useRef<HTMLDivElement>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -75,6 +76,20 @@ export function JobSheetViewDialog({ jobSheet, isOpen, onClose }: JobSheetViewDi
             </div>
         </div>
         <DialogFooter className="sm:flex-row sm:justify-center gap-2">
+          {onCreateInvoice && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onClose();
+                onCreateInvoice(jobSheet);
+              }}
+              className="flex-1 border-primary text-primary hover:bg-primary/10"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Make Invoice
+            </Button>
+          )}
           <Button type="button" onClick={handlePrint} className="flex-1">
             <Printer className="mr-2 h-4 w-4" />
             Print

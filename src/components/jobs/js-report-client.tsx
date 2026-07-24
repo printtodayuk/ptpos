@@ -3,6 +3,8 @@
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
 import { searchJobSheets, exportAllJobSheets, deleteJobSheet } from '@/lib/server-actions-jobs';
+import { getCompanyProfiles } from '@/lib/server-actions-invoices';
+import { InvoiceForm } from '@/components/invoices/invoice-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,7 +18,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import type { JobSheet, JobSheetStatus, PaymentStatus, Operator } from '@/lib/types';
+import type { JobSheet, JobSheetStatus, PaymentStatus, Operator, CompanyProfile, Transaction } from '@/lib/types';
 import { jobSheetStatus, paymentStatuses } from '@/lib/types';
 import { useSession } from '@/components/auth/session-provider';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -29,7 +31,6 @@ import { useToast } from '@/hooks/use-toast';
 import { exportToCsv } from '@/lib/utils';
 import { PaymentDialog } from './payment-dialog';
 import { ReceiptDialog } from '../transactions/receipt-dialog';
-import type { Transaction } from '@/lib/types';
 import { Label } from '../ui/label';
 import { JobSheetHistoryDialog } from './job-sheet-history-dialog';
 import { JobSheetPrintDialog } from './job-sheet-print-dialog';
@@ -51,11 +52,17 @@ export function JsReportClient() {
   const [jobSheetToDelete, setJobSheetToDelete] = useState<JobSheet | null>(null);
   const [jobSheetToViewHistory, setJobSheetToViewHistory] = useState<JobSheet | null>(null);
   const [jobSheetForDN, setJobSheetForDN] = useState<JobSheet | null>(null);
+  const [jobSheetToInvoice, setJobSheetToInvoice] = useState<JobSheet | null>(null);
+  const [companyProfiles, setCompanyProfiles] = useState<CompanyProfile[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
   const [pin, setPin] = useState('');
+
+  useEffect(() => {
+    getCompanyProfiles().then(setCompanyProfiles);
+  }, []);
 
 
   const { toast } = useToast();
@@ -196,7 +203,31 @@ export function JsReportClient() {
         jobSheet={jobSheetToView}
         isOpen={!!jobSheetToView}
         onClose={() => setJobSheetToView(null)}
+        onCreateInvoice={(js) => setJobSheetToInvoice(js)}
       />
+
+      <Dialog open={!!jobSheetToInvoice} onOpenChange={(open) => { if (!open) setJobSheetToInvoice(null); }}>
+        <DialogContent className="sm:max-w-4xl p-0 flex flex-col h-full max-h-[90vh]">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle>Make Invoice from Job Sheet {jobSheetToInvoice?.jobId}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
+            {jobSheetToInvoice && (
+              <InvoiceForm
+                companyProfiles={companyProfiles}
+                jobSheetToInvoice={jobSheetToInvoice}
+                onSuccess={() => {
+                  const jobId = jobSheetToInvoice.jobId;
+                  setJobSheetToInvoice(null);
+                  toast({ title: 'Success', description: `Invoice created from Job Sheet ${jobId}.` });
+                  performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
+                }}
+                onCancel={() => setJobSheetToInvoice(null)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <JobSheetPrintDialog
         jobSheet={jobSheetToPrint}
@@ -353,6 +384,7 @@ export function JsReportClient() {
                 onViewHistory={handleViewHistory}
                 onPrint={handlePrint}
                 onDeliveryNote={handleDeliveryNote}
+                onCreateInvoice={(js) => setJobSheetToInvoice(js)}
               />
             </div>
           )}

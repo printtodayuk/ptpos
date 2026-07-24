@@ -33,22 +33,19 @@ import {
 } from '@/lib/types';
 
 
-// Helper function to safely convert Firestore Timestamps to JS Dates
-const toDate = (timestamp: any): Date | null => {
+// Helper function to safely convert Firestore Timestamps to plain ISO strings
+const toDate = (timestamp: any): string | null => {
     if (timestamp instanceof Timestamp) {
-        return timestamp.toDate();
+        return timestamp.toDate().toISOString();
     }
     if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+        return new Date(timestamp.seconds * 1000).toISOString();
     }
     if (timestamp instanceof Date) {
-        return timestamp;
+        return timestamp.toISOString();
     }
     if (typeof timestamp === 'string') {
-        const date = new Date(timestamp);
-        if (!isNaN(date.getTime())) {
-            return date;
-        }
+        return timestamp;
     }
     return null;
 };
@@ -57,8 +54,8 @@ const toDate = (timestamp: any): Date | null => {
 const sanitizeHistory = (history?: any[]): TaskHistory[] => {
     return (history || []).map(h => ({
         ...h,
-        timestamp: toDate(h.timestamp),
-    }));
+        timestamp: toDate(h.timestamp) || new Date().toISOString(),
+    })) as TaskHistory[];
 };
 
 const CreateTaskSchema = TaskSchema.omit({ id: true, taskId: true, createdAt: true, history: true });

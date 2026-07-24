@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Eye, Edit, Trash2, CreditCard, History, Printer, Truck } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, CreditCard, History, Printer, Truck, FileText } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ type JobSheetsTableProps = {
   onViewHistory: (jobSheet: JobSheet) => void;
   onPrint: (jobSheet: JobSheet) => void;
   onDeliveryNote: (jobSheet: JobSheet) => void;
+  onCreateInvoice?: (jobSheet: JobSheet) => void;
 };
 
 export function JobSheetsTable({ 
@@ -31,7 +32,8 @@ export function JobSheetsTable({
   onPay,
   onViewHistory,
   onPrint,
-  onDeliveryNote
+  onDeliveryNote,
+  onCreateInvoice
 }: JobSheetsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(15);
@@ -181,6 +183,11 @@ export function JobSheetsTable({
                      <DropdownMenuItem onSelect={() => onPay(js)} disabled={js.paymentStatus === 'Paid'}>
                       <CreditCard className="mr-2 h-4 w-4" /> Pay Now
                     </DropdownMenuItem>
+                    {onCreateInvoice && (
+                      <DropdownMenuItem onSelect={() => onCreateInvoice(js)}>
+                        <FileText className="mr-2 h-4 w-4" /> Make Invoice
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => onEdit(js)}>
                       <Edit className="mr-2 h-4 w-4" /> Edit

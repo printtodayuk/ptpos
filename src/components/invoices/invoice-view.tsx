@@ -87,16 +87,23 @@ export function InvoiceView({ invoice, companyProfile }: InvoiceViewProps) {
         </div>
       </main>
 
-      <footer>
-        <div className="border-t border-black pt-4 text-xs text-muted-foreground space-y-4">
-          <div>
-            <h3 className="font-bold text-black mb-1">Notes</h3>
-            <p className="whitespace-pre-wrap">{invoice.notes || 'Thank you for your business.'}</p>
-          </div>
+      <footer className="mt-8">
+        <div className="border-t border-black pt-4">
           {companyProfile?.bankDetails && (
-            <div>
-                <h3 className="font-bold text-black mb-1">Payment Details</h3>
-                <p className="whitespace-pre-wrap">{companyProfile.bankDetails}</p>
+            <div className="bg-gray-50 border border-black/20 rounded-md p-4 mb-4">
+              <h3 className="font-bold text-sm text-black uppercase tracking-wide mb-1.5">Payment Details & Bank Account</h3>
+              <p className="whitespace-pre-wrap font-bold text-sm text-black leading-relaxed">{companyProfile.bankDetails}</p>
+            </div>
+          )}
+          {invoice.notes && (
+            <div className="mb-4">
+              <h3 className="font-bold text-xs text-black uppercase tracking-wide mb-1">Notes & Terms</h3>
+              <p className="whitespace-pre-wrap text-xs text-black/80">{invoice.notes}</p>
+            </div>
+          )}
+          {companyProfile?.footerText && (
+            <div className="border-t border-black/30 pt-3 mt-4 text-center text-xs font-semibold text-black/70 tracking-wide">
+              {companyProfile.footerText}
             </div>
           )}
         </div>

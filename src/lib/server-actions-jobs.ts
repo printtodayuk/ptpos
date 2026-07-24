@@ -15,7 +15,8 @@ import {
   runTransaction,
   deleteDoc,
   where,
-  writeBatch
+  writeBatch,
+  type QueryConstraint,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -39,10 +40,24 @@ const UpdateJobSheetSchema = CreateJobSheetSchema.extend({
 
 // Helper to sanitize history for client-side serialization
 const sanitizeHistory = (history?: any[]): JobSheetHistory[] => {
-    return (history || []).map(h => ({
-        ...h,
-        timestamp: h.timestamp instanceof Timestamp ? h.timestamp.toDate() : h.timestamp,
-    }));
+    return (history || []).map(h => {
+        let ts = h.timestamp;
+        if (ts && typeof ts.toDate === 'function') {
+            ts = ts.toDate().toISOString();
+        } else if (ts && typeof ts.seconds === 'number') {
+            ts = new Date(ts.seconds * 1000).toISOString();
+        } else if (ts instanceof Date) {
+            ts = ts.toISOString();
+        } else if (typeof ts === 'string') {
+            ts = ts;
+        } else {
+            ts = new Date().toISOString();
+        }
+        return {
+            ...h,
+            timestamp: ts,
+        };
+    }) as JobSheetHistory[];
 };
 
 async function getNextJobId(): Promise<string> {
@@ -295,9 +310,45 @@ export async function searchJobSheets(
   operator?: Operator
 ): Promise<JobSheet[]> {
   try {
-    const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
+    const trimmedTerm = searchTerm.trim();
+    const isJidSearch = trimmedTerm.length > 0 && /^[jJ]/i.test(trimmedTerm);
 
-    const querySnapshot = await getDocs(q);
+    let querySnapshot;
+
+    if (isJidSearch) {
+      const upperTerm = trimmedTerm.toUpperCase();
+      try {
+        const q = query(
+          collection(db, 'jobSheets'),
+          where('jobId', '>=', upperTerm),
+          where('jobId', '<=', upperTerm + '\uf8ff'),
+          limit(50)
+        );
+        querySnapshot = await getDocs(q);
+      } catch (err) {
+        const fallbackQ = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'), limit(100));
+        querySnapshot = await getDocs(fallbackQ);
+      }
+    } else {
+      const constraints: QueryConstraint[] = [];
+      if (jobStatus) constraints.push(where('status', '==', jobStatus));
+      if (paymentStatus) constraints.push(where('paymentStatus', '==', paymentStatus));
+      if (operator) constraints.push(where('operator', '==', operator));
+      
+      const fetchLimit = trimmedTerm ? 150 : 50;
+      try {
+        const q = query(
+          collection(db, 'jobSheets'),
+          ...constraints,
+          orderBy('createdAt', 'desc'),
+          limit(fetchLimit)
+        );
+        querySnapshot = await getDocs(q);
+      } catch (err) {
+        const fallbackQ = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'), limit(fetchLimit));
+        querySnapshot = await getDocs(fallbackQ);
+      }
+    }
 
     let jobSheets = querySnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -311,9 +362,6 @@ export async function searchJobSheets(
       } as JobSheet;
     });
 
-    // Client-side text filtering
-
-
     if (jobStatus) {
         jobSheets = jobSheets.filter(js => js.status === jobStatus);
     }
@@ -324,13 +372,14 @@ export async function searchJobSheets(
         jobSheets = jobSheets.filter(js => js.operator === operator);
     }
 
-    if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
+    if (trimmedTerm && !isJidSearch) {
+      const lowercasedTerm = trimmedTerm.toLowerCase();
       jobSheets = jobSheets.filter((js) => {
         return (
           js.jobId?.toLowerCase().includes(lowercasedTerm) ||
           js.clientName?.toLowerCase().includes(lowercasedTerm) ||
           js.companyName?.toLowerCase().includes(lowercasedTerm) ||
+          js.irNumber?.toLowerCase().includes(lowercasedTerm) ||
           js.jobItems.some(item => item.description?.toLowerCase().includes(lowercasedTerm))
         );
       });

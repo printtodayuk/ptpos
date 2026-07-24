@@ -15,7 +15,8 @@ import {
   runTransaction,
   deleteDoc,
   where,
-  writeBatch
+  writeBatch,
+  type QueryConstraint,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -39,10 +40,24 @@ const UpdateQuotationSchema = CreateQuotationSchema.extend({
 
 // Helper to sanitize history for client-side serialization
 const sanitizeHistory = (history?: any[]): QuotationHistory[] => {
-    return (history || []).map(h => ({
-        ...h,
-        timestamp: h.timestamp instanceof Timestamp ? h.timestamp.toDate() : h.timestamp,
-    }));
+    return (history || []).map(h => {
+        let ts = h.timestamp;
+        if (ts && typeof ts.toDate === 'function') {
+            ts = ts.toDate().toISOString();
+        } else if (ts && typeof ts.seconds === 'number') {
+            ts = new Date(ts.seconds * 1000).toISOString();
+        } else if (ts instanceof Date) {
+            ts = ts.toISOString();
+        } else if (typeof ts === 'string') {
+            ts = ts;
+        } else {
+            ts = new Date().toISOString();
+        }
+        return {
+            ...h,
+            timestamp: ts,
+        };
+    }) as QuotationHistory[];
 };
 
 async function getNextQuotationId(): Promise<string> {
@@ -269,9 +284,44 @@ export async function searchQuotations(
   operator?: Operator
 ): Promise<Quotation[]> {
   try {
-    const q = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'));
+    const trimmedTerm = searchTerm.trim();
+    const isQuotationIdSearch = trimmedTerm.length > 0 && /^[qQ]/i.test(trimmedTerm);
 
-    const querySnapshot = await getDocs(q);
+    let querySnapshot;
+
+    if (isQuotationIdSearch) {
+      const upperTerm = trimmedTerm.toUpperCase();
+      try {
+        const q = query(
+          collection(db, 'quotations'),
+          where('quotationId', '>=', upperTerm),
+          where('quotationId', '<=', upperTerm + '\uf8ff'),
+          limit(50)
+        );
+        querySnapshot = await getDocs(q);
+      } catch (err) {
+        const fallbackQ = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'), limit(100));
+        querySnapshot = await getDocs(fallbackQ);
+      }
+    } else {
+      const constraints: QueryConstraint[] = [];
+      if (quotationStatus) constraints.push(where('status', '==', quotationStatus));
+      if (operator) constraints.push(where('operator', '==', operator));
+
+      const fetchLimit = trimmedTerm ? 150 : 50;
+      try {
+        const q = query(
+          collection(db, 'quotations'),
+          ...constraints,
+          orderBy('createdAt', 'desc'),
+          limit(fetchLimit)
+        );
+        querySnapshot = await getDocs(q);
+      } catch (err) {
+        const fallbackQ = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'), limit(fetchLimit));
+        querySnapshot = await getDocs(fallbackQ);
+      }
+    }
 
     let quotations = querySnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -285,8 +335,6 @@ export async function searchQuotations(
       } as Quotation;
     });
 
-    // Client-side text filtering
-
     if (quotationStatus) {
         quotations = quotations.filter(q => q.status === quotationStatus);
     }
@@ -294,8 +342,8 @@ export async function searchQuotations(
         quotations = quotations.filter(q => q.operator === operator);
     }
 
-    if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
+    if (trimmedTerm && !isQuotationIdSearch) {
+      const lowercasedTerm = trimmedTerm.toLowerCase();
       quotations = quotations.filter((js) => {
         return (
           js.quotationId?.toLowerCase().includes(lowercasedTerm) ||

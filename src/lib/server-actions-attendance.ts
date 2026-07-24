@@ -53,11 +53,11 @@ export async function getOperatorStatus(operator: Operator): Promise<TimeRecord 
 
   return {
     ...activeRecordData,
-    clockInTime: (activeRecordData.clockInTime as Timestamp).toDate(),
-    clockOutTime: activeRecordData.clockOutTime ? (activeRecordData.clockOutTime as Timestamp).toDate() : null,
+    clockInTime: activeRecordData.clockInTime?.toDate ? activeRecordData.clockInTime.toDate().toISOString() : (activeRecordData.clockInTime || new Date().toISOString()),
+    clockOutTime: activeRecordData.clockOutTime?.toDate ? activeRecordData.clockOutTime.toDate().toISOString() : activeRecordData.clockOutTime,
     breaks: (activeRecordData.breaks || []).map((b: any) => ({
-      startTime: (b.startTime as Timestamp).toDate(),
-      endTime: b.endTime ? (b.endTime as Timestamp).toDate() : null,
+      startTime: b.startTime?.toDate ? b.startTime.toDate().toISOString() : b.startTime,
+      endTime: b.endTime?.toDate ? b.endTime.toDate().toISOString() : b.endTime,
     })),
   } as TimeRecord;
 }
@@ -211,15 +211,17 @@ export async function getTimeRecordsForReport({ startDate, endDate }: { startDat
 
     return querySnapshot.docs.map((doc) => {
       const data = doc.data();
+      const clockIn = data.clockInTime;
+      const clockOut = data.clockOutTime;
       return {
         ...data,
         id: doc.id,
-        clockInTime: (data.clockInTime as Timestamp).toDate(),
-        clockOutTime: data.clockOutTime ? (data.clockOutTime as Timestamp).toDate() : null,
-        breaks: data.breaks?.map((b: any) => ({
-            startTime: b.startTime ? (b.startTime as Timestamp).toDate() : null,
-            endTime: b.endTime ? (b.endTime as Timestamp).toDate() : null,
-        })) || [],
+        clockInTime: clockIn?.toDate ? clockIn.toDate().toISOString() : clockIn,
+        clockOutTime: clockOut?.toDate ? clockOut.toDate().toISOString() : clockOut,
+        breaks: (data.breaks || []).map((b: any) => ({
+            startTime: b.startTime?.toDate ? b.startTime.toDate().toISOString() : b.startTime,
+            endTime: b.endTime?.toDate ? b.endTime.toDate().toISOString() : b.endTime,
+        })),
       } as TimeRecord;
     });
   } catch (e) {

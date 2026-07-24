@@ -63,10 +63,15 @@ export async function getCompanyProfiles(): Promise<CompanyProfile[]> {
   try {
     const q = query(collection(db, 'companyProfiles'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id,
-    })) as CompanyProfile[];
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        const createdAt = data.createdAt;
+        return {
+            ...data,
+            id: doc.id,
+            createdAt: createdAt?.toDate ? createdAt.toDate().toISOString() : (createdAt ? String(createdAt) : null),
+        } as CompanyProfile;
+    });
   } catch (e) {
     console.error('Error fetching company profiles:', e);
     return [];
@@ -146,11 +151,15 @@ export async function getInvoices(): Promise<Invoice[]> {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => {
             const data = doc.data();
+            const date = data.date;
+            const dueDate = data.dueDate;
+            const createdAt = data.createdAt;
             return {
                 ...data,
                 id: doc.id,
-                date: (data.date as Timestamp).toDate(),
-                dueDate: (data.dueDate as Timestamp).toDate(),
+                date: date?.toDate ? date.toDate().toISOString() : date,
+                dueDate: dueDate?.toDate ? dueDate.toDate().toISOString() : dueDate,
+                createdAt: createdAt?.toDate ? createdAt.toDate().toISOString() : (createdAt ? String(createdAt) : null),
             } as Invoice;
         });
     } catch(e) {

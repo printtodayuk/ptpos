@@ -256,34 +256,68 @@ export async function getDashboardStats() {
     const jobSheetsRef = collection(db, 'jobSheets');
     const quotationsRef = collection(db, 'quotations');
 
-    const [jobSheetsSnap, quotationsSnap] = await Promise.all([
-        getDocs(jobSheetsRef),
-        getDocs(quotationsRef)
+    const getJobCount = async (status: string) => {
+      const q = query(jobSheetsRef, where('status', '==', status));
+      const snap = await getCountFromServer(q);
+      return snap.data().count;
+    };
+
+    const getQuotationCount = async (status: string) => {
+      const q = query(quotationsRef, where('status', '==', status));
+      const snap = await getCountFromServer(q);
+      return snap.data().count;
+    };
+
+    const [
+      productionCount,
+      finishingCount,
+      holdCount,
+      studioCount,
+      mghCount,
+      cancelCount,
+      readyPickupCount,
+      parcelCompareCount,
+      deliveredCount,
+      osCount,
+      sentCount,
+      quotationHoldCount,
+      wfrCount,
+      approvedCount,
+      declinedCount,
+    ] = await Promise.all([
+      getJobCount('Production'),
+      getJobCount('Finishing'),
+      getJobCount('Hold'),
+      getJobCount('Studio'),
+      getJobCount('MGH'),
+      getJobCount('Cancel'),
+      getJobCount('Ready Pickup'),
+      getJobCount('Parcel Compare'),
+      getJobCount('Delivered'),
+      getJobCount('OS'),
+      getQuotationCount('Sent'),
+      getQuotationCount('Hold'),
+      getQuotationCount('WFR'),
+      getQuotationCount('Approved'),
+      getQuotationCount('Declined'),
     ]);
 
-    const jobSheets = jobSheetsSnap.docs.map(doc => doc.data() as JobSheet);
-    const quotations = quotationsSnap.docs.map(doc => doc.data() as Quotation);
-
-    const getCount = (items: (JobSheet | Quotation)[], status: string) => {
-        return items.filter(item => item.status === status).length;
-    }
-
     return {
-      productionCount: getCount(jobSheets, 'Production'),
-      finishingCount: getCount(jobSheets, 'Finishing'),
-      holdCount: getCount(jobSheets, 'Hold'),
-      studioCount: getCount(jobSheets, 'Studio'),
-      mghCount: getCount(jobSheets, 'MGH'),
-      cancelCount: getCount(jobSheets, 'Cancel'),
-      readyPickupCount: getCount(jobSheets, 'Ready Pickup'),
-      parcelCompareCount: getCount(jobSheets, 'Parcel Compare'),
-      deliveredCount: getCount(jobSheets, 'Delivered'),
-      osCount: getCount(jobSheets, 'OS'),
-      sentCount: getCount(quotations, 'Sent'),
-      quotationHoldCount: getCount(quotations, 'Hold'),
-      wfrCount: getCount(quotations, 'WFR'),
-      approvedCount: getCount(quotations, 'Approved'),
-      declinedCount: getCount(quotations, 'Declined'),
+      productionCount,
+      finishingCount,
+      holdCount,
+      studioCount,
+      mghCount,
+      cancelCount,
+      readyPickupCount,
+      parcelCompareCount,
+      deliveredCount,
+      osCount,
+      sentCount,
+      quotationHoldCount,
+      wfrCount,
+      approvedCount,
+      declinedCount,
     };
   } catch (e) {
     console.error('Error fetching dashboard stats:', e);
@@ -350,14 +384,19 @@ export async function markTransactionAsChecked(id: string) {
 
 export async function getReportData({ searchTerm, startDate, endDate }: { searchTerm?: string, startDate?: string, endDate?: string }): Promise<Transaction[]> {
   try {
-    const constraints: QueryConstraint[] = [orderBy('date', 'desc')];
-    if (startDate && endDate) {
-        constraints.push(where('date', '>=', Timestamp.fromDate(new Date(startDate))));
-        constraints.push(where('date', '<=', Timestamp.fromDate(new Date(endDate))));
+    const fetchLimit = startDate && endDate ? 300 : (searchTerm ? 100 : 50);
+    let querySnapshot;
+    try {
+      const constraints: QueryConstraint[] = [orderBy('date', 'desc'), limit(fetchLimit)];
+      if (startDate && endDate) {
+          constraints.unshift(where('date', '>=', Timestamp.fromDate(new Date(startDate))), where('date', '<=', Timestamp.fromDate(new Date(endDate))));
+      }
+      const q = query(collection(db, 'transactions'), ...constraints);
+      querySnapshot = await getDocs(q);
+    } catch (err) {
+      const fallbackQ = query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(fetchLimit));
+      querySnapshot = await getDocs(fallbackQ);
     }
-
-    const q = query(collection(db, 'transactions'), ...constraints);
-    const querySnapshot = await getDocs(q);
     
     let transactions = querySnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -435,15 +474,37 @@ export async function searchTransactions(
   paymentMethod?: PaymentMethod
 ): Promise<Transaction[]> {
   try {
-    let allTransactions: Transaction[] = [];
-    const q = query(
-      collection(db, 'transactions'),
-      orderBy('createdAt', 'desc'),
-      limit(500)
-    );
-    const querySnapshot = await getDocs(q);
+    const trimmedTerm = (searchTerm || '').trim();
+    const isIdSearch = trimmedTerm.length > 0 && /^(tid|jid)/i.test(trimmedTerm);
 
-    allTransactions = querySnapshot.docs.map((doc) => {
+    let querySnapshot;
+    if (isIdSearch) {
+      const upperTerm = trimmedTerm.toUpperCase();
+      const isJid = upperTerm.startsWith('JID');
+      const targetField = isJid ? 'jid' : 'transactionId';
+      try {
+        const q = query(
+          collection(db, 'transactions'),
+          where(targetField, '>=', upperTerm),
+          where(targetField, '<=', upperTerm + '\uf8ff'),
+          limit(50)
+        );
+        querySnapshot = await getDocs(q);
+      } catch (err) {
+        const fallbackQ = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(100));
+        querySnapshot = await getDocs(fallbackQ);
+      }
+    } else {
+      const fetchLimit = trimmedTerm ? 100 : 50;
+      const q = query(
+        collection(db, 'transactions'),
+        orderBy('createdAt', 'desc'),
+        limit(fetchLimit)
+      );
+      querySnapshot = await getDocs(q);
+    }
+
+    let allTransactions = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,

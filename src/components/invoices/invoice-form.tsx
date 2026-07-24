@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { InvoiceSchema, type Contact } from '@/lib/types';
-import type { CompanyProfile, Invoice } from '@/lib/types';
+import type { CompanyProfile, Invoice, JobSheet } from '@/lib/types';
 import { saveInvoice } from '@/lib/server-actions-invoices';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,25 +29,53 @@ const CreateInvoiceSchema = InvoiceSchema.omit({ id: true, invoiceId: true, crea
 type InvoiceFormProps = {
     companyProfiles: CompanyProfile[];
     invoiceToEdit?: Invoice | null;
+    jobSheetToInvoice?: JobSheet | null;
     onSuccess: () => void;
     onCancel: () => void;
 };
 
-export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCancel }: InvoiceFormProps) {
+export function InvoiceForm({ companyProfiles, invoiceToEdit, jobSheetToInvoice, onSuccess, onCancel }: InvoiceFormProps) {
     const [isPending, startTransition] = useTransition();
     const [contacts, setContacts] = useState<Contact[]>([]);
     const { toast } = useToast();
 
     const isEditMode = !!invoiceToEdit;
 
-    const form = useForm<z.infer<typeof CreateInvoiceSchema>>({
-        resolver: zodResolver(CreateInvoiceSchema),
-        defaultValues: invoiceToEdit ? {
-            ...invoiceToEdit,
-            companyName: invoiceToEdit.companyName || '',
-            date: new Date(invoiceToEdit.date),
-            dueDate: new Date(invoiceToEdit.dueDate),
-        } : {
+    const getInitialValues = () => {
+        if (invoiceToEdit) {
+            return {
+                ...invoiceToEdit,
+                companyName: invoiceToEdit.companyName || '',
+                date: new Date(invoiceToEdit.date),
+                dueDate: new Date(invoiceToEdit.dueDate),
+            };
+        }
+        if (jobSheetToInvoice) {
+            return {
+                companyProfileId: companyProfiles[0]?.id || '',
+                clientName: jobSheetToInvoice.clientName || '',
+                companyName: jobSheetToInvoice.companyName || '',
+                clientAddress: jobSheetToInvoice.clientDetails || [jobSheetToInvoice.companyName, jobSheetToInvoice.clientName].filter(Boolean).join('\n'),
+                date: new Date(),
+                dueDate: addDays(new Date(), 30),
+                items: (jobSheetToInvoice.jobItems || []).map(item => ({
+                    description: item.description,
+                    quantity: item.quantity,
+                    price: item.price,
+                    vatApplied: item.vatApplied ?? false,
+                })),
+                subTotal: jobSheetToInvoice.subTotal || 0,
+                discountType: jobSheetToInvoice.discountType || 'amount',
+                discountValue: jobSheetToInvoice.discountValue || 0,
+                discountAmount: jobSheetToInvoice.discountAmount || 0,
+                subTotalAfterDiscount: jobSheetToInvoice.subTotalAfterDiscount || jobSheetToInvoice.subTotal || 0,
+                vatAmount: jobSheetToInvoice.vatAmount || 0,
+                totalAmount: jobSheetToInvoice.totalAmount || 0,
+                notes: `Job Sheet Ref: ${jobSheetToInvoice.jobId}${jobSheetToInvoice.irNumber ? ` | IR: ${jobSheetToInvoice.irNumber}` : ''}${jobSheetToInvoice.specialNote ? `\n\nNote: ${jobSheetToInvoice.specialNote}` : ''}`,
+                status: 'Draft' as const,
+            };
+        }
+        return {
             companyProfileId: companyProfiles[0]?.id || '',
             clientName: '',
             companyName: '',
@@ -56,16 +84,25 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, onSuccess, onCance
             dueDate: addDays(new Date(), 30),
             items: [{ description: '', quantity: 1, price: 0, vatApplied: false }],
             subTotal: 0,
-            discountType: 'amount',
+            discountType: 'amount' as const,
             discountValue: 0,
             discountAmount: 0,
             subTotalAfterDiscount: 0,
             vatAmount: 0,
             totalAmount: 0,
-            notes: '',
-            status: 'Draft',
-        },
+            notes: companyProfiles[0]?.defaultNotes || '',
+            status: 'Draft' as const,
+        };
+    };
+
+    const form = useForm<z.infer<typeof CreateInvoiceSchema>>({
+        resolver: zodResolver(CreateInvoiceSchema),
+        defaultValues: getInitialValues(),
     });
+
+    useEffect(() => {
+        form.reset(getInitialValues());
+    }, [invoiceToEdit, jobSheetToInvoice, companyProfiles]);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,

@@ -196,11 +196,13 @@ export const UpdateTimeRecordSchema = z.object({
 export const CompanyProfileSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Company name is required.'),
-  logoUrl: z.string().url('Must be a valid URL.').optional().or(z.literal('')),
+  logoUrl: z.string().optional().or(z.literal('')),
   address: z.string().min(1, 'Address is required.'),
   email: z.string().email('Invalid email address.').optional().or(z.literal('')),
-  website: z.string().url('Must be a valid URL.').optional().or(z.literal('')),
+  website: z.string().optional().or(z.literal('')),
   bankDetails: z.string().optional(),
+  defaultNotes: z.string().optional(),
+  footerText: z.string().optional(),
   createdAt: z.any().optional(),
 });
 export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;

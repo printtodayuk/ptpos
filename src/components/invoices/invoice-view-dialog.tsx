@@ -43,6 +43,7 @@ export function InvoiceViewDialog({ invoice, companyProfiles, isOpen, onClose }:
         .font-bold { font-weight: 700; } .font-light { font-weight: 300; }
         .text-muted-foreground { color: #64748b; }
         .border-b { border-bottom-width: 1px; } .border-t { border-top-width: 1px; } .border-black { border-color: #000; } .pb-8 { padding-bottom: 2rem; }
+        .bg-gray-50 { background-color: #f9fafb; } .border { border-style: solid; border-width: 1px; } .rounded-md { border-radius: 0.375rem; } .p-4 { padding: 1rem; } .mb-4 { margin-bottom: 1rem; } .mt-4 { margin-top: 1rem; } .pt-3 { padding-top: 0.75rem; } .text-center { text-align: center; } .tracking-wide { letter-spacing: 0.025em; }
         .whitespace-pre-wrap { white-space: pre-wrap; }
         table { width: 100%; border-collapse: collapse; } th { text-align: left; }
         thead th { border-bottom: 1px solid #000; padding: 0.5rem 0; }
