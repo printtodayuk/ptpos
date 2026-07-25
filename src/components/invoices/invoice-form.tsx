@@ -188,30 +188,28 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, jobSheetToInvoice,
         }
     }, [watchedCompanyName, contacts, form]);
     
-    const subTotal = (watchedItems || []).reduce((acc, item) => {
-        return acc + (item.price || 0);
-    }, 0);
+    // Real-time derived financial calculations (item.price is the line item total price)
+    let subTotal = 0;
+    let vatableSubTotal = 0;
+    (watchedItems || []).forEach(item => {
+        const price = Number(item?.price) || 0;
+        subTotal += price;
+        if (item?.vatApplied) {
+            vatableSubTotal += price;
+        }
+    });
 
     let discountAmount = 0;
     if (watchedDiscountType === 'percentage') {
-        discountAmount = subTotal * ((watchedDiscountValue || 0) / 100);
+        discountAmount = subTotal * ((Number(watchedDiscountValue) || 0) / 100);
     } else {
-        discountAmount = watchedDiscountValue || 0;
+        discountAmount = Number(watchedDiscountValue) || 0;
     }
-    
-    const subTotalAfterDiscount = subTotal - discountAmount;
-    
-    const vatAmount = (watchedItems || []).reduce((acc, item) => {
-        if (item.vatApplied) {
-            const itemPrice = item.price || 0;
-            const itemProportion = subTotal > 0 ? itemPrice / subTotal : 0;
-            const itemDiscount = discountAmount * itemProportion;
-            const itemPriceAfterDiscount = itemPrice - itemDiscount;
-            return acc + (itemPriceAfterDiscount * 0.20);
-        }
-        return acc;
-    }, 0);
+    discountAmount = Math.min(discountAmount, subTotal);
 
+    const subTotalAfterDiscount = subTotal - discountAmount;
+    const discRatio = subTotal > 0 ? subTotalAfterDiscount / subTotal : 1;
+    const vatAmount = (vatableSubTotal * discRatio) * 0.20;
     const totalAmount = subTotalAfterDiscount + vatAmount;
 
     useEffect(() => {
@@ -452,14 +450,14 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, jobSheetToInvoice,
                 </div>
 
                 <div className="space-y-2.5 text-sm">
-                    <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Subtotal</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{form.watch('subTotal')?.toFixed(2) || '0.00'}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Discount</span><span className="font-extrabold text-rose-600 dark:text-rose-400">- £{form.watch('discountAmount')?.toFixed(2) || '0.00'}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">VAT (20%)</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{form.watch('vatAmount')?.toFixed(2) || '0.00'}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Subtotal</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{subTotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Discount</span><span className="font-extrabold text-rose-600 dark:text-rose-400">- £{discountAmount.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">VAT (20%)</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{vatAmount.toFixed(2)}</span></div>
                     
                     <div className="border-t border-indigo-200/80 dark:border-indigo-800/80 pt-4 mt-3">
                       <div className="flex justify-between items-baseline">
                         <span className="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200">Grand Total</span>
-                        <span className="text-3xl font-black text-indigo-900 dark:text-amber-300 tracking-tight">£{form.watch('totalAmount')?.toFixed(2) || '0.00'}</span>
+                        <span className="text-3xl font-black text-indigo-900 dark:text-amber-300 tracking-tight">£{totalAmount.toFixed(2)}</span>
                       </div>
                     </div>
                 </div>

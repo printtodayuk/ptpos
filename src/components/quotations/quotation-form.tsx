@@ -165,36 +165,30 @@ export function QuotationForm({ onQuotationAdded, quotationToEdit }: QuotationFo
     }
   }, [watchedCompanyName, contacts, form]);
 
-  const subTotal = (watchedJobItems || []).reduce((acc, item) => {
+  // Real-time derived calculations (item.price is the line total price)
+  let subTotal = 0;
+  let vatableSubTotal = 0;
+  (watchedJobItems || []).forEach(item => {
     const price = Number(item?.price) || 0;
-    return acc + price;
-  }, 0);
-
-  const vatAmount = (watchedJobItems || []).reduce((acc, item) => {
+    subTotal += price;
     if (item?.vatApplied) {
-      const price = Number(item?.price) || 0;
-      return acc + (price * 0.2);
+      vatableSubTotal += price;
     }
-    return acc;
-  }, 0);
+  });
 
+  const vatAmount = vatableSubTotal * 0.20;
   const totalAmount = subTotal + vatAmount;
 
   useEffect(() => {
-    const currentSubTotal = form.getValues('subTotal') || 0;
-    const currentVatAmount = form.getValues('vatAmount') || 0;
-    const currentTotalAmount = form.getValues('totalAmount') || 0;
-
     const tolerance = 0.001;
-
-    if (Math.abs(currentSubTotal - subTotal) > tolerance) {
-      form.setValue('subTotal', subTotal, { shouldValidate: true });
+    if (Math.abs((form.getValues('subTotal') || 0) - subTotal) > tolerance) {
+      form.setValue('subTotal', subTotal);
     }
-    if (Math.abs(currentVatAmount - vatAmount) > tolerance) {
-      form.setValue('vatAmount', vatAmount, { shouldValidate: true });
+    if (Math.abs((form.getValues('vatAmount') || 0) - vatAmount) > tolerance) {
+      form.setValue('vatAmount', vatAmount);
     }
-    if (Math.abs(currentTotalAmount - totalAmount) > tolerance) {
-      form.setValue('totalAmount', totalAmount, { shouldValidate: true });
+    if (Math.abs((form.getValues('totalAmount') || 0) - totalAmount) > tolerance) {
+      form.setValue('totalAmount', totalAmount);
     }
   }, [subTotal, vatAmount, totalAmount, form]);
 

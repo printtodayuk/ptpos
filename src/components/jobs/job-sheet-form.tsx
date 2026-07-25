@@ -204,54 +204,49 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
     }
   }, [watchedCompanyName, contacts, form]);
 
-  const discountType = form.watch('discountType');
-  const discountValue = form.watch('discountValue');
+  // Real-time derived financial calculations (item.price is the line item total price)
+  let subTotal = 0;
+  let vatableSubTotal = 0;
+  (watchedJobItems || []).forEach(item => {
+    const price = Number(item?.price) || 0;
+    subTotal += price;
+    if (item?.vatApplied) {
+      vatableSubTotal += price;
+    }
+  });
 
+  let discountAmount = 0;
+  if (watchedDiscountType === 'percentage') {
+    discountAmount = subTotal * ((Number(watchedDiscountValue) || 0) / 100);
+  } else {
+    discountAmount = Number(watchedDiscountValue) || 0;
+  }
+  discountAmount = Math.min(discountAmount, subTotal);
+
+  const subTotalAfterDiscount = subTotal - discountAmount;
+  const discRatio = subTotal > 0 ? subTotalAfterDiscount / subTotal : 1;
+  const vatAmount = (vatableSubTotal * discRatio) * 0.20;
+  const totalAmount = subTotalAfterDiscount + vatAmount;
+
+  // Keep react-hook-form state in sync for form submission
   useEffect(() => {
-    let sub = 0;
-    let vat = 0;
-    (watchedJobItems || []).forEach(item => {
-      const itemPrice = Number(item.price) || 0;
-      sub += itemPrice;
-      if (item.vatApplied) {
-        vat += itemPrice * 0.20;
-      }
-    });
-
-    let discAmount = 0;
-    if (discountType === 'percentage') {
-      discAmount = sub * ((Number(discountValue) || 0) / 100);
-    } else {
-      discAmount = Number(discountValue) || 0;
-    }
-
-    discAmount = Math.min(discAmount, sub);
-    const subAfterDisc = sub - discAmount;
-    
-    let recalculatedVat = 0;
-    if (sub > 0) {
-        const discRatio = subAfterDisc / sub;
-        recalculatedVat = vat * discRatio;
-    }
-    const total = subAfterDisc + recalculatedVat;
-
     const tolerance = 0.001;
-    if (Math.abs((form.getValues('subTotal') || 0) - sub) > tolerance) {
-        form.setValue('subTotal', sub);
+    if (Math.abs((form.getValues('subTotal') || 0) - subTotal) > tolerance) {
+        form.setValue('subTotal', subTotal);
     }
-    if (Math.abs((form.getValues('discountAmount') || 0) - discAmount) > tolerance) {
-        form.setValue('discountAmount', discAmount);
+    if (Math.abs((form.getValues('discountAmount') || 0) - discountAmount) > tolerance) {
+        form.setValue('discountAmount', discountAmount);
     }
-    if (Math.abs((form.getValues('subTotalAfterDiscount') || 0) - subAfterDisc) > tolerance) {
-        form.setValue('subTotalAfterDiscount', subAfterDisc);
+    if (Math.abs((form.getValues('subTotalAfterDiscount') || 0) - subTotalAfterDiscount) > tolerance) {
+        form.setValue('subTotalAfterDiscount', subTotalAfterDiscount);
     }
-    if (Math.abs((form.getValues('vatAmount') || 0) - recalculatedVat) > tolerance) {
-        form.setValue('vatAmount', recalculatedVat);
+    if (Math.abs((form.getValues('vatAmount') || 0) - vatAmount) > tolerance) {
+        form.setValue('vatAmount', vatAmount);
     }
-    if (Math.abs((form.getValues('totalAmount') || 0) - total) > tolerance) {
-        form.setValue('totalAmount', total);
+    if (Math.abs((form.getValues('totalAmount') || 0) - totalAmount) > tolerance) {
+        form.setValue('totalAmount', totalAmount);
     }
-  }, [watchedJobItems, discountType, discountValue, form]);
+  }, [subTotal, discountAmount, subTotalAfterDiscount, vatAmount, totalAmount, form]);
 
   const onSubmit = (data: FormValues) => {
     startTransition(async () => {
@@ -540,14 +535,14 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                             </div>
                         </div>
                         <div className="pt-2 space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Subtotal</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{form.watch('subTotal')?.toFixed(2) || '0.00'}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Discount</span><span className="font-extrabold text-rose-600 dark:text-rose-400">- £{form.watch('discountAmount')?.toFixed(2) || '0.00'}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Subtotal (after disc.)</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{form.watch('subTotalAfterDiscount')?.toFixed(2) || '0.00'}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">VAT (20%)</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{form.watch('vatAmount')?.toFixed(2) || '0.00'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Subtotal</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{subTotal.toFixed(2)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Discount</span><span className="font-extrabold text-rose-600 dark:text-rose-400">- £{discountAmount.toFixed(2)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">Subtotal (after disc.)</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{subTotalAfterDiscount.toFixed(2)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400 font-bold">VAT (20%)</span><span className="font-extrabold text-slate-900 dark:text-slate-100">£{vatAmount.toFixed(2)}</span></div>
                             <div className="border-t border-indigo-200/80 dark:border-indigo-800/80 pt-4 mt-3">
                               <div className="flex justify-between items-baseline">
                                 <span className="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200">Grand Total</span>
-                                <span className="text-3xl font-black text-indigo-900 dark:text-amber-300 tracking-tight">£{form.watch('totalAmount')?.toFixed(2) || '0.00'}</span>
+                                <span className="text-3xl font-black text-indigo-900 dark:text-amber-300 tracking-tight">£{totalAmount.toFixed(2)}</span>
                               </div>
                             </div>
 
