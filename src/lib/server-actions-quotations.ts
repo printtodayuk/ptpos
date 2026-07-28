@@ -75,6 +75,62 @@ async function getNextQuotationId(): Promise<string> {
 }
 
 
+function generateSearchKeywords(
+  idStr?: string | null,
+  clientName?: string | null,
+  companyName?: string | null,
+  clientDetails?: string | null,
+  irNumber?: string | null,
+  specialNote?: string | null,
+  tid?: string | null,
+  jobItems?: { description?: string }[]
+): string[] {
+  const keywords = new Set<string>();
+
+  const addText = (text?: string | null, includePrefixes: boolean = true) => {
+    if (!text) return;
+    const clean = text.toLowerCase().trim();
+    if (!clean) return;
+
+    if (clean.length <= 50) {
+      keywords.add(clean);
+    }
+
+    const words = clean.split(/[\s,.-]+/).filter(Boolean);
+    words.forEach(w => {
+      if (w.length < 2) return;
+      keywords.add(w);
+      if (includePrefixes) {
+        for (let i = 2; i <= Math.min(w.length, 8); i++) {
+          keywords.add(w.slice(0, i));
+        }
+      }
+    });
+  };
+
+  if (idStr) {
+    const idLower = idStr.toLowerCase();
+    keywords.add(idLower);
+    const cleanNum = idLower.replace(/\D/g, '');
+    if (cleanNum) {
+      keywords.add(cleanNum);
+      keywords.add(cleanNum.padStart(4, '0'));
+      keywords.add(String(parseInt(cleanNum, 10)));
+    }
+  }
+
+  addText(clientName, true);
+  addText(companyName, true);
+  addText(irNumber, true);
+  addText(tid, true);
+
+  addText(clientDetails, false);
+  addText(specialNote, false);
+  (jobItems || []).forEach(item => addText(item.description, false));
+
+  return Array.from(keywords).slice(0, 150);
+}
+
 export async function addQuotation(
   data: z.input<typeof CreateQuotationSchema>
 ) {
@@ -97,9 +153,21 @@ export async function addQuotation(
         details: `Quotation created by ${validatedData.data.operator}.`,
     };
 
+    const keywords = generateSearchKeywords(
+      newQuotationId,
+      validatedData.data.clientName,
+      validatedData.data.companyName,
+      validatedData.data.clientDetails,
+      undefined,
+      validatedData.data.specialNote,
+      validatedData.data.tid,
+      validatedData.data.jobItems
+    );
+
     const dataToSave: any = {
       ...validatedData.data,
       quotationId: newQuotationId,
+      searchKeywords: keywords,
       date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
       paidAmount: 0,
@@ -211,8 +279,20 @@ export async function updateQuotation(
     }
 
 
+    const keywords = generateSearchKeywords(
+      originalQuotation.quotationId,
+      validatedData.data.clientName,
+      validatedData.data.companyName,
+      validatedData.data.clientDetails,
+      undefined,
+      validatedData.data.specialNote,
+      validatedData.data.tid,
+      validatedData.data.jobItems
+    );
+
     const dataToUpdate: any = {
         ...validatedData.data,
+        searchKeywords: keywords,
         date: Timestamp.fromDate(validatedData.data.date as Date),
     };
     if (validatedData.data.tid) {
@@ -277,6 +357,18 @@ export async function updateQuotation(
   }
 }
 
+const mapDocToQuotation = (docSnap: any): Quotation => {
+  const data = docSnap.data();
+  return {
+    ...(data as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
+    id: docSnap.id,
+    date: data.date?.toDate ? data.date.toDate() : (data.date ? new Date(data.date) : new Date()),
+    deliveryBy: data.deliveryBy?.toDate ? data.deliveryBy.toDate() : (data.deliveryBy ? new Date(data.deliveryBy) : null),
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
+    history: sanitizeHistory(data.history),
+  } as Quotation;
+};
+
 export async function searchQuotations(
   searchTerm: string, 
   returnAllOnEmpty: boolean = false,
@@ -285,76 +377,118 @@ export async function searchQuotations(
 ): Promise<Quotation[]> {
   try {
     const trimmedTerm = searchTerm.trim();
-    const isQuotationIdSearch = trimmedTerm.length > 0 && /^[qQ]/i.test(trimmedTerm);
 
-    let querySnapshot;
-
-    if (isQuotationIdSearch) {
-      const upperTerm = trimmedTerm.toUpperCase();
-      try {
-        const q = query(
-          collection(db, 'quotations'),
-          where('quotationId', '>=', upperTerm),
-          where('quotationId', '<=', upperTerm + '\uf8ff'),
-          limit(50)
-        );
-        querySnapshot = await getDocs(q);
-      } catch (err) {
-        const fallbackQ = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'), limit(100));
-        querySnapshot = await getDocs(fallbackQ);
-      }
-    } else {
+    // If no search term is entered, return latest records
+    if (!trimmedTerm) {
       const constraints: QueryConstraint[] = [];
       if (quotationStatus) constraints.push(where('status', '==', quotationStatus));
       if (operator) constraints.push(where('operator', '==', operator));
 
-      const fetchLimit = trimmedTerm ? 150 : 50;
+      const limitCount = returnAllOnEmpty ? 500 : 50;
+      const q = query(
+        collection(db, 'quotations'),
+        ...constraints,
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map(mapDocToQuotation);
+    }
+
+    // Candidate QID variants for numeric & QID prefix searches (e.g., 0043, 43, 1319, QID0043, q1319)
+    const candidateQids = new Set<string>();
+    const cleanNum = trimmedTerm.replace(/\D/g, '');
+    if (cleanNum) {
+      const padded = cleanNum.padStart(4, '0');
+      candidateQids.add(`QID${padded}`);
+      candidateQids.add(`QID${cleanNum}`);
+      candidateQids.add(`QID${parseInt(cleanNum, 10)}`);
+    }
+    if (/^[qQ]/i.test(trimmedTerm)) {
+      candidateQids.add(trimmedTerm.toUpperCase());
+    }
+
+    const docMap = new Map<string, Quotation>();
+    const lowercasedTerm = trimmedTerm.toLowerCase();
+
+    // 1. Direct fetch for exact candidate QIDs
+    for (const candidateQid of candidateQids) {
       try {
-        const q = query(
+        const qidQuery = query(
           collection(db, 'quotations'),
-          ...constraints,
-          orderBy('createdAt', 'desc'),
-          limit(fetchLimit)
+          where('quotationId', '==', candidateQid)
         );
-        querySnapshot = await getDocs(q);
+        const qidSnap = await getDocs(qidQuery);
+        qidSnap.docs.forEach(doc => {
+          docMap.set(doc.id, mapDocToQuotation(doc));
+        });
       } catch (err) {
-        const fallbackQ = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'), limit(fetchLimit));
-        querySnapshot = await getDocs(fallbackQ);
+        console.error('Error fetching candidate QID:', candidateQid, err);
       }
     }
 
-    let quotations = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        ...(data as Omit<Quotation, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
-        id: doc.id,
-        date: (data.date as Timestamp).toDate(),
-        deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
-        createdAt: (data.createdAt as Timestamp)?.toDate(),
-        history: sanitizeHistory(data.history),
-      } as Quotation;
+    // 2. Indexed array-contains query for full term & search tokens (Reads ONLY matching docs!)
+    const searchTokens = lowercasedTerm.split(/[\s,.-]+/).filter(Boolean);
+    const queryTokens = new Set<string>();
+    queryTokens.add(lowercasedTerm);
+    searchTokens.forEach(t => {
+      if (t.length >= 2) queryTokens.add(t);
     });
 
+    for (const qToken of Array.from(queryTokens).slice(0, 3)) {
+      try {
+        const kwQuery = query(
+          collection(db, 'quotations'),
+          where('searchKeywords', 'array-contains', qToken),
+          limit(100)
+        );
+        const kwSnap = await getDocs(kwQuery);
+        kwSnap.docs.forEach(doc => {
+          docMap.set(doc.id, mapDocToQuotation(doc));
+        });
+      } catch (err) {
+        console.error('Indexed keyword query check for quotation:', err);
+      }
+    }
+
+    let results = Array.from(docMap.values());
+
+    // Apply status and operator filters
     if (quotationStatus) {
-        quotations = quotations.filter(q => q.status === quotationStatus);
+      results = results.filter(q => q.status === quotationStatus);
     }
     if (operator) {
-        quotations = quotations.filter(q => q.operator === operator);
+      results = results.filter(q => q.operator === operator);
     }
 
-    if (trimmedTerm && !isQuotationIdSearch) {
-      const lowercasedTerm = trimmedTerm.toLowerCase();
-      quotations = quotations.filter((js) => {
-        return (
-          js.quotationId?.toLowerCase().includes(lowercasedTerm) ||
-          js.clientName?.toLowerCase().includes(lowercasedTerm) ||
-          js.companyName?.toLowerCase().includes(lowercasedTerm) ||
-          js.jobItems.some(item => item.description?.toLowerCase().includes(lowercasedTerm))
-        );
-      });
-    }
+    // Perform multi-token partial & exact text search filtering
+    results = results.filter((js) => {
+      const qidLower = (js.quotationId || '').toLowerCase();
+      const clientLower = (js.clientName || '').toLowerCase();
+      const companyLower = (js.companyName || '').toLowerCase();
+      const detailsLower = (js.clientDetails || '').toLowerCase();
+      const noteLower = (js.specialNote || '').toLowerCase();
+      const tidLower = (js.tid || '').toLowerCase();
+      const jidLower = (js.jid || '').toLowerCase();
+      const itemsText = (js.jobItems || [])
+        .map(item => item.description || '')
+        .join(' ')
+        .toLowerCase();
 
-    return quotations;
+      // Number / QID match check
+      if (cleanNum) {
+        const isQidMatch = candidateQids.has(js.quotationId || '') ||
+          qidLower.endsWith(cleanNum) ||
+          qidLower.includes(cleanNum);
+        if (isQidMatch) return true;
+      }
+
+      // Check if ALL search tokens match anywhere in the quotation's text fields
+      const combinedText = `${qidLower} ${clientLower} ${companyLower} ${detailsLower} ${noteLower} ${tidLower} ${jidLower} ${itemsText}`;
+      return searchTokens.every(token => combinedText.includes(token));
+    });
+
+    return results;
   } catch (e) {
     console.error('Error searching quotations: ', e);
     return [];
@@ -506,4 +640,41 @@ export async function createJobSheetFromQuotation(quotationId: string): Promise<
         console.error('Error creating job sheet from quotation:', error);
         return { success: false, message: error instanceof Error ? error.message : 'An unexpected error occurred.' };
     }
+}
+
+export async function backfillQuotationSearchKeywords(): Promise<{ success: boolean; updatedCount: number }> {
+  try {
+    const snap = await getDocs(collection(db, 'quotations'));
+    const unindexedDocs = snap.docs.filter(d => {
+      const kw = d.data().searchKeywords;
+      return !kw || !Array.isArray(kw) || kw.length === 0;
+    });
+    if (unindexedDocs.length === 0) return { success: true, updatedCount: 0 };
+
+    let updatedCount = 0;
+    for (let i = 0; i < unindexedDocs.length; i += 200) {
+      const chunk = unindexedDocs.slice(i, i + 200);
+      const batch = writeBatch(db);
+      chunk.forEach(docSnap => {
+        const data = docSnap.data();
+        const keywords = generateSearchKeywords(
+          data.quotationId,
+          data.clientName,
+          data.companyName,
+          data.clientDetails,
+          undefined,
+          data.specialNote,
+          data.tid,
+          data.jobItems
+        );
+        batch.update(docSnap.ref, { searchKeywords: keywords });
+      });
+      await batch.commit();
+      updatedCount += chunk.length;
+    }
+    return { success: true, updatedCount };
+  } catch (err) {
+    console.error('Error backfilling quotation search keywords:', err);
+    return { success: false, updatedCount: 0 };
+  }
 }

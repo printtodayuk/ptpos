@@ -102,9 +102,21 @@ export async function addJobSheet(
             : `Job sheet created by ${operator}.`,
     };
 
+    const keywords = generateSearchKeywords(
+      newJobId,
+      validatedData.data.clientName,
+      validatedData.data.companyName,
+      validatedData.data.clientDetails,
+      validatedData.data.irNumber,
+      validatedData.data.specialNote,
+      validatedData.data.tid,
+      validatedData.data.jobItems
+    );
+
     const dataToSave: any = {
       ...validatedData.data,
       jobId: newJobId,
+      searchKeywords: keywords,
       date: Timestamp.fromDate(validatedData.data.date as Date),
       createdAt: serverTimestamp(),
       paidAmount: 0,
@@ -236,8 +248,20 @@ export async function updateJobSheet(
     }
 
 
+    const keywords = generateSearchKeywords(
+      originalJobSheet.jobId,
+      validatedData.data.clientName,
+      validatedData.data.companyName,
+      validatedData.data.clientDetails,
+      validatedData.data.irNumber,
+      validatedData.data.specialNote,
+      validatedData.data.tid,
+      validatedData.data.jobItems
+    );
+
     const dataToUpdate: any = {
         ...validatedData.data,
+        searchKeywords: keywords,
         date: Timestamp.fromDate(validatedData.data.date as Date),
     };
     if (validatedData.data.tid) {
@@ -302,6 +326,74 @@ export async function updateJobSheet(
   }
 }
 
+function generateSearchKeywords(
+  idStr?: string | null,
+  clientName?: string | null,
+  companyName?: string | null,
+  clientDetails?: string | null,
+  irNumber?: string | null,
+  specialNote?: string | null,
+  tid?: string | null,
+  jobItems?: { description?: string }[]
+): string[] {
+  const keywords = new Set<string>();
+
+  const addText = (text?: string | null, includePrefixes: boolean = true) => {
+    if (!text) return;
+    const clean = text.toLowerCase().trim();
+    if (!clean) return;
+
+    if (clean.length <= 50) {
+      keywords.add(clean);
+    }
+
+    const words = clean.split(/[\s,.-]+/).filter(Boolean);
+    words.forEach(w => {
+      if (w.length < 2) return;
+      keywords.add(w);
+      if (includePrefixes) {
+        for (let i = 2; i <= Math.min(w.length, 8); i++) {
+          keywords.add(w.slice(0, i));
+        }
+      }
+    });
+  };
+
+  if (idStr) {
+    const idLower = idStr.toLowerCase();
+    keywords.add(idLower);
+    const cleanNum = idLower.replace(/\D/g, '');
+    if (cleanNum) {
+      keywords.add(cleanNum);
+      keywords.add(cleanNum.padStart(4, '0'));
+      keywords.add(String(parseInt(cleanNum, 10)));
+    }
+  }
+
+  addText(clientName, true);
+  addText(companyName, true);
+  addText(irNumber, true);
+  addText(tid, true);
+
+  addText(clientDetails, false);
+  addText(specialNote, false);
+  (jobItems || []).forEach(item => addText(item.description, false));
+
+  return Array.from(keywords).slice(0, 150);
+}
+
+const mapDocToJobSheet = (docSnap: any): JobSheet => {
+  const data = docSnap.data();
+  return {
+    ...(data as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
+    id: docSnap.id,
+    date: data.date?.toDate ? data.date.toDate() : (data.date ? new Date(data.date) : new Date()),
+    deliveryBy: data.deliveryBy?.toDate ? data.deliveryBy.toDate() : (data.deliveryBy ? new Date(data.deliveryBy) : null),
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
+    history: sanitizeHistory(data.history),
+  } as JobSheet;
+};
+
 export async function searchJobSheets(
   searchTerm: string, 
   returnAllOnEmpty: boolean = false,
@@ -311,81 +403,122 @@ export async function searchJobSheets(
 ): Promise<JobSheet[]> {
   try {
     const trimmedTerm = searchTerm.trim();
-    const isJidSearch = trimmedTerm.length > 0 && /^[jJ]/i.test(trimmedTerm);
 
-    let querySnapshot;
-
-    if (isJidSearch) {
-      const upperTerm = trimmedTerm.toUpperCase();
-      try {
-        const q = query(
-          collection(db, 'jobSheets'),
-          where('jobId', '>=', upperTerm),
-          where('jobId', '<=', upperTerm + '\uf8ff'),
-          limit(50)
-        );
-        querySnapshot = await getDocs(q);
-      } catch (err) {
-        const fallbackQ = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'), limit(100));
-        querySnapshot = await getDocs(fallbackQ);
-      }
-    } else {
+    // If no search term is entered, return latest records (50 by default, 500 on returnAllOnEmpty)
+    if (!trimmedTerm) {
       const constraints: QueryConstraint[] = [];
       if (jobStatus) constraints.push(where('status', '==', jobStatus));
       if (paymentStatus) constraints.push(where('paymentStatus', '==', paymentStatus));
       if (operator) constraints.push(where('operator', '==', operator));
-      
-      const fetchLimit = trimmedTerm ? 150 : 50;
+
+      const limitCount = returnAllOnEmpty ? 500 : 50;
+      const q = query(
+        collection(db, 'jobSheets'),
+        ...constraints,
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map(mapDocToJobSheet);
+    }
+
+    // Candidate JID variants for numeric & JID prefix searches (e.g., 0043, 43, 1319, JID0043, j1319)
+    const candidateJids = new Set<string>();
+    const cleanNum = trimmedTerm.replace(/\D/g, '');
+    if (cleanNum) {
+      const padded = cleanNum.padStart(4, '0');
+      candidateJids.add(`JID${padded}`);
+      candidateJids.add(`JID${cleanNum}`);
+      candidateJids.add(`JID${parseInt(cleanNum, 10)}`);
+    }
+    if (/^[jJ]/i.test(trimmedTerm)) {
+      candidateJids.add(trimmedTerm.toUpperCase());
+    }
+
+    const docMap = new Map<string, JobSheet>();
+    const lowercasedTerm = trimmedTerm.toLowerCase();
+
+    // 1. Direct fetch for exact candidate JIDs (Reads only matching 1 doc!)
+    for (const candidateJid of candidateJids) {
       try {
-        const q = query(
+        const jidQuery = query(
           collection(db, 'jobSheets'),
-          ...constraints,
-          orderBy('createdAt', 'desc'),
-          limit(fetchLimit)
+          where('jobId', '==', candidateJid)
         );
-        querySnapshot = await getDocs(q);
+        const jidSnap = await getDocs(jidQuery);
+        jidSnap.docs.forEach(doc => {
+          docMap.set(doc.id, mapDocToJobSheet(doc));
+        });
       } catch (err) {
-        const fallbackQ = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'), limit(fetchLimit));
-        querySnapshot = await getDocs(fallbackQ);
+        console.error('Error fetching candidate JID:', candidateJid, err);
       }
     }
 
-    let jobSheets = querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        ...(data as Omit<JobSheet, 'id' | 'date' | 'createdAt' | 'deliveryBy' | 'history'>),
-        id: doc.id,
-        date: (data.date as Timestamp).toDate(),
-        deliveryBy: data.deliveryBy ? (data.deliveryBy as Timestamp).toDate() : null,
-        createdAt: (data.createdAt as Timestamp)?.toDate(),
-        history: sanitizeHistory(data.history),
-      } as JobSheet;
+    // 2. Indexed array-contains query for full term & search tokens (Reads ONLY matching docs!)
+    const searchTokens = lowercasedTerm.split(/[\s,.-]+/).filter(Boolean);
+    const queryTokens = new Set<string>();
+    queryTokens.add(lowercasedTerm);
+    searchTokens.forEach(t => {
+      if (t.length >= 2) queryTokens.add(t);
     });
 
+    for (const qToken of Array.from(queryTokens).slice(0, 3)) {
+      try {
+        const kwQuery = query(
+          collection(db, 'jobSheets'),
+          where('searchKeywords', 'array-contains', qToken),
+          limit(100)
+        );
+        const kwSnap = await getDocs(kwQuery);
+        kwSnap.docs.forEach(doc => {
+          docMap.set(doc.id, mapDocToJobSheet(doc));
+        });
+      } catch (err) {
+        console.error('Indexed keyword query check:', err);
+      }
+    }
+
+    let results = Array.from(docMap.values());
+
+    // Apply status and operator filters
     if (jobStatus) {
-        jobSheets = jobSheets.filter(js => js.status === jobStatus);
+      results = results.filter(js => js.status === jobStatus);
     }
     if (paymentStatus) {
-        jobSheets = jobSheets.filter(js => js.paymentStatus === paymentStatus);
+      results = results.filter(js => js.paymentStatus === paymentStatus);
     }
     if (operator) {
-        jobSheets = jobSheets.filter(js => js.operator === operator);
+      results = results.filter(js => js.operator === operator);
     }
 
-    if (trimmedTerm && !isJidSearch) {
-      const lowercasedTerm = trimmedTerm.toLowerCase();
-      jobSheets = jobSheets.filter((js) => {
-        return (
-          js.jobId?.toLowerCase().includes(lowercasedTerm) ||
-          js.clientName?.toLowerCase().includes(lowercasedTerm) ||
-          js.companyName?.toLowerCase().includes(lowercasedTerm) ||
-          js.irNumber?.toLowerCase().includes(lowercasedTerm) ||
-          js.jobItems.some(item => item.description?.toLowerCase().includes(lowercasedTerm))
-        );
-      });
-    }
+    // Perform multi-token partial & exact text search filtering
+    results = results.filter((js) => {
+      const jobIdLower = (js.jobId || '').toLowerCase();
+      const clientLower = (js.clientName || '').toLowerCase();
+      const companyLower = (js.companyName || '').toLowerCase();
+      const detailsLower = (js.clientDetails || '').toLowerCase();
+      const irLower = (js.irNumber || '').toLowerCase();
+      const noteLower = (js.specialNote || '').toLowerCase();
+      const tidLower = (js.tid || '').toLowerCase();
+      const itemsText = (js.jobItems || [])
+        .map(item => item.description || '')
+        .join(' ')
+        .toLowerCase();
 
-    return jobSheets;
+      // Number / JID match check
+      if (cleanNum) {
+        const isJidMatch = candidateJids.has(js.jobId || '') ||
+          jobIdLower.endsWith(cleanNum) ||
+          jobIdLower.includes(cleanNum);
+        if (isJidMatch) return true;
+      }
+
+      // Check if ALL search tokens match anywhere in the job sheet's text fields
+      const combinedText = `${jobIdLower} ${clientLower} ${companyLower} ${detailsLower} ${irLower} ${noteLower} ${tidLower} ${itemsText}`;
+      return searchTokens.every(token => combinedText.includes(token));
+    });
+
+    return results;
   } catch (e) {
     console.error('Error searching job sheets: ', e);
     return [];
@@ -543,5 +676,42 @@ export async function getJobSheetByJobId(jobId: string): Promise<JobSheet | null
   } catch (error) {
     console.error('Error fetching job sheet by JID:', error);
     return null;
+  }
+}
+
+export async function backfillJobSheetSearchKeywords(): Promise<{ success: boolean; updatedCount: number }> {
+  try {
+    const snap = await getDocs(collection(db, 'jobSheets'));
+    const unindexedDocs = snap.docs.filter(d => {
+      const kw = d.data().searchKeywords;
+      return !kw || !Array.isArray(kw) || kw.length === 0;
+    });
+    if (unindexedDocs.length === 0) return { success: true, updatedCount: 0 };
+
+    let updatedCount = 0;
+    for (let i = 0; i < unindexedDocs.length; i += 200) {
+      const chunk = unindexedDocs.slice(i, i + 200);
+      const batch = writeBatch(db);
+      chunk.forEach(docSnap => {
+        const data = docSnap.data();
+        const keywords = generateSearchKeywords(
+          data.jobId,
+          data.clientName,
+          data.companyName,
+          data.clientDetails,
+          data.irNumber,
+          data.specialNote,
+          data.tid,
+          data.jobItems
+        );
+        batch.update(docSnap.ref, { searchKeywords: keywords });
+      });
+      await batch.commit();
+      updatedCount += chunk.length;
+    }
+    return { success: true, updatedCount };
+  } catch (err) {
+    console.error('Error backfilling job sheet search keywords:', err);
+    return { success: false, updatedCount: 0 };
   }
 }
