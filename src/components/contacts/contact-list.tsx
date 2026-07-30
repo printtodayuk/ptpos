@@ -29,6 +29,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
+import { getCachedData, setCachedData, invalidateCache } from '@/lib/client-cache';
+import { RefreshCw } from 'lucide-react';
+
 export function ContactList() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, startLoadingTransition] = useTransition();
@@ -43,9 +46,17 @@ export function ContactList() {
   const itemsPerPage = 50;
   const { toast } = useToast();
 
-  const fetchContacts = useCallback(() => {
+  const fetchContacts = useCallback((forceRefresh: boolean = false) => {
+    if (!forceRefresh) {
+      const cached = getCachedData<Contact[]>('contacts_all');
+      if (cached) {
+        setContacts(cached);
+        return;
+      }
+    }
     startLoadingTransition(async () => {
       const data = await getContacts();
+      setCachedData('contacts_all', data);
       setContacts(data);
     });
   }, []);
@@ -82,7 +93,8 @@ export function ContactList() {
     setIsDeleting(false);
     if (result.success) {
       toast({ title: 'Success', description: result.message });
-      fetchContacts();
+      invalidateCache('contacts_all');
+      fetchContacts(true);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -137,7 +149,8 @@ export function ContactList() {
         onClose={() => setContactToEdit(null)} 
         onSuccess={() => {
             setContactToEdit(null);
-            fetchContacts();
+            invalidateCache('contacts_all');
+            fetchContacts(true);
         }}
       />
 
@@ -176,6 +189,19 @@ export function ContactList() {
                   className="w-full pl-10"
                   />
               </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  invalidateCache('contacts_all');
+                  fetchContacts(true);
+                  toast({ title: 'Refreshed', description: 'Contacts reloaded from database.' });
+                }}
+                title="Refresh contacts"
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
           </div>
 
           {isLoading && contacts.length === 0 ? (

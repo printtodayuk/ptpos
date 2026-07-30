@@ -394,6 +394,17 @@ const mapDocToJobSheet = (docSnap: any): JobSheet => {
   } as JobSheet;
 };
 
+export async function getAllJobSheets(): Promise<JobSheet[]> {
+  try {
+    const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(mapDocToJobSheet);
+  } catch (e) {
+    console.error('Error fetching all job sheets:', e);
+    return [];
+  }
+}
+
 export async function searchJobSheets(
   searchTerm: string, 
   returnAllOnEmpty: boolean = false,
@@ -404,20 +415,17 @@ export async function searchJobSheets(
   try {
     const trimmedTerm = searchTerm.trim();
 
-    // If no search term is entered, return latest records (50 by default, 500 on returnAllOnEmpty)
+    // If no search term is entered, return records according to filters
     if (!trimmedTerm) {
       const constraints: QueryConstraint[] = [];
       if (jobStatus) constraints.push(where('status', '==', jobStatus));
       if (paymentStatus) constraints.push(where('paymentStatus', '==', paymentStatus));
       if (operator) constraints.push(where('operator', '==', operator));
 
-      const limitCount = returnAllOnEmpty ? 500 : 50;
-      const q = query(
-        collection(db, 'jobSheets'),
-        ...constraints,
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
+      const q = returnAllOnEmpty
+        ? query(collection(db, 'jobSheets'), ...constraints, orderBy('createdAt', 'desc'))
+        : query(collection(db, 'jobSheets'), ...constraints, orderBy('createdAt', 'desc'), limit(100));
+
       const snap = await getDocs(q);
       return snap.docs.map(mapDocToJobSheet);
     }

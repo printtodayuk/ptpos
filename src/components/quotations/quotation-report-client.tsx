@@ -2,12 +2,13 @@
 
 'use client';
 
-import { useState, useTransition, useEffect, useCallback } from 'react';
-import { searchQuotations, exportAllQuotations, deleteQuotation, createJobSheetFromQuotation } from '@/lib/server-actions-quotations';
+import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { getAllQuotations, searchQuotations, exportAllQuotations, deleteQuotation, createJobSheetFromQuotation } from '@/lib/server-actions-quotations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Download } from 'lucide-react';
+import { Loader2, Search, Download, RefreshCw } from 'lucide-react';
+import { getCachedData, setCachedData, invalidateCache } from '@/lib/client-cache';
 import type { Quotation, QuotationStatus, Operator } from '@/lib/types';
 import { quotationStatus, operators } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -27,7 +28,7 @@ export function QuotationReportClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const [quotationStatusFilter, setQuotationStatusFilter] = useState<QuotationStatus | 'all'>('all');
   const [operatorFilter, setOperatorFilter] = useState<Operator | 'all'>('all');
-  const [results, setResults] = useState<Quotation[]>([]);
+  const [allQuotations, setAllQuotations] = useState<Quotation[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
   const [quotationToEdit, setQuotationToEdit] = useState<Quotation | null>(null);
@@ -40,25 +41,60 @@ export function QuotationReportClient() {
   const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
   const [pin, setPin] = useState('');
 
-
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback((term: string, quotationStatus: QuotationStatus | 'all', operator: Operator | 'all') => {
+  const fetchQuotations = useCallback((forceRefresh: boolean = false) => {
+    if (!forceRefresh) {
+      const cached = getCachedData<Quotation[]>('quotations_all');
+      if (cached) {
+        setAllQuotations(cached);
+        return;
+      }
+    }
     startSearchTransition(async () => {
-      const allResults = await searchQuotations(
-        term, 
-        true, 
-        quotationStatus === 'all' ? undefined : quotationStatus,
-        operator === 'all' ? undefined : operator
-      );
-      setResults(allResults);
+      const data = await getAllQuotations();
+      setCachedData('quotations_all', data);
+      setAllQuotations(data);
     });
   }, []);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm, quotationStatusFilter, operatorFilter);
-  }, [debouncedSearchTerm, quotationStatusFilter, operatorFilter, performSearch]);
+    fetchQuotations();
+  }, [fetchQuotations]);
+
+  const results = useMemo(() => {
+    let list = allQuotations;
+
+    if (quotationStatusFilter !== 'all') {
+      list = list.filter(q => q.status === quotationStatusFilter);
+    }
+    if (operatorFilter !== 'all') {
+      list = list.filter(q => q.operator === operatorFilter);
+    }
+
+    if (debouncedSearchTerm) {
+      const lowerTerm = debouncedSearchTerm.toLowerCase().trim();
+      const tokens = lowerTerm.split(/[\s,.-]+/).filter(Boolean);
+      list = list.filter((q) => {
+        const qidLower = (q.quotationId || '').toLowerCase();
+        const clientLower = (q.clientName || '').toLowerCase();
+        const companyLower = (q.companyName || '').toLowerCase();
+        const detailsLower = (q.clientDetails || '').toLowerCase();
+        const noteLower = (q.specialNote || '').toLowerCase();
+        const tidLower = (q.tid || '').toLowerCase();
+        const itemsText = (q.jobItems || [])
+          .map(item => item.description || '')
+          .join(' ')
+          .toLowerCase();
+
+        const combinedText = `${qidLower} ${clientLower} ${companyLower} ${detailsLower} ${noteLower} ${tidLower} ${itemsText}`;
+        return tokens.every(token => combinedText.includes(token));
+      });
+    }
+
+    return list;
+  }, [allQuotations, quotationStatusFilter, operatorFilter, debouncedSearchTerm]);
 
   const handleExport = () => {
     startExportTransition(async () => {
@@ -111,7 +147,8 @@ export function QuotationReportClient() {
     setIsDeleting(false);
     if (result.success) {
       toast({ title: 'Success', description: 'Quotation deleted.' });
-      performSearch(debouncedSearchTerm, quotationStatusFilter, operatorFilter);
+      invalidateCache('quotations_all');
+      fetchQuotations(true);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -136,17 +173,18 @@ export function QuotationReportClient() {
   const handleUpdate = () => {
     setIsEditDialogOpen(false);
     setQuotationToEdit(null);
-    performSearch(debouncedSearchTerm, quotationStatusFilter, operatorFilter);
+    invalidateCache('quotations_all');
+    fetchQuotations(true);
   };
   
   const handleConversionSuccess = () => {
     setQuotationToConvert(null);
-    performSearch(debouncedSearchTerm, quotationStatusFilter, operatorFilter);
-  }
+    invalidateCache('quotations_all');
+    fetchQuotations(true);
+  };
 
   const quotationStatusFilters: (QuotationStatus | 'all')[] = ['all', ...quotationStatus];
   const operatorFilters: (string | 'all')[] = ['all', ...dynamicOperators.map(op => op.id)];
-
 
   return (
     <>
@@ -235,6 +273,19 @@ export function QuotationReportClient() {
             <Button onClick={handleExport} disabled={isExporting} variant="outline" className="w-full sm:w-auto">
               {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
               Export as CSV
+            </Button>
+            <Button
+              onClick={() => {
+                invalidateCache('quotations_all');
+                fetchQuotations(true);
+                toast({ title: 'Refreshed', description: 'Quotations reloaded from database.' });
+              }}
+              disabled={isSearching}
+              variant="outline"
+              size="icon"
+              title="Refresh quotations"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSearching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
           

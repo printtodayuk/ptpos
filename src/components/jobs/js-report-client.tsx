@@ -1,14 +1,15 @@
 
 'use client';
 
-import { useState, useTransition, useEffect, useCallback } from 'react';
-import { searchJobSheets, exportAllJobSheets, deleteJobSheet } from '@/lib/server-actions-jobs';
+import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { getAllJobSheets, searchJobSheets, exportAllJobSheets, deleteJobSheet } from '@/lib/server-actions-jobs';
 import { getCompanyProfiles } from '@/lib/server-actions-invoices';
 import { InvoiceForm } from '@/components/invoices/invoice-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Download, Filter } from 'lucide-react';
+import { Loader2, Search, Download, Filter, RefreshCw } from 'lucide-react';
+import { getCachedData, setCachedData, invalidateCache } from '@/lib/client-cache';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +43,7 @@ export function JsReportClient() {
   const [jobStatusFilter, setJobStatusFilter] = useState<JobSheetStatus | 'all'>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatus | 'all'>('all');
   const [operatorFilter, setOperatorFilter] = useState<Operator | 'all'>('all');
-  const [results, setResults] = useState<JobSheet[]>([]);
+  const [allJobSheets, setAllJobSheets] = useState<JobSheet[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
   const [jobSheetToEdit, setJobSheetToEdit] = useState<JobSheet | null>(null);
@@ -64,26 +65,64 @@ export function JsReportClient() {
     getCompanyProfiles().then(setCompanyProfiles);
   }, []);
 
-
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback((term: string, jobStatus: JobSheetStatus | 'all', paymentStatus: PaymentStatus | 'all', operator: Operator | 'all') => {
+  const fetchJobSheets = useCallback((forceRefresh: boolean = false) => {
+    if (!forceRefresh) {
+      const cached = getCachedData<JobSheet[]>('job_sheets_all');
+      if (cached) {
+        setAllJobSheets(cached);
+        return;
+      }
+    }
     startSearchTransition(async () => {
-      const allResults = await searchJobSheets(
-        term, 
-        true, 
-        jobStatus === 'all' ? undefined : jobStatus,
-        paymentStatus === 'all' ? undefined : paymentStatus,
-        operator === 'all' ? undefined : operator
-      );
-      setResults(allResults);
+      const data = await getAllJobSheets();
+      setCachedData('job_sheets_all', data);
+      setAllJobSheets(data);
     });
   }, []);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
-  }, [debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter, performSearch]);
+    fetchJobSheets();
+  }, [fetchJobSheets]);
+
+  const results = useMemo(() => {
+    let list = allJobSheets;
+
+    if (jobStatusFilter !== 'all') {
+      list = list.filter(js => js.status === jobStatusFilter);
+    }
+    if (paymentStatusFilter !== 'all') {
+      list = list.filter(js => js.paymentStatus === paymentStatusFilter);
+    }
+    if (operatorFilter !== 'all') {
+      list = list.filter(js => js.operator === operatorFilter);
+    }
+
+    if (debouncedSearchTerm) {
+      const lowerTerm = debouncedSearchTerm.toLowerCase().trim();
+      const tokens = lowerTerm.split(/[\s,.-]+/).filter(Boolean);
+      list = list.filter((js) => {
+        const jobIdLower = (js.jobId || '').toLowerCase();
+        const clientLower = (js.clientName || '').toLowerCase();
+        const companyLower = (js.companyName || '').toLowerCase();
+        const detailsLower = (js.clientDetails || '').toLowerCase();
+        const irLower = (js.irNumber || '').toLowerCase();
+        const noteLower = (js.specialNote || '').toLowerCase();
+        const tidLower = (js.tid || '').toLowerCase();
+        const itemsText = (js.jobItems || [])
+          .map(item => item.description || '')
+          .join(' ')
+          .toLowerCase();
+
+        const combinedText = `${jobIdLower} ${clientLower} ${companyLower} ${detailsLower} ${irLower} ${noteLower} ${tidLower} ${itemsText}`;
+        return tokens.every(token => combinedText.includes(token));
+      });
+    }
+
+    return list;
+  }, [allJobSheets, jobStatusFilter, paymentStatusFilter, operatorFilter, debouncedSearchTerm]);
 
   const handleExport = () => {
     startExportTransition(async () => {
@@ -145,7 +184,8 @@ export function JsReportClient() {
     setIsDeleting(false);
     if (result.success) {
       toast({ title: 'Success', description: 'Job Sheet deleted.' });
-      performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
+      invalidateCache('job_sheets_all');
+      fetchJobSheets(true);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -168,14 +208,16 @@ export function JsReportClient() {
   const handleUpdate = () => {
     setIsEditDialogOpen(false);
     setJobSheetToEdit(null);
-    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
+    invalidateCache('job_sheets_all');
+    fetchJobSheets(true);
   };
   
   const handlePaymentSuccess = (transaction: Transaction) => {
     setJobSheetToPay(null);
     setLastTransaction(transaction);
     toast({ title: 'Success', description: `Payment recorded. Transaction ID: ${transaction.transactionId}` });
-    performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
+    invalidateCache('job_sheets_all');
+    fetchJobSheets(true);
   };
 
   const jobStatusFilters: (JobSheetStatus | 'all')[] = ['all', ...jobSheetStatus];
@@ -220,7 +262,8 @@ export function JsReportClient() {
                   const jobId = jobSheetToInvoice.jobId;
                   setJobSheetToInvoice(null);
                   toast({ title: 'Success', description: `Invoice created from Job Sheet ${jobId}.` });
-                  performSearch(debouncedSearchTerm, jobStatusFilter, paymentStatusFilter, operatorFilter);
+                  invalidateCache('job_sheets_all');
+                  fetchJobSheets(true);
                 }}
                 onCancel={() => setJobSheetToInvoice(null)}
               />
@@ -304,6 +347,19 @@ export function JsReportClient() {
             <Button onClick={handleExport} disabled={isExporting} variant="outline" className="w-full sm:w-auto">
               {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
               Export as CSV
+            </Button>
+            <Button
+              onClick={() => {
+                invalidateCache('job_sheets_all');
+                fetchJobSheets(true);
+                toast({ title: 'Refreshed', description: 'Job sheets reloaded from database.' });
+              }}
+              disabled={isSearching}
+              variant="outline"
+              size="icon"
+              title="Refresh job sheets"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSearching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
           

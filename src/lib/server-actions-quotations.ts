@@ -369,6 +369,17 @@ const mapDocToQuotation = (docSnap: any): Quotation => {
   } as Quotation;
 };
 
+export async function getAllQuotations(): Promise<Quotation[]> {
+  try {
+    const q = query(collection(db, 'quotations'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(mapDocToQuotation);
+  } catch (e) {
+    console.error('Error fetching all quotations:', e);
+    return [];
+  }
+}
+
 export async function searchQuotations(
   searchTerm: string, 
   returnAllOnEmpty: boolean = false,
@@ -378,19 +389,16 @@ export async function searchQuotations(
   try {
     const trimmedTerm = searchTerm.trim();
 
-    // If no search term is entered, return latest records
+    // If no search term is entered, return records according to filters
     if (!trimmedTerm) {
       const constraints: QueryConstraint[] = [];
       if (quotationStatus) constraints.push(where('status', '==', quotationStatus));
       if (operator) constraints.push(where('operator', '==', operator));
 
-      const limitCount = returnAllOnEmpty ? 500 : 50;
-      const q = query(
-        collection(db, 'quotations'),
-        ...constraints,
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
+      const q = returnAllOnEmpty
+        ? query(collection(db, 'quotations'), ...constraints, orderBy('createdAt', 'desc'))
+        : query(collection(db, 'quotations'), ...constraints, orderBy('createdAt', 'desc'), limit(100));
+
       const snap = await getDocs(q);
       return snap.docs.map(mapDocToQuotation);
     }

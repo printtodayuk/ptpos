@@ -140,7 +140,7 @@ export async function bulkAddContacts(contacts: z.infer<typeof CreateContactSche
 
 export async function getContacts(): Promise<Contact[]> {
   try {
-    const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'), limit(100));
+    const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     
     return querySnapshot.docs.map((doc) => {
