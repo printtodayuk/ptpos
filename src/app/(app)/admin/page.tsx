@@ -1,15 +1,16 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useTransition } from 'react';
-import { searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
+import { useEffect, useState, useCallback, useTransition, useMemo } from 'react';
+import { getAllTransactions, searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
 import { getCurrentNotice, saveNotice } from '@/lib/server-actions-notices';
 import { saveOperator, deleteOperator } from '@/lib/server-actions-operators';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, Trash2, CheckCircle, Edit, Filter, Megaphone, Send, Users, Key, UserPlus, X, ShieldCheck } from 'lucide-react';
+import { Loader2, Search, Trash2, CheckCircle, Edit, Filter, Megaphone, Send, Users, Key, UserPlus, X, ShieldCheck, RefreshCw } from 'lucide-react';
 import type { Transaction, PaymentMethod } from '@/lib/types';
 import { paymentMethods } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
+import { getCachedData, setCachedData, invalidateCache } from '@/lib/client-cache';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,7 @@ export default function AdminPage() {
   const [operatorToDelete, setOperatorToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<'All' | PaymentMethod>('All');
-  const [results, setResults] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
@@ -79,17 +80,47 @@ export default function AdminPage() {
   const { toast } = useToast();
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const performSearch = useCallback((term: string, payment: 'All' | PaymentMethod) => {
+  const fetchTransactions = useCallback((forceRefresh: boolean = false) => {
+    if (!forceRefresh) {
+      const cached = getCachedData<Transaction[]>('transactions_all');
+      if (cached) {
+        setAllTransactions(cached);
+        return;
+      }
+    }
     startSearchTransition(async () => {
-      const allResults = await searchTransactions(term, payment === 'All' ? undefined : payment);
-      setResults(allResults);
-      setSelectedTransactions([]); // Clear selection on new search
+      const data = await getAllTransactions();
+      setCachedData('transactions_all', data);
+      setAllTransactions(data);
     });
   }, []);
 
   useEffect(() => {
-    performSearch(debouncedSearchTerm, paymentFilter);
-  }, [debouncedSearchTerm, paymentFilter, performSearch]);
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  const results = useMemo(() => {
+    let list = allTransactions;
+
+    if (paymentFilter !== 'All') {
+      list = list.filter(t => t.paymentMethod === paymentFilter);
+    }
+
+    if (debouncedSearchTerm) {
+      const lower = debouncedSearchTerm.toLowerCase().trim();
+      list = list.filter(t => {
+        const tidMatch = t.transactionId?.toLowerCase().includes(lower);
+        const clientMatch = t.clientName?.toLowerCase().includes(lower);
+        const jobMatch = t.jobDescription?.toLowerCase().includes(lower);
+        const jidMatch = t.jid?.toLowerCase().includes(lower);
+        const invoiceMatch = t.invoiceNumber?.toLowerCase().includes(lower);
+        const amountMatch = t.totalAmount?.toString().includes(lower);
+        return tidMatch || clientMatch || jobMatch || jidMatch || invoiceMatch || amountMatch;
+      });
+    }
+
+    return list;
+  }, [allTransactions, paymentFilter, debouncedSearchTerm]);
 
   // Fetch current notice
   useEffect(() => {
@@ -193,7 +224,8 @@ export default function AdminPage() {
 
     if (result.success) {
       toast({ title: 'Success', description: 'Transaction deleted successfully.' });
-      performSearch(debouncedSearchTerm, paymentFilter);
+      invalidateCache('transactions_all');
+      fetchTransactions(true);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
@@ -201,12 +233,14 @@ export default function AdminPage() {
   };
 
   const onTransactionChecked = () => {
-    performSearch(debouncedSearchTerm, paymentFilter);
+    invalidateCache('transactions_all');
+    fetchTransactions(true);
   };
   
   const handleUpdateSuccess = () => {
     setTransactionToEdit(null);
-    performSearch(debouncedSearchTerm, paymentFilter);
+    invalidateCache('transactions_all');
+    fetchTransactions(true);
   };
 
   const handleSelectionChange = (ids: string[]) => {
@@ -236,7 +270,8 @@ export default function AdminPage() {
 
         if (result?.success) {
             toast({ title: 'Success', description: result.message });
-            performSearch(debouncedSearchTerm, paymentFilter);
+            invalidateCache('transactions_all');
+            fetchTransactions(true);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: result?.message || 'An error occurred.' });
         }
@@ -590,6 +625,19 @@ export default function AdminPage() {
                     </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button
+                onClick={() => {
+                  invalidateCache('transactions_all');
+                  fetchTransactions(true);
+                  toast({ title: 'Refreshed', description: 'Transactions reloaded from database.' });
+                }}
+                disabled={isSearching}
+                variant="outline"
+                size="icon"
+                title="Refresh transactions"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSearching ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
 
             <div className="mt-4">

@@ -469,9 +469,65 @@ export async function getReportData({ searchTerm, startDate, endDate }: { search
   }
 }
 
+export async function getAllTransactions(): Promise<Transaction[]> {
+  try {
+    const q = query(
+      collection(db, 'transactions'),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+
+    let allTransactions = querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        date: (data.date as Timestamp).toDate(),
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
+      } as Transaction;
+    });
+
+    const jids = allTransactions.map(tx => tx.jid).filter((jid): jid is string => !!jid);
+    if (jids.length > 0) {
+      const uniqueJids = [...new Set(jids)];
+      const jidChunks = [];
+      for (let i = 0; i < uniqueJids.length; i += 30) {
+        jidChunks.push(uniqueJids.slice(i, i + 30));
+      }
+
+      const jobSheetMap = new Map<string, JobSheet>();
+      for (const chunk of jidChunks) {
+        const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', 'in', chunk));
+        const jobSheetsSnapshot = await getDocs(jobSheetQuery);
+        jobSheetsSnapshot.docs.forEach(doc => {
+          const data = doc.data() as JobSheet;
+          if (data.jobId) jobSheetMap.set(data.jobId, data);
+        });
+      }
+
+      return allTransactions.map(tx => {
+        if (tx.jid && jobSheetMap.has(tx.jid)) {
+          const jobSheet = jobSheetMap.get(tx.jid)!;
+          return {
+            ...tx,
+            invoiceNumber: tx.invoiceNumber || jobSheet.irNumber || '',
+          };
+        }
+        return tx;
+      });
+    }
+
+    return allTransactions;
+  } catch (e) {
+    console.error('Error fetching all transactions: ', e);
+    return [];
+  }
+}
+
 export async function searchTransactions(
   searchTerm?: string,
-  paymentMethod?: PaymentMethod
+  paymentMethod?: PaymentMethod,
+  returnAllOnEmpty: boolean = true
 ): Promise<Transaction[]> {
   try {
     const trimmedTerm = (searchTerm || '').trim();
@@ -486,21 +542,15 @@ export async function searchTransactions(
         const q = query(
           collection(db, 'transactions'),
           where(targetField, '>=', upperTerm),
-          where(targetField, '<=', upperTerm + '\uf8ff'),
-          limit(50)
+          where(targetField, '<=', upperTerm + '\uf8ff')
         );
         querySnapshot = await getDocs(q);
       } catch (err) {
-        const fallbackQ = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(100));
-        querySnapshot = await getDocs(fallbackQ);
+        const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+        querySnapshot = await getDocs(q);
       }
     } else {
-      const fetchLimit = trimmedTerm ? 100 : 50;
-      const q = query(
-        collection(db, 'transactions'),
-        orderBy('createdAt', 'desc'),
-        limit(fetchLimit)
-      );
+      const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
       querySnapshot = await getDocs(q);
     }
 
@@ -548,7 +598,7 @@ export async function searchTransactions(
             const jobSheetsSnapshot = await getDocs(jobSheetQuery);
             jobSheetsSnapshot.docs.forEach(doc => {
                 const data = doc.data() as JobSheet;
-                jobSheetMap.set(data.jobId, data);
+                if (data.jobId) jobSheetMap.set(data.jobId, data);
             });
         }
         
