@@ -1,4 +1,6 @@
 
+'use client';
+
 import { useEffect, useState, useCallback, useTransition, useMemo } from 'react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { DateRange } from 'react-day-picker';
