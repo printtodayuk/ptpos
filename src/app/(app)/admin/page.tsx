@@ -1,22 +1,25 @@
 
-'use client';
-
 import { useEffect, useState, useCallback, useTransition, useMemo } from 'react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { DateRange } from 'react-day-picker';
 import { getAllTransactions, searchTransactions, deleteTransaction, bulkDeleteTransactions, bulkMarkAsChecked } from '@/lib/server-actions';
 import { getCurrentNotice, saveNotice } from '@/lib/server-actions-notices';
 import { saveOperator, deleteOperator } from '@/lib/server-actions-operators';
 import { CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, Trash2, CheckCircle, Edit, Filter, Megaphone, Send, Users, Key, UserPlus, X, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Loader2, Search, Trash2, CheckCircle, Edit, Filter, Megaphone, Send, Users, Key, UserPlus, X, ShieldCheck, RefreshCw, Download, Calendar as CalendarIcon } from 'lucide-react';
 import type { Transaction, PaymentMethod } from '@/lib/types';
 import { paymentMethods } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getCachedData, setCachedData, invalidateCache } from '@/lib/client-cache';
+import { cn, exportToCsv } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { TransactionsTable } from '@/components/transactions/transactions-table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,8 +63,10 @@ export default function AdminPage() {
   const [operatorToDelete, setOperatorToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<'All' | PaymentMethod>('All');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
+  const [isExporting, startExportTransition] = useTransition();
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -106,6 +111,15 @@ export default function AdminPage() {
       list = list.filter(t => t.paymentMethod === paymentFilter);
     }
 
+    if (dateRange?.from) {
+      const fromTime = startOfDay(dateRange.from).getTime();
+      const toTime = dateRange.to ? endOfDay(dateRange.to).getTime() : endOfDay(dateRange.from).getTime();
+      list = list.filter(t => {
+        const tDate = new Date(t.date).getTime();
+        return tDate >= fromTime && tDate <= toTime;
+      });
+    }
+
     if (debouncedSearchTerm) {
       const lower = debouncedSearchTerm.toLowerCase().trim();
       list = list.filter(t => {
@@ -120,7 +134,39 @@ export default function AdminPage() {
     }
 
     return list;
-  }, [allTransactions, paymentFilter, debouncedSearchTerm]);
+  }, [allTransactions, paymentFilter, dateRange, debouncedSearchTerm]);
+
+  const handleExport = () => {
+    startExportTransition(() => {
+      if (results.length === 0) {
+        toast({ variant: 'destructive', title: 'Nothing to Export', description: 'No transactions match the current filters.' });
+        return;
+      }
+
+      const filename = `transactions_export_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      const dataToExport = results.map(t => ({
+        transactionId: t.transactionId,
+        date: format(new Date(t.date), 'yyyy-MM-dd HH:mm'),
+        clientName: t.clientName || '',
+        type: t.type || '',
+        invoiceNumber: t.invoiceNumber || '',
+        jid: t.jid || '',
+        jobDescription: t.jobDescription || '',
+        amount: typeof t.amount === 'number' ? t.amount.toFixed(2) : t.amount || '0.00',
+        vatApplied: t.vatApplied ? 'Yes' : 'No',
+        totalAmount: typeof t.totalAmount === 'number' ? t.totalAmount.toFixed(2) : t.totalAmount || '0.00',
+        paidAmount: typeof t.paidAmount === 'number' ? t.paidAmount.toFixed(2) : t.paidAmount || '0.00',
+        dueAmount: typeof t.dueAmount === 'number' ? t.dueAmount.toFixed(2) : t.dueAmount || '0.00',
+        paymentMethod: t.paymentMethod || '',
+        operator: t.operator || '',
+        adminChecked: t.adminChecked ? 'Yes' : 'No',
+        checkedBy: t.checkedBy || '',
+      }));
+
+      exportToCsv(filename, dataToExport);
+      toast({ title: 'Success', description: `Exported ${dataToExport.length} transaction(s) to CSV.` });
+    });
+  };
 
   // Fetch current notice
   useEffect(() => {
@@ -595,7 +641,7 @@ export default function AdminPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row items-center gap-2">
+            <div className="flex flex-col md:flex-row items-center gap-2">
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
@@ -606,25 +652,85 @@ export default function AdminPage() {
                   className="w-full pl-10"
                 />
               </div>
-               <DropdownMenu>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date-range-admin"
+                    variant="outline"
+                    className={cn(
+                      "w-full md:w-auto justify-start text-left font-normal flex-shrink-0",
+                      !dateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>Date Range</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                  />
+                  {dateRange && (
+                    <div className="p-2 border-t flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDateRange(undefined)}
+                        className="text-xs text-muted-foreground"
+                      >
+                        Clear Date Filter
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto">
-                        <Filter className="mr-2 h-4 w-4" />
-                        <span>Filter by: {paymentFilter}</span>
-                    </Button>
+                  <Button variant="outline" className="w-full md:w-auto flex-shrink-0">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <span>Filter by: {paymentFilter}</span>
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Payment Method</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as 'All' | PaymentMethod)}>
-                        {filterablePaymentMethods.map((method) => (
-                            <DropdownMenuRadioItem key={method} value={method}>
-                                {method}
-                            </DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
+                  <DropdownMenuLabel>Payment Method</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as 'All' | PaymentMethod)}>
+                    {filterablePaymentMethods.map((method) => (
+                      <DropdownMenuRadioItem key={method} value={method}>
+                        {method}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              <Button
+                onClick={handleExport}
+                disabled={isExporting || results.length === 0}
+                variant="outline"
+                className="w-full md:w-auto flex-shrink-0"
+              >
+                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Export CSV
+              </Button>
+
               <Button
                 onClick={() => {
                   invalidateCache('transactions_all');
@@ -635,6 +741,7 @@ export default function AdminPage() {
                 variant="outline"
                 size="icon"
                 title="Refresh transactions"
+                className="flex-shrink-0"
               >
                 <RefreshCw className={`h-4 w-4 ${isSearching ? 'animate-spin' : ''}`} />
               </Button>
