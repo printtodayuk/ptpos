@@ -109,6 +109,7 @@ export function JsReportClient() {
         const companyLower = (js.companyName || '').toLowerCase();
         const detailsLower = (js.clientDetails || '').toLowerCase();
         const irLower = (js.irNumber || '').toLowerCase();
+        const invoiceLower = (js.invoiceNumber || '').toLowerCase();
         const noteLower = (js.specialNote || '').toLowerCase();
         const tidLower = (js.tid || '').toLowerCase();
         const itemsText = (js.jobItems || [])
@@ -116,7 +117,7 @@ export function JsReportClient() {
           .join(' ')
           .toLowerCase();
 
-        const combinedText = `${jobIdLower} ${clientLower} ${companyLower} ${detailsLower} ${irLower} ${noteLower} ${tidLower} ${itemsText}`;
+        const combinedText = `${jobIdLower} ${clientLower} ${companyLower} ${detailsLower} ${irLower} ${invoiceLower} ${noteLower} ${tidLower} ${itemsText}`;
         return tokens.every(token => combinedText.includes(token));
       });
     }

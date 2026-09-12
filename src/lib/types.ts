@@ -196,6 +196,7 @@ export const UpdateTimeRecordSchema = z.object({
 export const CompanyProfileSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Company name is required.'),
+  invoicePrefix: z.string().optional().or(z.literal('')),
   logoUrl: z.string().optional().or(z.literal('')),
   address: z.string().min(1, 'Address is required.'),
   email: z.string().email('Invalid email address.').optional().or(z.literal('')),
@@ -237,6 +238,8 @@ export const InvoiceSchema = z.object({
   totalAmount: z.number(),
   status: z.enum(invoiceStatus).default('Draft'),
   notes: z.string().optional(),
+  jobSheetId: z.string().optional().nullable(),
+  jobId: z.string().optional().nullable(),
   createdAt: z.any().optional(),
 });
 

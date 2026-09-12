@@ -119,7 +119,7 @@ export function JobSheetsTable({
             <TableHead>Company</TableHead>
             <TableHead className="hidden md:table-cell">Type</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
-            <TableHead className="hidden lg:table-cell">IR Number</TableHead>
+            <TableHead className="hidden lg:table-cell">IR / Inv No</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-center">Job Status</TableHead>
             <TableHead className="text-center">Payment Status</TableHead>
@@ -141,7 +141,13 @@ export function JobSheetsTable({
               <TableCell className="text-muted-foreground">{js.companyName || '-'}</TableCell>
               <TableCell className="hidden md:table-cell">{js.type}</TableCell>
               <TableCell className="hidden md:table-cell">{js.operator}</TableCell>
-              <TableCell className="hidden lg:table-cell">{js.irNumber}</TableCell>
+              <TableCell className="hidden lg:table-cell font-mono text-xs">
+                {js.invoiceNumber ? (
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">{js.invoiceNumber}</span>
+                ) : (
+                  js.irNumber || '-'
+                )}
+              </TableCell>
               <TableCell className="text-right">
                 £{js.totalAmount.toFixed(2)}
               </TableCell>

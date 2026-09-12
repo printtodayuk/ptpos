@@ -91,23 +91,83 @@ export async function deleteCompanyProfile(id: string) {
 
 // --- Invoice Actions ---
 
-async function getNextInvoiceId(): Promise<string> {
-    const counterRef = doc(db, 'counters', 'invoices');
-    const newCount = await runTransaction(db, async (transaction) => {
-        const counterDoc = await transaction.get(counterRef);
-        if (!counterDoc.exists()) {
-            transaction.set(counterRef, { count: 1 });
-            return 1;
+export function getCompanyInitials(name: string): string {
+  if (!name) return 'INV';
+  const trimmed = name.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.includes('sign today')) return 'ST';
+  if (lower.includes('today ai')) return 'TA';
+  if (lower.includes('print today')) return 'PT';
+  
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words.map(w => w[0].toUpperCase()).join('');
+  }
+  return trimmed.slice(0, 3).toUpperCase();
+}
+
+async function getNextInvoiceId(companyProfileId?: string): Promise<string> {
+  let prefix = 'INV';
+  if (companyProfileId) {
+    try {
+      const profileDoc = await getDoc(doc(db, 'companyProfiles', companyProfileId));
+      if (profileDoc.exists()) {
+        const profileData = profileDoc.data();
+        if (profileData.invoicePrefix && profileData.invoicePrefix.trim()) {
+          prefix = profileData.invoicePrefix.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+        } else if (profileData.name) {
+          prefix = getCompanyInitials(profileData.name);
         }
-        const newCount = counterDoc.data().count + 1;
-        transaction.update(counterRef, { count: newCount });
-        return newCount;
-    });
-    return `Inv-${String(newCount).padStart(5, '0')}`;
+      }
+    } catch (e) {
+      console.error('Error fetching company profile for invoice prefix:', e);
+    }
+  }
+
+  const cleanPrefix = prefix.replace(/-+$/, '').toUpperCase() || 'INV';
+  const counterDocId = `invoices_${cleanPrefix.toLowerCase()}`;
+  const counterRef = doc(db, 'counters', counterDocId);
+
+  const newCount = await runTransaction(db, async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+    if (!counterDoc.exists()) {
+      // Query existing invoices with this prefix to avoid collision if invoices already exist
+      let maxNum = 0;
+      try {
+        const existingInvoicesQuery = query(
+          collection(db, 'invoices'),
+          where('invoiceId', '>=', `${cleanPrefix}-`),
+          where('invoiceId', '<=', `${cleanPrefix}-\uf8ff`)
+        );
+        const existingSnap = await getDocs(existingInvoicesQuery);
+        existingSnap.docs.forEach(d => {
+          const invId = d.data().invoiceId || '';
+          const numStr = invId.replace(new RegExp(`^${cleanPrefix}-?`, 'i'), '');
+          const num = parseInt(numStr, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        });
+      } catch (err) {
+        console.error('Error querying existing max invoice ID:', err);
+      }
+
+      const initialCount = maxNum > 0 ? maxNum + 1 : 1;
+      transaction.set(counterRef, { count: initialCount });
+      return initialCount;
+    }
+
+    const nextCount = (counterDoc.data().count || 0) + 1;
+    transaction.update(counterRef, { count: nextCount });
+    return nextCount;
+  });
+
+  return `${cleanPrefix}-${String(newCount).padStart(4, '0')}`;
 }
 
 export async function saveInvoice(
-  data: z.infer<typeof CreateInvoiceSchema> & { id?: string }
+  data: z.infer<typeof CreateInvoiceSchema> & { id?: string; jobSheetId?: string | null },
+  linkedJobSheetId?: string | null
 ) {
   const validatedData = CreateInvoiceSchema.safeParse(data);
   if (!validatedData.success) {
@@ -118,10 +178,13 @@ export async function saveInvoice(
     };
   }
 
-  const dataToSave = {
-      ...validatedData.data,
-      date: Timestamp.fromDate(validatedData.data.date as Date),
-      dueDate: Timestamp.fromDate(validatedData.data.dueDate as Date),
+  const targetJobSheetId = linkedJobSheetId || data.jobSheetId || null;
+
+  const dataToSave: any = {
+    ...validatedData.data,
+    date: Timestamp.fromDate(validatedData.data.date as Date),
+    dueDate: Timestamp.fromDate(validatedData.data.dueDate as Date),
+    jobSheetId: targetJobSheetId,
   };
 
   try {
@@ -131,14 +194,38 @@ export async function saveInvoice(
       await updateDoc(invoiceRef, dataToSave);
     } else {
       // Create new
-      const newInvoiceId = await getNextInvoiceId();
-      await addDoc(collection(db, 'invoices'), {
-        ...dataToSave,
-        invoiceId: newInvoiceId,
-        createdAt: serverTimestamp(),
-      });
+      const newInvoiceId = await getNextInvoiceId(validatedData.data.companyProfileId);
+      dataToSave.invoiceId = newInvoiceId;
+      dataToSave.createdAt = serverTimestamp();
+
+      await addDoc(collection(db, 'invoices'), dataToSave);
+
+      // Automatically update the Job Sheet with this invoice number if created from JID
+      if (targetJobSheetId) {
+        try {
+          const jsRef = doc(db, 'jobSheets', targetJobSheetId);
+          const jsSnap = await getDoc(jsRef);
+          if (jsSnap.exists()) {
+            const jsData = jsSnap.data();
+            const historyEntry = {
+              timestamp: Timestamp.now(),
+              operator: 'System',
+              action: 'Invoice Created',
+              details: `Invoice ${newInvoiceId} created and linked to this Job Sheet.`,
+            };
+            await updateDoc(jsRef, {
+              invoiceNumber: newInvoiceId,
+              history: [...(jsData.history || []), historyEntry],
+            });
+          }
+        } catch (jsErr) {
+          console.error('Error updating Job Sheet with invoice number:', jsErr);
+        }
+      }
     }
     revalidatePath('/invoice-generator');
+    revalidatePath('/job-sheet');
+    revalidatePath('/js-report');
     return { success: true };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'An error occurred.' };

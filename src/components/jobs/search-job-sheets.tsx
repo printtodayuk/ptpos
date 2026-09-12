@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect, useCallback } from 'react';
 import { searchJobSheets, deleteJobSheet, addTransactionFromJobSheet } from '@/lib/server-actions-jobs';
 import { getCompanyProfiles } from '@/lib/server-actions-invoices';
+import { invalidateCache } from '@/lib/client-cache';
 import { InvoiceForm } from '@/components/invoices/invoice-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -172,6 +173,7 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
                   const jobId = jobSheetToInvoice.jobId;
                   setJobSheetToInvoice(null);
                   toast({ title: 'Success', description: `Invoice created from Job Sheet ${jobId}.` });
+                  invalidateCache('job_sheets_all');
                   performSearch(debouncedSearchTerm);
                   onJobSheetUpdated();
                 }}

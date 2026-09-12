@@ -53,6 +53,7 @@ const getFreshDefaultValues = (operator: Operator | null): Partial<FormValues> =
   totalAmount: 0,
   status: 'Hold',
   specialNote: '',
+  invoiceNumber: '',
   irNumber: '',
   deliveryBy: undefined,
   type: 'Invoice',
@@ -130,6 +131,7 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
             ...jobSheetToEdit,
             date: new Date(jobSheetToEdit.date),
             deliveryBy: jobSheetToEdit.deliveryBy ? new Date(jobSheetToEdit.deliveryBy) : undefined,
+            invoiceNumber: jobSheetToEdit.invoiceNumber || '',
             irNumber: jobSheetToEdit.irNumber || '',
             specialNote: jobSheetToEdit.specialNote || '',
             clientDetails: jobSheetToEdit.clientDetails || '',
@@ -423,12 +425,16 @@ export function JobSheetForm({ onJobSheetAdded, jobSheetToEdit, jobSheetToCreate
                         </div>
                         <CardTitle className="text-base font-black tracking-tight text-amber-950 dark:text-amber-100">Notes & Internal References</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid md:grid-cols-2 gap-4 p-6">
-                        <div className="space-y-2 md:col-span-2">
+                    <CardContent className="grid md:grid-cols-3 gap-4 p-6">
+                        <div className="space-y-2 md:col-span-3">
                             <Label htmlFor="specialNote" className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-300">Special Production Instructions / Notes</Label>
                             <Textarea id="specialNote" {...form.register('specialNote')} className="rounded-2xl bg-white/90 dark:bg-slate-900/90 border-amber-200/80" rows={3} placeholder="Special instructions for print operators..." />
                         </div>
-                         <div className="space-y-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="invoiceNumber" className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-300">Invoice Number</Label>
+                            <Input id="invoiceNumber" {...form.register('invoiceNumber')} className="rounded-2xl h-11 bg-white/90 dark:bg-slate-900/90 border-amber-200/80" placeholder="e.g. ST-0001 / INV-0001" />
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="irNumber" className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-300">IR Number</Label>
                             <Input id="irNumber" {...form.register('irNumber')} className="rounded-2xl h-11 bg-white/90 dark:bg-slate-900/90 border-amber-200/80" placeholder="e.g. IR-2026-001" />
                         </div>

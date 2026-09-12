@@ -30,6 +30,7 @@ export function CompanyProfileForm({ companyProfile, onSuccess, onCancel }: Comp
         resolver: zodResolver(CreateCompanyProfileSchema),
         defaultValues: {
             name: companyProfile?.name || '',
+            invoicePrefix: companyProfile?.invoicePrefix || '',
             logoUrl: companyProfile?.logoUrl || '',
             address: companyProfile?.address || '',
             email: companyProfile?.email || '',
@@ -54,11 +55,18 @@ export function CompanyProfileForm({ companyProfile, onSuccess, onCancel }: Comp
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor="name">Company Name</Label>
-                <Input id="name" {...form.register('name')} />
-                {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="name">Company Name</Label>
+                    <Input id="name" placeholder="e.g. Sign Today" {...form.register('name')} />
+                    {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="invoicePrefix">Invoice Prefix</Label>
+                    <Input id="invoicePrefix" placeholder="e.g. ST, TA, PT" {...form.register('invoicePrefix')} />
+                </div>
             </div>
+            <p className="text-xs text-muted-foreground -mt-2">Prefix for invoice numbering (e.g. ST results in ST-0001). Leave blank to auto-generate from initials.</p>
             <div className="space-y-2">
                 <Label htmlFor="address">Address</Label>
                 <Textarea id="address" {...form.register('address')} />

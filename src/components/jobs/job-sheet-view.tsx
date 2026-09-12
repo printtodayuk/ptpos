@@ -65,7 +65,10 @@ export function JobSheetView({ jobSheet, hideTotals = false }: JobSheetViewProps
               <strong>Date:</strong> {format(new Date(jobSheet.date), 'dd/MM/yyyy')}
           </div>
           <div className="border border-black p-2">
-              <strong>IR No:</strong> {jobSheet.irNumber}
+              <strong>IR No:</strong> {jobSheet.irNumber || 'N/A'}
+          </div>
+          <div className="border border-black p-2">
+              <strong>Invoice No:</strong> {jobSheet.invoiceNumber || 'N/A'}
           </div>
           <div className="border border-black p-2">
               <strong>Operator:</strong> {jobSheet.operator}

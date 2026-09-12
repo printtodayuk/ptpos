@@ -110,7 +110,8 @@ export async function addJobSheet(
       validatedData.data.irNumber,
       validatedData.data.specialNote,
       validatedData.data.tid,
-      validatedData.data.jobItems
+      validatedData.data.jobItems,
+      validatedData.data.invoiceNumber
     );
 
     const dataToSave: any = {
@@ -243,6 +244,9 @@ export async function updateJobSheet(
      if (originalJobSheet.tid !== validatedData.data.tid) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Transaction ID changed from '${originalJobSheet.tid || 'none'}' to '${validatedData.data.tid || 'none'}'.` });
     }
+     if (originalJobSheet.invoiceNumber !== validatedData.data.invoiceNumber) {
+        newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: `Invoice number changed from '${originalJobSheet.invoiceNumber || 'none'}' to '${validatedData.data.invoiceNumber || 'none'}'.` });
+    }
      if (JSON.stringify(originalJobSheet.jobItems) !== JSON.stringify(validatedData.data.jobItems)) {
         newHistoryEntries.push({ operator: changeOperator, action: 'Updated', details: 'Job items, quantities, or prices were modified.' });
     }
@@ -256,7 +260,8 @@ export async function updateJobSheet(
       validatedData.data.irNumber,
       validatedData.data.specialNote,
       validatedData.data.tid,
-      validatedData.data.jobItems
+      validatedData.data.jobItems,
+      validatedData.data.invoiceNumber
     );
 
     const dataToUpdate: any = {
@@ -334,7 +339,8 @@ function generateSearchKeywords(
   irNumber?: string | null,
   specialNote?: string | null,
   tid?: string | null,
-  jobItems?: { description?: string }[]
+  jobItems?: { description?: string }[],
+  invoiceNumber?: string | null
 ): string[] {
   const keywords = new Set<string>();
 
@@ -373,6 +379,7 @@ function generateSearchKeywords(
   addText(clientName, true);
   addText(companyName, true);
   addText(irNumber, true);
+  addText(invoiceNumber, true);
   addText(tid, true);
 
   addText(clientDetails, false);
@@ -506,6 +513,7 @@ export async function searchJobSheets(
       const companyLower = (js.companyName || '').toLowerCase();
       const detailsLower = (js.clientDetails || '').toLowerCase();
       const irLower = (js.irNumber || '').toLowerCase();
+      const invoiceLower = (js.invoiceNumber || '').toLowerCase();
       const noteLower = (js.specialNote || '').toLowerCase();
       const tidLower = (js.tid || '').toLowerCase();
       const itemsText = (js.jobItems || [])
@@ -522,7 +530,7 @@ export async function searchJobSheets(
       }
 
       // Check if ALL search tokens match anywhere in the job sheet's text fields
-      const combinedText = `${jobIdLower} ${clientLower} ${companyLower} ${detailsLower} ${irLower} ${noteLower} ${tidLower} ${itemsText}`;
+      const combinedText = `${jobIdLower} ${clientLower} ${companyLower} ${detailsLower} ${irLower} ${invoiceLower} ${noteLower} ${tidLower} ${itemsText}`;
       return searchTokens.every(token => combinedText.includes(token));
     });
 
@@ -613,6 +621,7 @@ export async function exportAllJobSheets(
                 'Payment Status': data.paymentStatus,
                 'Special Note': data.specialNote,
                 'IR Number': data.irNumber,
+                'Invoice Number': data.invoiceNumber || '',
                 'Delivery By': deliveryBy ? format(deliveryBy, 'yyyy-MM-dd') : 'N/A',
                 'Type': data.type,
             };

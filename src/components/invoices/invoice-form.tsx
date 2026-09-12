@@ -52,8 +52,17 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, jobSheetToInvoice,
             };
         }
         if (jobSheetToInvoice) {
+            let defaultProfileId = companyProfiles[0]?.id || '';
+            if (jobSheetToInvoice.type === 'STR') {
+                const st = companyProfiles.find(p => p.name.toLowerCase().includes('sign today') || p.invoicePrefix?.toUpperCase() === 'ST');
+                if (st?.id) defaultProfileId = st.id;
+            } else if (jobSheetToInvoice.type === 'AIR') {
+                const air = companyProfiles.find(p => p.name.toLowerCase().includes('today ai') || p.invoicePrefix?.toUpperCase() === 'TA');
+                if (air?.id) defaultProfileId = air.id;
+            }
+
             return {
-                companyProfileId: companyProfiles[0]?.id || '',
+                companyProfileId: defaultProfileId,
                 clientName: jobSheetToInvoice.clientName || '',
                 companyName: jobSheetToInvoice.companyName || '',
                 clientAddress: jobSheetToInvoice.clientDetails || [jobSheetToInvoice.companyName, jobSheetToInvoice.clientName].filter(Boolean).join('\n'),
@@ -74,6 +83,8 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, jobSheetToInvoice,
                 totalAmount: jobSheetToInvoice.totalAmount || 0,
                 notes: `Job Sheet Ref: ${jobSheetToInvoice.jobId}${jobSheetToInvoice.irNumber ? ` | IR: ${jobSheetToInvoice.irNumber}` : ''}${jobSheetToInvoice.specialNote ? `\n\nNote: ${jobSheetToInvoice.specialNote}` : ''}`,
                 status: 'Draft' as const,
+                jobSheetId: jobSheetToInvoice.id || null,
+                jobId: jobSheetToInvoice.jobId || null,
             };
         }
         return {
@@ -235,7 +246,7 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, jobSheetToInvoice,
     const onSubmit = (data: z.infer<typeof CreateInvoiceSchema>) => {
         startTransition(async () => {
             const payload = invoiceToEdit ? { ...data, id: invoiceToEdit.id } : data;
-            const result = await saveInvoice(payload);
+            const result = await saveInvoice(payload, jobSheetToInvoice?.id);
             if (result.success) {
                 onSuccess();
             } else {
