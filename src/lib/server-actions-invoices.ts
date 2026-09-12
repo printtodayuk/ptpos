@@ -91,7 +91,7 @@ export async function deleteCompanyProfile(id: string) {
 
 // --- Invoice Actions ---
 
-export function getCompanyInitials(name: string): string {
+function getCompanyInitials(name: string): string {
   if (!name) return 'INV';
   const trimmed = name.trim();
   const lower = trimmed.toLowerCase();
