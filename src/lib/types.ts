@@ -209,7 +209,7 @@ export const CompanyProfileSchema = z.object({
 export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;
 
 
-export const invoiceStatus = ['Draft', 'Sent', 'Paid'] as const;
+export const invoiceStatus = ['Draft', 'Sent', 'Paid', 'Partially Paid', 'Refunded', 'Overdue'] as const;
 export type InvoiceStatus = (typeof invoiceStatus)[number];
 
 export const InvoiceItemSchema = z.object({

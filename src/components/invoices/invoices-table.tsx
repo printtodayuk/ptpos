@@ -37,11 +37,11 @@ export function InvoicesTable({ invoices, companyProfiles, onEdit, onDelete, onV
     return companyProfiles.find(p => p.id === profileId)?.name || 'Unknown';
   };
 
-  const handleSetPaid = (id: string) => {
+  const handleSetStatus = (id: string, status: InvoiceStatus) => {
     startUpdateTransition(async () => {
-        const result = await setInvoiceStatus(id, 'Paid');
+        const result = await setInvoiceStatus(id, status);
         if (result.success) {
-            toast({ title: "Success", description: "Invoice marked as paid." });
+            toast({ title: "Success", description: `Invoice marked as ${status}.` });
             onStatusChange();
         } else {
             toast({ variant: 'destructive', title: 'Error', description: result.message });
@@ -52,7 +52,10 @@ export function InvoicesTable({ invoices, companyProfiles, onEdit, onDelete, onV
   const getStatusClass = (status: InvoiceStatus) => {
       switch(status) {
           case 'Paid': return 'bg-emerald-600 text-white';
+          case 'Partially Paid': return 'bg-amber-600 text-white';
           case 'Sent': return 'bg-blue-600 text-white';
+          case 'Overdue': return 'bg-rose-600 text-white';
+          case 'Refunded': return 'bg-purple-600 text-white';
           case 'Draft':
           default: return 'bg-slate-500 text-white';
       }
@@ -161,6 +164,9 @@ export function InvoicesTable({ invoices, companyProfiles, onEdit, onDelete, onV
                 <SelectItem value="Draft">Draft</SelectItem>
                 <SelectItem value="Sent">Sent</SelectItem>
                 <SelectItem value="Paid">Paid</SelectItem>
+                <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                <SelectItem value="Overdue">Overdue</SelectItem>
+                <SelectItem value="Refunded">Refunded</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -258,8 +264,23 @@ export function InvoicesTable({ invoices, companyProfiles, onEdit, onDelete, onV
                           <Edit className="mr-2 h-4 w-4 text-amber-500" /> Edit
                         </DropdownMenuItem>
                         {invoice.status !== 'Paid' && (
-                          <DropdownMenuItem onSelect={() => handleSetPaid(invoice.id!)} disabled={isUpdating} className="cursor-pointer text-emerald-600 focus:text-emerald-600">
+                          <DropdownMenuItem onSelect={() => handleSetStatus(invoice.id!, 'Paid')} disabled={isUpdating} className="cursor-pointer text-emerald-600 focus:text-emerald-600">
                             <CheckCircle className="mr-2 h-4 w-4" /> Mark as Paid
+                          </DropdownMenuItem>
+                        )}
+                        {invoice.status !== 'Partially Paid' && (
+                          <DropdownMenuItem onSelect={() => handleSetStatus(invoice.id!, 'Partially Paid')} disabled={isUpdating} className="cursor-pointer text-amber-600 focus:text-amber-600">
+                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Partially Paid
+                          </DropdownMenuItem>
+                        )}
+                        {invoice.status !== 'Overdue' && (
+                          <DropdownMenuItem onSelect={() => handleSetStatus(invoice.id!, 'Overdue')} disabled={isUpdating} className="cursor-pointer text-rose-600 focus:text-rose-600">
+                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Overdue
+                          </DropdownMenuItem>
+                        )}
+                        {invoice.status !== 'Refunded' && (
+                          <DropdownMenuItem onSelect={() => handleSetStatus(invoice.id!, 'Refunded')} disabled={isUpdating} className="cursor-pointer text-purple-600 focus:text-purple-600">
+                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Refunded
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onSelect={() => onDelete(invoice)} className="cursor-pointer text-destructive focus:text-destructive">

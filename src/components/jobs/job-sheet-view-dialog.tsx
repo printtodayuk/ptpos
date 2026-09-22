@@ -6,8 +6,7 @@ import { JobSheetView } from './job-sheet-view';
 import type { JobSheet } from '@/lib/types';
 import { Printer, Download, Loader2, FileText } from 'lucide-react';
 import React, { useState } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { exportToPdfA4 } from '@/lib/pdf-utils';
 
 type JobSheetViewDialogProps = {
   jobSheet: JobSheet | null;
@@ -42,24 +41,14 @@ export function JobSheetViewDialog({ jobSheet, isOpen, onClose, onCreateInvoice 
   const handleSavePdf = async () => {
     if (!viewRef.current || !jobSheet) return;
     setIsSaving(true);
-    
-    const canvas = await html2canvas(viewRef.current, { 
-      scale: 2, 
-      useCORS: true,
-      backgroundColor: '#ffffff'
-    });
-    
-    // Use JPEG with quality setting to reduce file size
-    const imgData = canvas.toDataURL('image/jpeg', 0.7);
-    
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`JobSheet-${jobSheet.jobId}.pdf`);
-
-    setIsSaving(false);
+    try {
+      const target = (viewRef.current.querySelector('#job-sheet-to-print') as HTMLElement) || viewRef.current;
+      await exportToPdfA4(target, `JobSheet-${jobSheet.jobId}.pdf`);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!jobSheet) return null;

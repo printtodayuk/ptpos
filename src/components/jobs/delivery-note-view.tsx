@@ -2,7 +2,6 @@
 
 import type { JobSheet } from '@/lib/types';
 import { format } from 'date-fns';
-import Image from 'next/image';
 
 type DeliveryNoteViewProps = {
   jobSheet: JobSheet;
@@ -20,11 +19,12 @@ export function DeliveryNoteView({ jobSheet }: DeliveryNoteViewProps) {
         {/* Header */}
         <div className="flex justify-between items-start pb-2 border-b border-black mb-2">
            <div className="w-1/2">
-             <Image 
+             <img 
               src="https://ssl.prcdn.com/uk/branddemand/T1Q/Logo%20for%20Signature.png?1700078679"
               alt="Print Today Logo"
-              width={120}
-              height={40}
+              className="max-h-12 max-w-[140px] w-auto h-auto object-contain block"
+              style={{ maxHeight: '48px', maxWidth: '140px', width: 'auto', height: 'auto', objectFit: 'contain' }}
+              crossOrigin="anonymous"
             />
           </div>
           <div className="w-1/2 text-right text-[10px]">

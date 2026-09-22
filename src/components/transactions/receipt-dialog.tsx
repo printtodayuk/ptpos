@@ -12,8 +12,7 @@ import { PrintReceipt } from './print-receipt';
 import type { Transaction } from '@/lib/types';
 import { Printer, Download, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { exportReceiptPdf } from '@/lib/pdf-utils';
 
 type ReceiptDialogProps = {
   transaction: Transaction | null;
@@ -109,30 +108,14 @@ export function ReceiptDialog({ transaction, isOpen, onClose }: ReceiptDialogPro
   const handleSavePdf = async () => {
     if (!receiptRef.current || !transaction) return;
     setIsSaving(true);
-
-    const canvas = await html2canvas(receiptRef.current, {
-      scale: 2, // A lower scale is fine for PDF
-      backgroundColor: '#ffffff',
-      useCORS: true, // Important for external images
-    });
-
-    const imgData = canvas.toDataURL('image/jpeg', 0.7); // Use JPEG with quality 0.7
-    
-    // A standard 80mm thermal paper receipt is about 80mm wide.
-    // The height will be dynamic.
-    const pdfWidth = 80; 
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [pdfWidth, pdfHeight]
-    });
-    
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Receipt-${transaction.transactionId}.pdf`);
-
-    setIsSaving(false);
+    try {
+      const target = (receiptRef.current.querySelector('#receipt-to-print') as HTMLElement) || receiptRef.current;
+      await exportReceiptPdf(target, `Receipt-${transaction.transactionId}.pdf`);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!transaction) {

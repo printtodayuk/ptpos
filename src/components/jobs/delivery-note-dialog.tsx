@@ -7,8 +7,7 @@ import { DeliveryNoteView } from './delivery-note-view';
 import type { JobSheet } from '@/lib/types';
 import { Printer, Download, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { exportDeliveryNotePdf } from '@/lib/pdf-utils';
 
 type DeliveryNoteDialogProps = {
   jobSheet: JobSheet | null;
@@ -107,29 +106,14 @@ export function DeliveryNoteDialog({ jobSheet, isOpen, onClose }: DeliveryNoteDi
   const handleSavePdf = async () => {
     if (!viewRef.current || !jobSheet) return;
     setIsSaving(true);
-    
-    const canvas = await html2canvas(viewRef.current, { 
-      scale: 2, // Use a higher scale for better quality capture
-      useCORS: true,
-      backgroundColor: '#ffffff'
-    });
-    
-    // Use JPEG with quality setting to reduce file size
-    const imgData = canvas.toDataURL('image/jpeg', 0.7); 
-    
-    const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'in',
-        format: [4, 6]
-    });
-    
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`DN-${jobSheet.jobId}.pdf`);
-
-    setIsSaving(false);
+    try {
+      const target = (viewRef.current.querySelector('#delivery-note-to-print') as HTMLElement) || viewRef.current;
+      await exportDeliveryNotePdf(target, `DN-${jobSheet.jobId}.pdf`);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
 

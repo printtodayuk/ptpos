@@ -302,11 +302,14 @@ export function InvoiceForm({ companyProfiles, invoiceToEdit, jobSheetToInvoice,
                         render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <SelectTrigger className="rounded-2xl h-11 font-semibold bg-white/90 dark:bg-slate-900/90 border-emerald-200/80"><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Draft">Draft</SelectItem>
-                                    <SelectItem value="Sent">Sent</SelectItem>
-                                    <SelectItem value="Paid">Paid</SelectItem>
-                                </SelectContent>
+                                 <SelectContent>
+                                     <SelectItem value="Draft">Draft</SelectItem>
+                                     <SelectItem value="Sent">Sent</SelectItem>
+                                     <SelectItem value="Paid">Paid</SelectItem>
+                                     <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                                     <SelectItem value="Overdue">Overdue</SelectItem>
+                                     <SelectItem value="Refunded">Refunded</SelectItem>
+                                 </SelectContent>
                             </Select>
                         )}
                     />

@@ -3,7 +3,6 @@
 
 import type { Quotation } from '@/lib/types';
 import { format } from 'date-fns';
-import Image from 'next/image';
 
 type QuotationViewProps = {
   quotation: Quotation;
@@ -25,11 +24,12 @@ export function QuotationView({ quotation }: QuotationViewProps) {
         {/* Header */}
         <div className="flex justify-between items-start pb-4 border-b-2 border-black">
           <div className="w-1/3">
-            <Image 
+            <img 
               src="https://ssl.prcdn.com/uk/branddemand/T1Q/Logo%20for%20Signature.png?1700078679"
               alt="Print Today Logo"
-              width={200}
-              height={60}
+              className="max-h-16 max-w-[200px] w-auto h-auto object-contain block"
+              style={{ maxHeight: '60px', maxWidth: '200px', width: 'auto', height: 'auto', objectFit: 'contain' }}
+              crossOrigin="anonymous"
             />
           </div>
           <div className="w-1/3 text-center">

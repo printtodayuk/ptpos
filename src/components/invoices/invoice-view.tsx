@@ -2,7 +2,6 @@
 'use client';
 
 import { format } from 'date-fns';
-import Image from 'next/image';
 import type { Invoice, CompanyProfile } from '@/lib/types';
 
 type InvoiceViewProps = {
@@ -14,12 +13,21 @@ export function InvoiceView({ invoice, companyProfile }: InvoiceViewProps) {
   if (!invoice) return null;
 
   return (
-    <div className="invoice-view font-sans text-sm text-black bg-white p-8 w-[210mm] min-h-[297mm] mx-auto flex flex-col justify-between">
+    <div 
+      id="invoice-to-print" 
+      className="invoice-view font-sans text-sm text-black bg-white p-8 w-[210mm] min-h-[297mm] mx-auto flex flex-col justify-between"
+    >
       <header>
         <div className="flex justify-between items-start mb-8">
-          <div>
+          <div className="max-w-[220px]">
             {companyProfile?.logoUrl && (
-              <Image src={companyProfile.logoUrl} alt={companyProfile.name} width={150} height={75} />
+              <img 
+                src={companyProfile.logoUrl} 
+                alt={companyProfile.name} 
+                className="max-h-20 max-w-[200px] w-auto h-auto object-contain block"
+                style={{ maxHeight: '80px', maxWidth: '200px', width: 'auto', height: 'auto', objectFit: 'contain' }}
+                crossOrigin="anonymous"
+              />
             )}
           </div>
           <div className="text-right">

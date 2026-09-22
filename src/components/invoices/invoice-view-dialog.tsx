@@ -7,8 +7,7 @@ import { InvoiceView } from './invoice-view';
 import type { Invoice, CompanyProfile } from '@/lib/types';
 import { Printer, Download, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { exportToPdfA4 } from '@/lib/pdf-utils';
 
 type InvoiceViewDialogProps = {
   invoice: Invoice | null;
@@ -67,23 +66,14 @@ export function InvoiceViewDialog({ invoice, companyProfiles, isOpen, onClose }:
   const handleSavePdf = async () => {
     if (!viewRef.current || !invoice) return;
     setIsSaving(true);
-    
-    const canvas = await html2canvas(viewRef.current, { 
-      scale: 2, 
-      useCORS: true,
-      backgroundColor: '#ffffff'
-    });
-    
-    const imgData = canvas.toDataURL('image/jpeg', 0.8);
-    
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Invoice-${invoice.invoiceId}.pdf`);
-
-    setIsSaving(false);
+    try {
+      const target = (viewRef.current.querySelector('#invoice-to-print') as HTMLElement) || viewRef.current;
+      await exportToPdfA4(target, `Invoice-${invoice.invoiceId}.pdf`);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!invoice) return null;
