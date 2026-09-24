@@ -755,4 +755,39 @@ export async function getTillStats() {
         };
     }
 }
+
+export async function getTillTransactionsByDate(
+    targetDate: Date | string
+): Promise<Transaction[]> {
+    try {
+        const dateObj = typeof targetDate === 'string' ? new Date(targetDate) : targetDate;
+        const dayStart = startOfDay(dateObj);
+        const dayEnd = endOfDay(dateObj);
+
+        const tillQuery = query(
+            collection(db, 'transactions'),
+            where('type', '==', 'non-invoicing'),
+            where('date', '>=', dayStart),
+            where('date', '<=', dayEnd)
+        );
+
+        const querySnapshot = await getDocs(tillQuery);
+        const list = querySnapshot.docs.map((docSnap) => {
+            const data = docSnap.data();
+            return {
+                ...data,
+                id: docSnap.id,
+                date: (data.date as Timestamp)?.toDate ? (data.date as Timestamp).toDate() : new Date(data.date),
+                createdAt: (data.createdAt as Timestamp)?.toDate ? (data.createdAt as Timestamp).toDate() : new Date(),
+            } as Transaction;
+        });
+
+        // Sort descending by date / time
+        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return list;
+    } catch (e) {
+        console.error('Error fetching till transactions by date:', e);
+        return [];
+    }
+}
     

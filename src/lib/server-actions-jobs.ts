@@ -732,3 +732,174 @@ export async function backfillJobSheetSearchKeywords(): Promise<{ success: boole
     return { success: false, updatedCount: 0 };
   }
 }
+
+export async function createJobSheetFromTillLogs({
+  transactionIds,
+  paymentMethod,
+  date,
+  operator,
+  clientName = 'Walking Client',
+}: {
+  transactionIds: string[];
+  paymentMethod: string;
+  date?: Date | string;
+  operator: string;
+  clientName?: string;
+}): Promise<{ success: boolean; message: string; jobId?: string; jobSheet?: JobSheet }> {
+  if (!transactionIds || transactionIds.length === 0) {
+    return { success: false, message: 'No transactions selected to create Job Sheet.' };
+  }
+
+  try {
+    const txDocs = await Promise.all(
+      transactionIds.map((id) => getDoc(doc(db, 'transactions', id)))
+    );
+    const validTxs = txDocs
+      .filter((d) => d.exists())
+      .map((d) => ({ id: d.id, ...d.data() } as Transaction));
+
+    if (validTxs.length === 0) {
+      return { success: false, message: 'Selected transactions could not be found.' };
+    }
+
+    // Map items from transactions
+    const jobItems = validTxs.map((tx) => {
+      const qty = Number(tx.quantity) > 0 ? Number(tx.quantity) : 1;
+      const linePrice = Number(tx.amount) || 0;
+      return {
+        description: tx.jobDescription || 'Till Sale',
+        quantity: qty,
+        price: linePrice,
+        vatApplied: Boolean(tx.vatApplied),
+      };
+    });
+
+    // Compute financial totals
+    let subTotal = 0;
+    let vatableSubTotal = 0;
+    jobItems.forEach((item) => {
+      subTotal += item.price;
+      if (item.vatApplied) {
+        vatableSubTotal += item.price;
+      }
+    });
+
+    const vatAmount = Number((vatableSubTotal * 0.20).toFixed(2));
+    const totalAmount = Number((subTotal + vatAmount).toFixed(2));
+
+    // Next Job ID
+    const newJobId = await getNextJobId();
+
+    // Determine type
+    let jobType: 'Invoice' | 'STR' | 'AIR' = 'Invoice';
+    if (paymentMethod.includes('ST')) {
+      jobType = 'STR';
+    } else if (paymentMethod.includes('AIR')) {
+      jobType = 'AIR';
+    }
+
+    const dateObj = date
+      ? typeof date === 'string'
+        ? new Date(date)
+        : date
+      : new Date();
+
+    const initialHistoryEntry: JobSheetHistory = {
+      timestamp: Timestamp.now(),
+      operator: operator || 'PTTill',
+      action: 'Created',
+      details: `Auto-generated from ${validTxs.length} Till ${paymentMethod} sales.`,
+    };
+
+    const finalClientName = clientName && clientName.trim() ? clientName.trim() : 'Walking Client';
+    const clientDetails = `Till Sales - ${paymentMethod} (${format(dateObj, 'dd/MM/yyyy')})`;
+
+    const keywords = generateSearchKeywords(
+      newJobId,
+      finalClientName,
+      null,
+      clientDetails,
+      null,
+      null,
+      null,
+      jobItems,
+      null
+    );
+
+    const dataToSave: any = {
+      jobId: newJobId,
+      clientName: finalClientName,
+      companyName: null,
+      clientDetails: clientDetails,
+      jobItems: jobItems,
+      subTotal: subTotal,
+      discountType: 'amount',
+      discountValue: 0,
+      discountAmount: 0,
+      subTotalAfterDiscount: subTotal,
+      vatAmount: vatAmount,
+      totalAmount: totalAmount,
+      paidAmount: totalAmount,
+      dueAmount: 0,
+      status: 'Ready Pickup',
+      paymentStatus: 'Paid',
+      specialNote: `Till ${paymentMethod} batch - ${validTxs.length} transactions.`,
+      irNumber: null,
+      deliveryBy: null,
+      type: jobType,
+      operator: operator || 'PTMGH',
+      date: Timestamp.fromDate(dateObj),
+      createdAt: serverTimestamp(),
+      searchKeywords: keywords,
+      history: [initialHistoryEntry],
+    };
+
+    // Save Job Sheet
+    const jobSheetRef = await addDoc(collection(db, 'jobSheets'), dataToSave);
+
+    // Update each transaction with the new JID
+    const batch = writeBatch(db);
+    validTxs.forEach((tx) => {
+      const txRef = doc(db, 'transactions', tx.id!);
+      batch.update(txRef, { jid: newJobId });
+    });
+    await batch.commit();
+
+    revalidatePath('/job-sheet');
+    revalidatePath('/js-report');
+    revalidatePath('/non-invoicing');
+    revalidatePath('/dashboard');
+
+    const createdSnap = await getDoc(jobSheetRef);
+    const createdData = createdSnap.data();
+
+    let createdJobSheet: JobSheet | undefined;
+    if (createdData) {
+      createdJobSheet = {
+        ...createdData,
+        id: jobSheetRef.id,
+        date: (createdData.date as Timestamp)?.toDate
+          ? (createdData.date as Timestamp).toDate()
+          : new Date(),
+        history: sanitizeHistory(createdData.history),
+      } as JobSheet;
+    }
+
+    return {
+      success: true,
+      message: `Job Sheet ${newJobId} created successfully with ${jobItems.length} items.`,
+      jobId: newJobId,
+      jobSheet: createdJobSheet,
+    };
+  } catch (err) {
+    console.error('Error creating Job Sheet from Till logs:', err);
+    return {
+      success: false,
+      message:
+        err instanceof Error
+          ? err.message
+          : 'Failed to create Job Sheet from Till logs.',
+    };
+  }
+}
+

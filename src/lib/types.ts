@@ -16,6 +16,8 @@ export const TransactionSchema = z.object({
   clientName: z.string().min(1, 'Client name is required'),
   jobDescription: z.string().optional().nullable(),
   jid: z.string().optional().nullable(), // Job ID or Quotation ID
+  quantity: z.coerce.number().min(1).default(1).optional().nullable(),
+  unitPrice: z.coerce.number().min(0).optional().nullable(),
   amount: z.coerce.number().positive('Amount must be positive'),
   vatApplied: z.boolean(),
   totalAmount: z.number(),
