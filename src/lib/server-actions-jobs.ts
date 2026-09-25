@@ -401,11 +401,23 @@ const mapDocToJobSheet = (docSnap: any): JobSheet => {
   } as JobSheet;
 };
 
+const sortJobSheetsByDateDesc = (items: JobSheet[]): JobSheet[] => {
+  return items.sort((a, b) => {
+    const timeA = a.date ? new Date(a.date).getTime() : 0;
+    const timeB = b.date ? new Date(b.date).getTime() : 0;
+    if (timeA !== timeB) return timeB - timeA;
+    const numA = parseInt((a.jobId || '').replace(/\D/g, '') || '0', 10);
+    const numB = parseInt((b.jobId || '').replace(/\D/g, '') || '0', 10);
+    return numB - numA;
+  });
+};
+
 export async function getAllJobSheets(): Promise<JobSheet[]> {
   try {
     const q = query(collection(db, 'jobSheets'), orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
-    return snap.docs.map(mapDocToJobSheet);
+    const list = snap.docs.map(mapDocToJobSheet);
+    return sortJobSheetsByDateDesc(list);
   } catch (e) {
     console.error('Error fetching all job sheets:', e);
     return [];
@@ -434,7 +446,8 @@ export async function searchJobSheets(
         : query(collection(db, 'jobSheets'), ...constraints, orderBy('createdAt', 'desc'), limit(100));
 
       const snap = await getDocs(q);
-      return snap.docs.map(mapDocToJobSheet);
+      const list = snap.docs.map(mapDocToJobSheet);
+      return sortJobSheetsByDateDesc(list);
     }
 
     // Candidate JID variants for numeric & JID prefix searches (e.g., 0043, 43, 1319, JID0043, j1319)
@@ -534,7 +547,7 @@ export async function searchJobSheets(
       return searchTokens.every(token => combinedText.includes(token));
     });
 
-    return results;
+    return sortJobSheetsByDateDesc(results);
   } catch (e) {
     console.error('Error searching job sheets: ', e);
     return [];

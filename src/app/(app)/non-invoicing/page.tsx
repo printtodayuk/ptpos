@@ -41,6 +41,12 @@ export default function NonInvoicingPage() {
 
   const handleTransactionAdded = (transaction: Transaction) => {
     setLastTransaction(transaction);
+    if (transaction && transaction.id) {
+      setTransactions((prev) => {
+        const filtered = prev.filter((t) => t.id !== transaction.id);
+        return [transaction, ...filtered];
+      });
+    }
     fetchDayTransactions(selectedDate);
   };
 

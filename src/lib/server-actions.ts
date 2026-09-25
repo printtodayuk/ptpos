@@ -118,10 +118,13 @@ export async function addTransaction(
   try {
     const newTransactionId = await getNextTransactionId();
     
+    const dateInput = validatedData.data.date;
+    const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
+
     const docRef = await addDoc(collection(db, 'transactions'), {
       ...validatedData.data,
       transactionId: newTransactionId,
-      date: Timestamp.fromDate(validatedData.data.date as Date),
+      date: Timestamp.fromDate(dateObj),
       createdAt: serverTimestamp(),
       adminChecked: false,
       checkedBy: null,
@@ -141,8 +144,8 @@ export async function addTransaction(
         ...(newDocData as Omit<Transaction, 'id' | 'date' | 'createdAt'>),
         id: docRef.id,
         transactionId: newTransactionId,
-        date: (newDocData.date as Timestamp).toDate(),
-        createdAt: (newDocData.createdAt as Timestamp)?.toDate() || new Date(), 
+        date: (newDocData.date as Timestamp)?.toDate ? (newDocData.date as Timestamp).toDate() : new Date(newDocData.date),
+        createdAt: (newDocData.createdAt as Timestamp)?.toDate ? (newDocData.createdAt as Timestamp).toDate() : new Date(), 
       };
     }
 
@@ -719,31 +722,65 @@ export async function bulkMarkAsChecked(ids: string[]) {
 
 export async function getTillStats() {
     try {
-        const todayStart = startOfDay(new Date());
-        const todayEnd = endOfDay(new Date());
+        const now = new Date();
+        const start = startOfDay(now);
+        const end = endOfDay(now);
 
-        const tillQuery = query(collection(db, 'transactions'), where('type', '==', 'non-invoicing'));
+        // Broad query range (+/- 6h) so timezone shifts don't clip any entries
+        const queryStart = new Date(start.getTime() - 6 * 3600 * 1000);
+        const queryEnd = new Date(end.getTime() + 6 * 3600 * 1000);
 
-        const todayQuery = query(tillQuery, where('date', '>=', todayStart), where('date', '<=', todayEnd));
-        const cashQuery = query(tillQuery, where('paymentMethod', '==', 'Cash'));
-        const cardQuery = query(tillQuery, where('paymentMethod', '==', 'Card Payment'));
-        const bankQuery = query(tillQuery, where('paymentMethod', 'in', ['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer']));
+        // Query date range alone without 'type' filter so Firestore requires NO composite index
+        const tillQuery = query(
+            collection(db, 'transactions'),
+            where('date', '>=', queryStart),
+            where('date', '<=', queryEnd)
+        );
 
-        const [dailySalesSnap, cashTotalSnap, cardTotalSnap, bankTotalSnap] = await Promise.all([
-            getAggregateFromServer(todayQuery, { total: sum('paidAmount') }),
-            getAggregateFromServer(cashQuery, { total: sum('paidAmount') }),
-            getAggregateFromServer(cardQuery, { total: sum('paidAmount') }),
-            getAggregateFromServer(bankQuery, { total: sum('paidAmount') }),
-        ]);
+        const snap = await getDocs(tillQuery);
+        let dailySales = 0;
+        let cashTotal = 0;
+        let cardTotal = 0;
+        let bankTotal = 0;
+
+        snap.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.type !== 'non-invoicing') return;
+
+            const tDate = (data.date as Timestamp)?.toDate 
+                ? (data.date as Timestamp).toDate() 
+                : (data.date ? new Date(data.date) : new Date());
+
+            const isToday = 
+                tDate.getFullYear() === now.getFullYear() && 
+                tDate.getMonth() === now.getMonth() && 
+                tDate.getDate() === now.getDate();
+
+            const isTodayUTC = 
+                tDate.getUTCFullYear() === now.getUTCFullYear() && 
+                tDate.getUTCMonth() === now.getUTCMonth() && 
+                tDate.getUTCDate() === now.getUTCDate();
+
+            if (isToday || isTodayUTC) {
+                const amount = Number(data.paidAmount) || Number(data.totalAmount) || 0;
+                dailySales += amount;
+                if (data.paymentMethod === 'Cash') {
+                    cashTotal += amount;
+                } else if (data.paymentMethod === 'Card Payment') {
+                    cardTotal += amount;
+                } else if (['Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'].includes(data.paymentMethod)) {
+                    bankTotal += amount;
+                }
+            }
+        });
 
         return {
             success: true,
-            dailySales: dailySalesSnap.data().total,
-            cashTotal: cashTotalSnap.data().total,
-            cardTotal: cardTotalSnap.data().total,
-            bankTotal: bankTotalSnap.data().total,
+            dailySales,
+            cashTotal,
+            cardTotal,
+            bankTotal,
         };
-
     } catch (e) {
         console.error("Error fetching till stats: ", e);
         return {
@@ -761,25 +798,54 @@ export async function getTillTransactionsByDate(
 ): Promise<Transaction[]> {
     try {
         const dateObj = typeof targetDate === 'string' ? new Date(targetDate) : targetDate;
-        const dayStart = startOfDay(dateObj);
-        const dayEnd = endOfDay(dateObj);
+        const y = dateObj.getFullYear();
+        const m = dateObj.getMonth();
+        const d = dateObj.getDate();
 
+        const localStart = new Date(y, m, d, 0, 0, 0, 0);
+        const localEnd = new Date(y, m, d, 23, 59, 59, 999);
+
+        // Broad query range (+/- 6h) to ensure no timezone edge-cases are missed in Firestore
+        const queryStart = new Date(localStart.getTime() - 6 * 3600 * 1000);
+        const queryEnd = new Date(localEnd.getTime() + 6 * 3600 * 1000);
+
+        // Query date range alone without 'type' filter so Firestore requires NO composite index
         const tillQuery = query(
             collection(db, 'transactions'),
-            where('type', '==', 'non-invoicing'),
-            where('date', '>=', dayStart),
-            where('date', '<=', dayEnd)
+            where('date', '>=', queryStart),
+            where('date', '<=', queryEnd)
         );
 
         const querySnapshot = await getDocs(tillQuery);
-        const list = querySnapshot.docs.map((docSnap) => {
+        const list: Transaction[] = [];
+
+        querySnapshot.docs.forEach((docSnap) => {
             const data = docSnap.data();
-            return {
-                ...data,
-                id: docSnap.id,
-                date: (data.date as Timestamp)?.toDate ? (data.date as Timestamp).toDate() : new Date(data.date),
-                createdAt: (data.createdAt as Timestamp)?.toDate ? (data.createdAt as Timestamp).toDate() : new Date(),
-            } as Transaction;
+            if (data.type !== 'non-invoicing') return;
+
+            const tDate = (data.date as Timestamp)?.toDate 
+                ? (data.date as Timestamp).toDate() 
+                : (data.date ? new Date(data.date) : new Date());
+
+            // Match day against local calendar day or UTC calendar day
+            const sameDayLocal = 
+                tDate.getFullYear() === y && 
+                tDate.getMonth() === m && 
+                tDate.getDate() === d;
+
+            const sameDayUTC = 
+                tDate.getUTCFullYear() === dateObj.getUTCFullYear() && 
+                tDate.getUTCMonth() === dateObj.getUTCMonth() && 
+                tDate.getUTCDate() === dateObj.getUTCDate();
+
+            if (sameDayLocal || sameDayUTC) {
+                list.push({
+                    ...data,
+                    id: docSnap.id,
+                    date: tDate,
+                    createdAt: (data.createdAt as Timestamp)?.toDate ? (data.createdAt as Timestamp).toDate() : new Date(),
+                } as Transaction);
+            }
         });
 
         // Sort descending by date / time

@@ -59,7 +59,15 @@ export function SearchJobSheets({ onJobSheetUpdated }: SearchJobSheetsProps) {
   const performSearch = useCallback((term: string) => {
     startSearchTransition(async () => {
       const allResults = await searchJobSheets(term);
-      setResults(allResults);
+      const sorted = [...allResults].sort((a, b) => {
+        const timeA = a.date ? new Date(a.date).getTime() : 0;
+        const timeB = b.date ? new Date(b.date).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+        const numA = parseInt((a.jobId || '').replace(/\D/g, '') || '0', 10);
+        const numB = parseInt((b.jobId || '').replace(/\D/g, '') || '0', 10);
+        return numB - numA;
+      });
+      setResults(sorted);
     });
   }, []);
 

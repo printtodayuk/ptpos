@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Eye, Edit, Trash2, CreditCard, History, Printer, Truck, FileText } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, Trash2, CreditCard, History, Printer, Truck, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -37,12 +37,76 @@ export function JobSheetsTable({
 }: JobSheetsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(15);
-  const totalPages = Math.ceil(jobSheets.length / rowsPerPage);
+  const [sortField, setSortField] = useState<'date' | 'jobId' | 'clientName' | 'totalAmount'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: 'date' | 'jobId' | 'clientName' | 'totalAmount') => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortField(field);
+      setSortOrder(field === 'clientName' ? 'asc' : 'desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const renderSortIcon = (field: 'date' | 'jobId' | 'clientName' | 'totalAmount') => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/60 inline-block" />;
+    }
+    return sortOrder === 'desc' ? (
+      <ArrowDown className="ml-1 h-3.5 w-3.5 text-primary inline-block" />
+    ) : (
+      <ArrowUp className="ml-1 h-3.5 w-3.5 text-primary inline-block" />
+    );
+  };
+
+  const sortedJobSheets = useMemo(() => {
+    return [...jobSheets].sort((a, b) => {
+      if (sortField === 'date') {
+        const timeA = a.date ? new Date(a.date).getTime() : 0;
+        const timeB = b.date ? new Date(b.date).getTime() : 0;
+        if (timeA !== timeB) {
+          return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+        }
+        const numA = parseInt((a.jobId || '').replace(/\D/g, '') || '0', 10);
+        const numB = parseInt((b.jobId || '').replace(/\D/g, '') || '0', 10);
+        return sortOrder === 'desc' ? numB - numA : numA - numB;
+      }
+
+      if (sortField === 'jobId') {
+        const numA = parseInt((a.jobId || '').replace(/\D/g, '') || '0', 10);
+        const numB = parseInt((b.jobId || '').replace(/\D/g, '') || '0', 10);
+        if (numA !== numB) {
+          return sortOrder === 'desc' ? numB - numA : numA - numB;
+        }
+        return sortOrder === 'desc'
+          ? (b.jobId || '').localeCompare(a.jobId || '')
+          : (a.jobId || '').localeCompare(b.jobId || '');
+      }
+
+      if (sortField === 'totalAmount') {
+        const valA = a.totalAmount || 0;
+        const valB = b.totalAmount || 0;
+        return sortOrder === 'desc' ? valB - valA : valA - valB;
+      }
+
+      if (sortField === 'clientName') {
+        const valA = (a.clientName || '').toLowerCase();
+        const valB = (b.clientName || '').toLowerCase();
+        return sortOrder === 'desc' ? valB.localeCompare(valA) : valA.localeCompare(valB);
+      }
+
+      return 0;
+    });
+  }, [jobSheets, sortField, sortOrder]);
+
+  const totalPages = Math.ceil(sortedJobSheets.length / rowsPerPage);
 
   const paginatedJobSheets = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
-    return jobSheets.slice(startIndex, startIndex + rowsPerPage);
-  }, [jobSheets, currentPage]);
+    return sortedJobSheets.slice(startIndex, startIndex + rowsPerPage);
+  }, [sortedJobSheets, currentPage, rowsPerPage]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -113,14 +177,50 @@ export function JobSheetsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Job ID</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Client</TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort('jobId')}
+                className="inline-flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer select-none"
+              >
+                Job ID
+                {renderSortIcon('jobId')}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort('date')}
+                className="inline-flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer select-none"
+              >
+                Date
+                {renderSortIcon('date')}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button
+                type="button"
+                onClick={() => handleSort('clientName')}
+                className="inline-flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer select-none"
+              >
+                Client
+                {renderSortIcon('clientName')}
+              </button>
+            </TableHead>
             <TableHead>Company</TableHead>
             <TableHead className="hidden md:table-cell">Type</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
             <TableHead className="hidden lg:table-cell">IR / Inv No</TableHead>
-            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">
+              <button
+                type="button"
+                onClick={() => handleSort('totalAmount')}
+                className="inline-flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer select-none ml-auto"
+              >
+                Total
+                {renderSortIcon('totalAmount')}
+              </button>
+            </TableHead>
             <TableHead className="text-center">Job Status</TableHead>
             <TableHead className="text-center">Payment Status</TableHead>
             <TableHead>
