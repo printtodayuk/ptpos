@@ -64,68 +64,6 @@ export async function getNextTransactionId(): Promise<string> {
     return `TID${String(newNumber).padStart(4, '0')}`;
 }
 
-export const CreateTillLogSchema = z.object({
-  date: z.union([z.date(), z.string()]),
-  clientName: z.string().min(1, 'Client name is required'),
-  jobDescription: z.string().min(1, 'Job description is required'),
-  quantity: z.coerce.number().min(1).default(1),
-  unitPrice: z.coerce.number().min(0).default(0),
-  amount: z.coerce.number().min(0),
-  vatApplied: z.boolean().default(false),
-  totalAmount: z.number(),
-  paidAmount: z.number().default(0),
-  dueAmount: z.number().default(0),
-  paymentMethod: z.enum(paymentMethods),
-  operator: z.string().min(1, 'Operator is required'),
-  reference: z.string().optional().nullable(),
-  jid: z.string().optional().nullable(),
-  tid: z.string().optional().nullable(),
-});
-
-export async function addTillLog(data: z.input<typeof CreateTillLogSchema>) {
-  const validated = CreateTillLogSchema.safeParse(data);
-  if (!validated.success) {
-    return {
-      success: false,
-      message: 'Validation failed.',
-      errors: validated.error.flatten().fieldErrors,
-    };
-  }
-
-  try {
-    const dateInput = validated.data.date;
-    const dateObj = dateInput instanceof Date ? dateInput : new Date(dateInput);
-
-    const docRef = await addDoc(collection(db, 'tillLogs'), {
-      ...validated.data,
-      date: Timestamp.fromDate(dateObj),
-      createdAt: serverTimestamp(),
-      jid: null,
-      tid: null,
-    });
-
-    const newSnap = await getDoc(docRef);
-    const raw = newSnap.data();
-
-    let tillLog: any = null;
-    if (raw) {
-      tillLog = {
-        ...raw,
-        id: docRef.id,
-        transactionId: null, // No TID for individual till log until JID is batched/paid!
-        date: (raw.date as Timestamp)?.toDate ? (raw.date as Timestamp).toDate() : new Date(raw.date),
-        createdAt: (raw.createdAt as Timestamp)?.toDate ? (raw.createdAt as Timestamp).toDate() : new Date(),
-      };
-    }
-
-    revalidatePath('/non-invoicing');
-    return { success: true, message: 'Sale logged to Till.', tillLog };
-  } catch (error) {
-    console.error('Error adding till log:', error);
-    return { success: false, message: error instanceof Error ? error.message : 'Failed to add till log.' };
-  }
-}
-
 async function updateJobSheetPaymentStatus(jobId: string, transactionIdToExclude: string | null = null) {
     const jobSheetQuery = query(collection(db, 'jobSheets'), where('jobId', '==', jobId), limit(1));
     const jobSheetSnapshot = await getDocs(jobSheetQuery);
@@ -195,21 +133,6 @@ export async function addTransaction(
     
     if (data.jid) {
         await updateJobSheetPaymentStatus(data.jid);
-
-        // Also update any matching tillLogs with this new TID
-        try {
-          const tillQuery = query(collection(db, 'tillLogs'), where('jid', '==', data.jid));
-          const tillSnap = await getDocs(tillQuery);
-          if (!tillSnap.empty) {
-            const b = writeBatch(db);
-            tillSnap.docs.forEach((d) => {
-              b.update(d.ref, { tid: newTransactionId });
-            });
-            await b.commit();
-          }
-        } catch (err) {
-          console.error('Error linking tillLogs to transaction:', err);
-        }
     }
 
     const newDocSnap = await getDoc(docRef);
@@ -707,16 +630,6 @@ export async function deleteTransaction(id: string) {
         return { success: false, message: 'ID is required.' };
     }
     try {
-        // 1. Check if it is in tillLogs
-        const tillLogRef = doc(db, 'tillLogs', id);
-        const tillLogSnap = await getDoc(tillLogRef);
-        if (tillLogSnap.exists()) {
-            await deleteDoc(tillLogRef);
-            revalidatePath('/non-invoicing');
-            return { success: true, message: 'Till entry deleted successfully.' };
-        }
-
-        // 2. Otherwise check transactions
         const transactionRef = doc(db, 'transactions', id);
         const transactionSnap = await getDoc(transactionRef);
         if (!transactionSnap.exists()) {
@@ -810,49 +723,41 @@ export async function bulkMarkAsChecked(ids: string[]) {
 export async function getTillStats() {
     try {
         const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const d = now.getDate();
+
         const start = startOfDay(now);
         const end = endOfDay(now);
 
-        // Broad query range (+/- 6h) so timezone shifts don't clip any entries
-        const queryStart = new Date(start.getTime() - 6 * 3600 * 1000);
-        const queryEnd = new Date(end.getTime() + 6 * 3600 * 1000);
+        // Broad query range (+/- 24h) converted to Firestore Timestamp
+        const queryStart = Timestamp.fromDate(new Date(start.getTime() - 24 * 3600 * 1000));
+        const queryEnd = Timestamp.fromDate(new Date(end.getTime() + 24 * 3600 * 1000));
 
-        // 1. Query tillLogs
-        const tillLogsQuery = query(
-            collection(db, 'tillLogs'),
-            where('date', '>=', queryStart),
-            where('date', '<=', queryEnd)
-        );
-        const tillSnap = await getDocs(tillLogsQuery);
-
-        // 2. Query legacy transactions
-        const legacyQuery = query(
+        const tillQuery = query(
             collection(db, 'transactions'),
             where('date', '>=', queryStart),
             where('date', '<=', queryEnd)
         );
-        const legacySnap = await getDocs(legacyQuery);
 
+        const snap = await getDocs(tillQuery);
         let dailySales = 0;
         let cashTotal = 0;
         let cardTotal = 0;
         let bankTotal = 0;
-        const processedIds = new Set<string>();
 
-        const processDoc = (docSnap: any, isLegacy: boolean) => {
+        snap.docs.forEach((docSnap) => {
             const data = docSnap.data();
-            if (isLegacy && data.type !== 'non-invoicing') return;
-            if (processedIds.has(docSnap.id)) return;
-            processedIds.add(docSnap.id);
+            if (data.type !== 'non-invoicing') return;
 
             const tDate = (data.date as Timestamp)?.toDate 
                 ? (data.date as Timestamp).toDate() 
                 : (data.date ? new Date(data.date) : new Date());
 
             const isToday = 
-                tDate.getFullYear() === now.getFullYear() && 
-                tDate.getMonth() === now.getMonth() && 
-                tDate.getDate() === now.getDate();
+                tDate.getFullYear() === y && 
+                tDate.getMonth() === m && 
+                tDate.getDate() === d;
 
             const isTodayUTC = 
                 tDate.getUTCFullYear() === now.getUTCFullYear() && 
@@ -870,10 +775,7 @@ export async function getTillStats() {
                     bankTotal += amount;
                 }
             }
-        };
-
-        tillSnap.docs.forEach(d => processDoc(d, false));
-        legacySnap.docs.forEach(d => processDoc(d, true));
+        });
 
         return {
             success: true,
@@ -906,34 +808,22 @@ export async function getTillTransactionsByDate(
         const localStart = new Date(y, m, d, 0, 0, 0, 0);
         const localEnd = new Date(y, m, d, 23, 59, 59, 999);
 
-        // Broad query range (+/- 6h) to ensure no timezone edge-cases are missed in Firestore
-        const queryStart = new Date(localStart.getTime() - 6 * 3600 * 1000);
-        const queryEnd = new Date(localEnd.getTime() + 6 * 3600 * 1000);
+        // Broad query range (+/- 24h) converted to Firestore Timestamp
+        const queryStart = Timestamp.fromDate(new Date(localStart.getTime() - 24 * 3600 * 1000));
+        const queryEnd = Timestamp.fromDate(new Date(localEnd.getTime() + 24 * 3600 * 1000));
 
-        // 1. Query tillLogs collection
-        const tillLogsQuery = query(
-            collection(db, 'tillLogs'),
-            where('date', '>=', queryStart),
-            where('date', '<=', queryEnd)
-        );
-        const tillSnap = await getDocs(tillLogsQuery);
-
-        // 2. Query legacy transactions collection for non-invoicing entries
-        const legacyQuery = query(
+        const tillQuery = query(
             collection(db, 'transactions'),
             where('date', '>=', queryStart),
             where('date', '<=', queryEnd)
         );
-        const legacySnap = await getDocs(legacyQuery);
 
+        const querySnapshot = await getDocs(tillQuery);
         const list: Transaction[] = [];
-        const processedIds = new Set<string>();
 
-        const processDoc = (docSnap: any, isTillLog: boolean) => {
+        querySnapshot.docs.forEach((docSnap) => {
             const data = docSnap.data();
-            if (!isTillLog && data.type !== 'non-invoicing') return;
-            if (processedIds.has(docSnap.id)) return;
-            processedIds.add(docSnap.id);
+            if (data.type !== 'non-invoicing') return;
 
             const tDate = (data.date as Timestamp)?.toDate 
                 ? (data.date as Timestamp).toDate() 
@@ -954,15 +844,12 @@ export async function getTillTransactionsByDate(
                     ...data,
                     id: docSnap.id,
                     type: 'non-invoicing',
-                    transactionId: data.tid || data.transactionId || null,
+                    transactionId: data.transactionId || null,
                     date: tDate,
                     createdAt: (data.createdAt as Timestamp)?.toDate ? (data.createdAt as Timestamp).toDate() : new Date(),
                 } as Transaction);
             }
-        };
-
-        tillSnap.docs.forEach(d => processDoc(d, true));
-        legacySnap.docs.forEach(d => processDoc(d, false));
+        });
 
         // Sort descending by date / time
         list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

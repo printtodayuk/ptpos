@@ -752,7 +752,6 @@ export async function createJobSheetFromTillLogs({
   date,
   operator,
   clientName = 'Walking Client',
-  autoPay = true,
 }: {
   transactionIds: string[];
   paymentMethod: string;
@@ -768,13 +767,9 @@ export async function createJobSheetFromTillLogs({
   try {
     const txDocs = await Promise.all(
       transactionIds.map(async (id) => {
-        const tillDoc = await getDoc(doc(db, 'tillLogs', id));
-        if (tillDoc.exists()) {
-          return { id: tillDoc.id, isTillLog: true, ...tillDoc.data() } as any;
-        }
         const txDoc = await getDoc(doc(db, 'transactions', id));
         if (txDoc.exists()) {
-          return { id: txDoc.id, isTillLog: false, ...txDoc.data() } as any;
+          return { id: txDoc.id, ...txDoc.data() } as any;
         }
         return null;
       })
@@ -784,6 +779,10 @@ export async function createJobSheetFromTillLogs({
     if (validTxs.length === 0) {
       return { success: false, message: 'Selected transactions could not be found.' };
     }
+
+    // Collect existing TIDs
+    const linkedTids = validTxs.map((t) => t.transactionId).filter(Boolean);
+    const tidString = linkedTids.join(', ');
 
     // Map items from transactions
     const jobItems = validTxs.map((tx) => {
@@ -827,40 +826,11 @@ export async function createJobSheetFromTillLogs({
         : date
       : new Date();
 
-    const isPaid = Boolean(autoPay);
-    let singleTid: string | null = null;
-
-    if (isPaid) {
-      singleTid = await getNextTransactionId();
-
-      await addDoc(collection(db, 'transactions'), {
-        transactionId: singleTid,
-        type: 'non-invoicing',
-        date: Timestamp.fromDate(dateObj),
-        clientName: clientName && clientName.trim() ? clientName.trim() : 'Walking Client',
-        jobDescription: `Till ${paymentMethod} batch - ${validTxs.length} items`,
-        jid: newJobId,
-        amount: subTotal,
-        vatApplied: vatAmount > 0,
-        totalAmount: totalAmount,
-        paidAmount: totalAmount,
-        dueAmount: 0,
-        paymentMethod: paymentMethod,
-        operator: operator || 'PTMGH',
-        reference: `Till batch (${validTxs.length} items)`,
-        adminChecked: false,
-        checkedBy: null,
-        createdAt: serverTimestamp(),
-      });
-    }
-
     const initialHistoryEntry: JobSheetHistory = {
       timestamp: Timestamp.now(),
       operator: operator || 'PTTill',
       action: 'Created',
-      details: isPaid
-        ? `Auto-generated from ${validTxs.length} Till ${paymentMethod} sales. Paid via ${singleTid}.`
-        : `Auto-generated from ${validTxs.length} Till ${paymentMethod} sales. Unpaid batch.`,
+      details: `Auto-generated from ${validTxs.length} Till ${paymentMethod} sales. Marked Paid (Linked TIDs: ${tidString || 'N/A'}).`,
     };
 
     const finalClientName = clientName && clientName.trim() ? clientName.trim() : 'Walking Client';
@@ -873,14 +843,14 @@ export async function createJobSheetFromTillLogs({
       clientDetails,
       null,
       null,
-      singleTid,
+      tidString,
       jobItems,
       null
     );
 
     const dataToSave: any = {
       jobId: newJobId,
-      tid: singleTid,
+      tid: tidString || null,
       clientName: finalClientName,
       companyName: null,
       clientDetails: clientDetails,
@@ -892,11 +862,11 @@ export async function createJobSheetFromTillLogs({
       subTotalAfterDiscount: subTotal,
       vatAmount: vatAmount,
       totalAmount: totalAmount,
-      paidAmount: isPaid ? totalAmount : 0,
-      dueAmount: isPaid ? 0 : totalAmount,
+      paidAmount: totalAmount,
+      dueAmount: 0,
       status: 'Ready Pickup',
-      paymentStatus: isPaid ? 'Paid' : 'Unpaid',
-      specialNote: `Till ${paymentMethod} batch - ${validTxs.length} transactions.${singleTid ? ` Linked TID: ${singleTid}.` : ''}`,
+      paymentStatus: 'Paid',
+      specialNote: `Till ${paymentMethod} batch - ${validTxs.length} sales. Linked TIDs: ${tidString || 'N/A'}.`,
       irNumber: null,
       deliveryBy: null,
       type: jobType,
@@ -910,15 +880,12 @@ export async function createJobSheetFromTillLogs({
     // Save Job Sheet
     const jobSheetRef = await addDoc(collection(db, 'jobSheets'), dataToSave);
 
-    // Update each till log / transaction with the new JID and TID
+    // Update each transaction in transactions collection with the new JID
     const batch = writeBatch(db);
     validTxs.forEach((tx) => {
-      const targetRef = tx.isTillLog
-        ? doc(db, 'tillLogs', tx.id)
-        : doc(db, 'transactions', tx.id);
+      const targetRef = doc(db, 'transactions', tx.id);
       batch.update(targetRef, {
         jid: newJobId,
-        tid: singleTid || null,
       });
     });
     await batch.commit();
@@ -947,12 +914,10 @@ export async function createJobSheetFromTillLogs({
 
     return {
       success: true,
-      message: isPaid
-        ? `Job Sheet ${newJobId} created and paid with single transaction ${singleTid}.`
-        : `Job Sheet ${newJobId} created successfully with ${jobItems.length} items (Unpaid).`,
+      message: `Job Sheet ${newJobId} created and marked as Paid for ${validTxs.length} items (Linked TIDs: ${tidString || 'N/A'}).`,
       jobId: newJobId,
       jobSheet: createdJobSheet,
-      transactionId: singleTid || undefined,
+      transactionId: tidString || undefined,
     };
   } catch (err) {
     console.error('Error creating Job Sheet from Till logs:', err);
@@ -965,4 +930,5 @@ export async function createJobSheetFromTillLogs({
     };
   }
 }
+
 

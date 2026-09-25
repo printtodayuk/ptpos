@@ -210,7 +210,7 @@ export function JobSheetsTable({
             <TableHead>Company</TableHead>
             <TableHead className="hidden md:table-cell">Type</TableHead>
             <TableHead className="hidden md:table-cell">Operator</TableHead>
-            <TableHead className="hidden lg:table-cell">IR / Inv No</TableHead>
+            <TableHead className="hidden lg:table-cell">Inv / IR / TID</TableHead>
             <TableHead className="text-right">
               <button
                 type="button"
@@ -245,7 +245,7 @@ export function JobSheetsTable({
                 {js.invoiceNumber ? (
                   <span className="font-bold text-indigo-600 dark:text-indigo-400">{js.invoiceNumber}</span>
                 ) : (
-                  js.irNumber || '-'
+                  js.irNumber || js.tid || '-'
                 )}
               </TableCell>
               <TableCell className="text-right">

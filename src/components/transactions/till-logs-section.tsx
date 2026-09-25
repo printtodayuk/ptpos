@@ -116,7 +116,6 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
   // Dialog states
   const [createJidSection, setCreateJidSection] = useState<PaymentSectionConfig | null>(null);
   const [customClientName, setCustomClientName] = useState('Walking Client');
-  const [autoPay, setAutoPay] = useState(true);
   const [isCreatingJid, startCreateJidTransition] = useTransition();
 
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -170,7 +169,6 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
   const handleOpenCreateJid = (config: PaymentSectionConfig) => {
     setCreateJidSection(config);
     setCustomClientName('Walking Client');
-    setAutoPay(true);
   };
 
   // Handle confirm create JID
@@ -196,15 +194,12 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
         date: selectedDate,
         operator: sessionOperator || 'PTTill',
         clientName: customClientName.trim() || 'Walking Client',
-        autoPay: autoPay,
       });
 
       if (result.success && result.jobSheet) {
         toast({
-          title: autoPay ? 'Job Sheet Created & Paid!' : 'Job Sheet Created (Unpaid)',
-          description: result.transactionId
-            ? `${result.jobId} created with ${sectionData.unassignedTransactions.length} items. Single transaction ${result.transactionId} generated.`
-            : `${result.jobId} created with ${sectionData.unassignedTransactions.length} items. Ready to Pay.`,
+          title: 'Job Sheet Created & Linked!',
+          description: `${result.jobId} created with ${sectionData.unassignedTransactions.length} items (Paid). Linked TIDs: ${result.transactionId || 'None'}`,
         });
         setCreateJidSection(null);
         onRefresh();
@@ -588,30 +583,14 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
                   </p>
                 </div>
 
-                {/* Flexible Choice: Auto-Pay & Single TID Toggle */}
-                <div className="rounded-2xl p-4 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-start gap-3">
-                  <Switch
-                    id="autoPayToggle"
-                    checked={autoPay}
-                    onCheckedChange={setAutoPay}
-                    className="mt-0.5 data-[state=checked]:bg-indigo-600"
-                  />
-                  <div className="space-y-1 flex-1">
-                    <Label htmlFor="autoPayToggle" className="text-xs font-bold text-indigo-950 dark:text-indigo-200 cursor-pointer block">
-                      Pay Now &amp; Generate Single TID
-                    </Label>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-normal">
-                      {autoPay ? (
-                        <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                          ✓ Bundles all till items into <strong>1 single TID</strong> in the sales ledger and marks the Job Sheet as <strong>Paid</strong> immediately.
-                        </span>
-                      ) : (
-                        <span className="text-amber-700 dark:text-amber-400 font-medium">
-                          Creates the Job Sheet as <strong>Unpaid</strong> with no TID generated yet. You can click &quot;Pay Now&quot; later to record the payment and generate the single TID.
-                        </span>
-                      )}
-                    </p>
+                <div className="rounded-2xl p-4 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Auto-Linked &amp; Marked as Paid</span>
                   </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-normal pl-6">
+                    Each sale item already has its own TID recorded. This Job Sheet will be created as <strong>Paid</strong> and automatically linked to all {count} transaction IDs, preventing duplicate sales totals.
+                  </p>
                 </div>
               </div>
             );

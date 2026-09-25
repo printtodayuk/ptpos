@@ -28,7 +28,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/components/auth/session-provider';
-import { addTillLog } from '@/lib/server-actions';
+import { addTransaction } from '@/lib/server-actions';
 import { type PaymentMethod, type Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -99,6 +99,7 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
 
     startTransition(async () => {
       const payload = {
+        type: 'non-invoicing' as const,
         date: selectedDate,
         clientName: finalClient,
         jobDescription: jobDescription.trim(),
@@ -114,9 +115,9 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
         reference: '',
       };
 
-      const result = await addTillLog(payload);
+      const result = await addTransaction(payload);
 
-      if (result.success && result.tillLog) {
+      if (result.success && result.transaction) {
         toast({
           title: 'Sale Logged to Till',
           description: `£${totalAmount.toFixed(2)} recorded via ${paymentMethod} (${jobDescription.trim()}).`,
@@ -130,7 +131,7 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
         setVatApplied(false);
 
         if (onTransactionAdded) {
-          onTransactionAdded(result.tillLog);
+          onTransactionAdded(result.transaction);
         }
       } else {
         toast({
