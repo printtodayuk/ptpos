@@ -31,6 +31,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/components/auth/session-provider';
 import { createJobSheetFromTillLogs } from '@/lib/server-actions-jobs';
@@ -115,6 +116,7 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
   // Dialog states
   const [createJidSection, setCreateJidSection] = useState<PaymentSectionConfig | null>(null);
   const [customClientName, setCustomClientName] = useState('Walking Client');
+  const [autoPay, setAutoPay] = useState(true);
   const [isCreatingJid, startCreateJidTransition] = useTransition();
 
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -168,6 +170,7 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
   const handleOpenCreateJid = (config: PaymentSectionConfig) => {
     setCreateJidSection(config);
     setCustomClientName('Walking Client');
+    setAutoPay(true);
   };
 
   // Handle confirm create JID
@@ -193,12 +196,15 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
         date: selectedDate,
         operator: sessionOperator || 'PTTill',
         clientName: customClientName.trim() || 'Walking Client',
+        autoPay: autoPay,
       });
 
       if (result.success && result.jobSheet) {
         toast({
-          title: 'Job Sheet Created!',
-          description: `${result.jobId} created with ${sectionData.unassignedTransactions.length} items.`,
+          title: autoPay ? 'Job Sheet Created & Paid!' : 'Job Sheet Created (Unpaid)',
+          description: result.transactionId
+            ? `${result.jobId} created with ${sectionData.unassignedTransactions.length} items. Single transaction ${result.transactionId} generated.`
+            : `${result.jobId} created with ${sectionData.unassignedTransactions.length} items. Ready to Pay.`,
         });
         setCreateJidSection(null);
         onRefresh();
@@ -580,6 +586,32 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
                   <p className="text-[11px] text-slate-400">
                     Default is &quot;Walking Client&quot;. You can modify this if needed.
                   </p>
+                </div>
+
+                {/* Flexible Choice: Auto-Pay & Single TID Toggle */}
+                <div className="rounded-2xl p-4 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-start gap-3">
+                  <Switch
+                    id="autoPayToggle"
+                    checked={autoPay}
+                    onCheckedChange={setAutoPay}
+                    className="mt-0.5 data-[state=checked]:bg-indigo-600"
+                  />
+                  <div className="space-y-1 flex-1">
+                    <Label htmlFor="autoPayToggle" className="text-xs font-bold text-indigo-950 dark:text-indigo-200 cursor-pointer block">
+                      Pay Now &amp; Generate Single TID
+                    </Label>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-normal">
+                      {autoPay ? (
+                        <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                          ✓ Bundles all till items into <strong>1 single TID</strong> in the sales ledger and marks the Job Sheet as <strong>Paid</strong> immediately.
+                        </span>
+                      ) : (
+                        <span className="text-amber-700 dark:text-amber-400 font-medium">
+                          Creates the Job Sheet as <strong>Unpaid</strong> with no TID generated yet. You can click &quot;Pay Now&quot; later to record the payment and generate the single TID.
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             );

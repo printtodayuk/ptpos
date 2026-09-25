@@ -28,7 +28,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/components/auth/session-provider';
-import { addTransaction } from '@/lib/server-actions';
+import { addTillLog } from '@/lib/server-actions';
 import { type PaymentMethod, type Transaction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -99,7 +99,6 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
 
     startTransition(async () => {
       const payload = {
-        type: 'non-invoicing' as const,
         date: selectedDate,
         clientName: finalClient,
         jobDescription: jobDescription.trim(),
@@ -108,20 +107,19 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
         amount: netSubtotal, // Pre-VAT line subtotal
         vatApplied: vatApplied,
         totalAmount: totalAmount,
-        paidAmount: totalAmount, // In Till, transaction is recorded as fully paid
+        paidAmount: totalAmount,
         dueAmount: 0,
         paymentMethod: paymentMethod,
         operator: operator || 'PTMGH',
         reference: '',
-        jid: null,
       };
 
-      const result = await addTransaction(payload);
+      const result = await addTillLog(payload);
 
-      if (result.success && result.transaction) {
+      if (result.success && result.tillLog) {
         toast({
-          title: 'Sale Recorded',
-          description: `£${totalAmount.toFixed(2)} recorded via ${paymentMethod} (${result.transaction.transactionId}).`,
+          title: 'Sale Logged to Till',
+          description: `£${totalAmount.toFixed(2)} recorded via ${paymentMethod} (${jobDescription.trim()}).`,
         });
 
         // Reset inputs for next sale while preserving date & payment method
@@ -132,7 +130,7 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
         setVatApplied(false);
 
         if (onTransactionAdded) {
-          onTransactionAdded(result.transaction);
+          onTransactionAdded(result.tillLog);
         }
       } else {
         toast({

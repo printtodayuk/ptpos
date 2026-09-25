@@ -25,7 +25,7 @@ import { JobSheetSchema } from '@/lib/types';
 import { isValidOperator } from './server-actions-operators';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
-import { addTransaction } from './server-actions';
+import { addTransaction, getNextTransactionId } from './server-actions';
 
 
 const CreateJobSheetSchema = JobSheetSchema.omit({
@@ -752,24 +752,34 @@ export async function createJobSheetFromTillLogs({
   date,
   operator,
   clientName = 'Walking Client',
+  autoPay = true,
 }: {
   transactionIds: string[];
   paymentMethod: string;
   date?: Date | string;
   operator: string;
   clientName?: string;
-}): Promise<{ success: boolean; message: string; jobId?: string; jobSheet?: JobSheet }> {
+  autoPay?: boolean;
+}): Promise<{ success: boolean; message: string; jobId?: string; jobSheet?: JobSheet; transactionId?: string }> {
   if (!transactionIds || transactionIds.length === 0) {
     return { success: false, message: 'No transactions selected to create Job Sheet.' };
   }
 
   try {
     const txDocs = await Promise.all(
-      transactionIds.map((id) => getDoc(doc(db, 'transactions', id)))
+      transactionIds.map(async (id) => {
+        const tillDoc = await getDoc(doc(db, 'tillLogs', id));
+        if (tillDoc.exists()) {
+          return { id: tillDoc.id, isTillLog: true, ...tillDoc.data() } as any;
+        }
+        const txDoc = await getDoc(doc(db, 'transactions', id));
+        if (txDoc.exists()) {
+          return { id: txDoc.id, isTillLog: false, ...txDoc.data() } as any;
+        }
+        return null;
+      })
     );
-    const validTxs = txDocs
-      .filter((d) => d.exists())
-      .map((d) => ({ id: d.id, ...d.data() } as Transaction));
+    const validTxs = txDocs.filter((d): d is NonNullable<typeof d> => d !== null);
 
     if (validTxs.length === 0) {
       return { success: false, message: 'Selected transactions could not be found.' };
@@ -817,11 +827,40 @@ export async function createJobSheetFromTillLogs({
         : date
       : new Date();
 
+    const isPaid = Boolean(autoPay);
+    let singleTid: string | null = null;
+
+    if (isPaid) {
+      singleTid = await getNextTransactionId();
+
+      await addDoc(collection(db, 'transactions'), {
+        transactionId: singleTid,
+        type: 'non-invoicing',
+        date: Timestamp.fromDate(dateObj),
+        clientName: clientName && clientName.trim() ? clientName.trim() : 'Walking Client',
+        jobDescription: `Till ${paymentMethod} batch - ${validTxs.length} items`,
+        jid: newJobId,
+        amount: subTotal,
+        vatApplied: vatAmount > 0,
+        totalAmount: totalAmount,
+        paidAmount: totalAmount,
+        dueAmount: 0,
+        paymentMethod: paymentMethod,
+        operator: operator || 'PTMGH',
+        reference: `Till batch (${validTxs.length} items)`,
+        adminChecked: false,
+        checkedBy: null,
+        createdAt: serverTimestamp(),
+      });
+    }
+
     const initialHistoryEntry: JobSheetHistory = {
       timestamp: Timestamp.now(),
       operator: operator || 'PTTill',
       action: 'Created',
-      details: `Auto-generated from ${validTxs.length} Till ${paymentMethod} sales.`,
+      details: isPaid
+        ? `Auto-generated from ${validTxs.length} Till ${paymentMethod} sales. Paid via ${singleTid}.`
+        : `Auto-generated from ${validTxs.length} Till ${paymentMethod} sales. Unpaid batch.`,
     };
 
     const finalClientName = clientName && clientName.trim() ? clientName.trim() : 'Walking Client';
@@ -834,13 +873,14 @@ export async function createJobSheetFromTillLogs({
       clientDetails,
       null,
       null,
-      null,
+      singleTid,
       jobItems,
       null
     );
 
     const dataToSave: any = {
       jobId: newJobId,
+      tid: singleTid,
       clientName: finalClientName,
       companyName: null,
       clientDetails: clientDetails,
@@ -852,11 +892,11 @@ export async function createJobSheetFromTillLogs({
       subTotalAfterDiscount: subTotal,
       vatAmount: vatAmount,
       totalAmount: totalAmount,
-      paidAmount: totalAmount,
-      dueAmount: 0,
+      paidAmount: isPaid ? totalAmount : 0,
+      dueAmount: isPaid ? 0 : totalAmount,
       status: 'Ready Pickup',
-      paymentStatus: 'Paid',
-      specialNote: `Till ${paymentMethod} batch - ${validTxs.length} transactions.`,
+      paymentStatus: isPaid ? 'Paid' : 'Unpaid',
+      specialNote: `Till ${paymentMethod} batch - ${validTxs.length} transactions.${singleTid ? ` Linked TID: ${singleTid}.` : ''}`,
       irNumber: null,
       deliveryBy: null,
       type: jobType,
@@ -870,11 +910,16 @@ export async function createJobSheetFromTillLogs({
     // Save Job Sheet
     const jobSheetRef = await addDoc(collection(db, 'jobSheets'), dataToSave);
 
-    // Update each transaction with the new JID
+    // Update each till log / transaction with the new JID and TID
     const batch = writeBatch(db);
     validTxs.forEach((tx) => {
-      const txRef = doc(db, 'transactions', tx.id!);
-      batch.update(txRef, { jid: newJobId });
+      const targetRef = tx.isTillLog
+        ? doc(db, 'tillLogs', tx.id)
+        : doc(db, 'transactions', tx.id);
+      batch.update(targetRef, {
+        jid: newJobId,
+        tid: singleTid || null,
+      });
     });
     await batch.commit();
 
@@ -882,6 +927,8 @@ export async function createJobSheetFromTillLogs({
     revalidatePath('/js-report');
     revalidatePath('/non-invoicing');
     revalidatePath('/dashboard');
+    revalidatePath('/reporting');
+    revalidatePath('/admin');
 
     const createdSnap = await getDoc(jobSheetRef);
     const createdData = createdSnap.data();
@@ -900,9 +947,12 @@ export async function createJobSheetFromTillLogs({
 
     return {
       success: true,
-      message: `Job Sheet ${newJobId} created successfully with ${jobItems.length} items.`,
+      message: isPaid
+        ? `Job Sheet ${newJobId} created and paid with single transaction ${singleTid}.`
+        : `Job Sheet ${newJobId} created successfully with ${jobItems.length} items (Unpaid).`,
       jobId: newJobId,
       jobSheet: createdJobSheet,
+      transactionId: singleTid || undefined,
     };
   } catch (err) {
     console.error('Error creating Job Sheet from Till logs:', err);

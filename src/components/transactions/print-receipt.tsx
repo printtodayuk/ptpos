@@ -28,8 +28,8 @@ export function PrintReceipt({ transaction }: PrintReceiptProps) {
       <hr className="border-dashed border-black my-2" />
       <div className="space-y-1">
         <div className="flex justify-between">
-          <span>TID:</span>
-          <span>{transaction.transactionId}</span>
+          <span>{transaction.transactionId ? 'TID:' : 'Till Ref:'}</span>
+          <span>{transaction.transactionId || (transaction.id ? transaction.id.slice(-6).toUpperCase() : 'PENDING')}</span>
         </div>
         <div className="flex justify-between">
           <span>Date:</span>
