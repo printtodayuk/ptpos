@@ -38,6 +38,7 @@ import type { Transaction, PaymentMethod, JobSheet, PaymentStatus, Quotation } f
 import { TransactionSchema } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { startOfDay, endOfDay, parseISO, isValid } from 'date-fns';
+import { getLondonDateString } from '@/lib/london-time';
 
 const CreateTransactionSchema = TransactionSchema.omit({
   id: true,
@@ -746,6 +747,8 @@ export async function getTillStats() {
         let cardTotal = 0;
         let bankTotal = 0;
 
+        const todayLondonStr = getLondonDateString(now);
+
         snap.docs.forEach((docSnap) => {
             const data = docSnap.data();
             if (data.type !== 'non-invoicing') return;
@@ -753,6 +756,8 @@ export async function getTillStats() {
             const tDate = (data.date as Timestamp)?.toDate 
                 ? (data.date as Timestamp).toDate() 
                 : (data.date ? new Date(data.date) : new Date());
+
+            const sameDayLondon = getLondonDateString(tDate) === todayLondonStr;
 
             const isToday = 
                 tDate.getFullYear() === y && 
@@ -764,7 +769,7 @@ export async function getTillStats() {
                 tDate.getUTCMonth() === now.getUTCMonth() && 
                 tDate.getUTCDate() === now.getUTCDate();
 
-            if (isToday || isTodayUTC) {
+            if (sameDayLondon || isToday || isTodayUTC) {
                 const amount = Number(data.paidAmount) || Number(data.totalAmount) || 0;
                 dailySales += amount;
                 if (data.paymentMethod === 'Cash') {
@@ -820,6 +825,7 @@ export async function getTillTransactionsByDate(
 
         const querySnapshot = await getDocs(tillQuery);
         const list: Transaction[] = [];
+        const targetLondonStr = getLondonDateString(dateObj);
 
         querySnapshot.docs.forEach((docSnap) => {
             const data = docSnap.data();
@@ -828,6 +834,8 @@ export async function getTillTransactionsByDate(
             const tDate = (data.date as Timestamp)?.toDate 
                 ? (data.date as Timestamp).toDate() 
                 : (data.date ? new Date(data.date) : new Date());
+
+            const sameDayLondon = getLondonDateString(tDate) === targetLondonStr;
 
             const sameDayLocal = 
                 tDate.getFullYear() === y && 
@@ -839,7 +847,7 @@ export async function getTillTransactionsByDate(
                 tDate.getUTCMonth() === dateObj.getUTCMonth() && 
                 tDate.getUTCDate() === dateObj.getUTCDate();
 
-            if (sameDayLocal || sameDayUTC) {
+            if (sameDayLondon || sameDayLocal || sameDayUTC) {
                 list.push({
                     ...data,
                     id: docSnap.id,

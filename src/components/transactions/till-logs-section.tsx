@@ -34,7 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from '@/components/auth/session-provider';
-import { createJobSheetFromTillLogs } from '@/lib/server-actions-jobs';
+import { createJobSheetFromTillLogs, autoCreateAllPendingTillJids } from '@/lib/server-actions-jobs';
 import { deleteTransaction } from '@/lib/server-actions';
 import { getJobSheetByJobId } from '@/lib/server-actions-jobs';
 import type { Transaction, PaymentMethod, JobSheet } from '@/lib/types';
@@ -164,6 +164,41 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
     }
     return groupedSections.filter(s => s.config.id === activeFilter);
   }, [groupedSections, activeFilter]);
+
+  const totalUnassignedCount = useMemo(() => {
+    return groupedSections.reduce((acc, s) => acc + s.unassignedTransactions.length, 0);
+  }, [groupedSections]);
+
+  const totalUnassignedTotal = useMemo(() => {
+    return groupedSections.reduce((acc, s) => acc + s.unassignedTotal, 0);
+  }, [groupedSections]);
+
+  const [isAutoCreatingAll, startAutoCreateAllTransition] = useTransition();
+
+  const handleAutoCreateAll = () => {
+    if (totalUnassignedCount === 0) return;
+
+    startAutoCreateAllTransition(async () => {
+      const result = await autoCreateAllPendingTillJids({
+        targetDate: selectedDate,
+        operator: sessionOperator || 'PTTill',
+      });
+
+      if (result.success) {
+        toast({
+          title: 'All JIDs Auto-Created',
+          description: result.message,
+        });
+        onRefresh();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Auto-Create Failed',
+          description: result.message,
+        });
+      }
+    });
+  };
 
   // Handle open create JID confirmation
   const handleOpenCreateJid = (config: PaymentSectionConfig) => {
@@ -343,6 +378,49 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* End of Day Auto-Create All JIDs for Walking Client Banner */}
+          {totalUnassignedCount > 0 && (
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-indigo-50/90 via-purple-50/60 to-indigo-50/90 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-3.5">
+                <div className="p-2.5 rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 shrink-0">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                      {totalUnassignedCount} Unassigned Till {totalUnassignedCount === 1 ? 'Sale' : 'Sales'} (£{totalUnassignedTotal.toFixed(2)})
+                    </h3>
+                    <Badge className="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5">
+                      Walking Client
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Automatically bundled into Paid Job Sheets at 23:59 London Time, or generate all of them now with 1 click.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleAutoCreateAll}
+                disabled={isAutoCreatingAll}
+                className="rounded-2xl h-11 px-5 font-black text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shrink-0 shadow-md shadow-indigo-600/20 transition-all duration-200"
+              >
+                {isAutoCreatingAll ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Auto-Creating JIDs...
+                  </>
+                ) : (
+                  <>
+                    <FilePlus2 className="h-4 w-4 mr-2 shrink-0" />
+                    Auto-Create All JIDs (Walking Client)
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
           {visibleSections.map(({ config, transactions: secTxs, unassignedTransactions, totalAmount, unassignedTotal }) => {
             const Icon = config.icon;
             const hasUnassigned = unassignedTransactions.length > 0;
@@ -423,7 +501,7 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
                             <TableHead className="w-[180px]">Client / Phone</TableHead>
                             <TableHead>Job Description</TableHead>
                             <TableHead className="w-[60px] text-center">Qty</TableHead>
-                            <TableHead className="w-[100px] text-right">Unit Price</TableHead>
+                            <TableHead className="w-[105px] text-right">Net Price</TableHead>
                             <TableHead className="w-[90px] text-center">VAT</TableHead>
                             <TableHead className="w-[110px] text-right">Total (£)</TableHead>
                             <TableHead className="w-[100px] text-center">Operator</TableHead>
@@ -454,7 +532,12 @@ export function TillLogsSection({ selectedDate, transactions, isLoading, onRefre
                                   {qty}
                                 </TableCell>
                                 <TableCell className="text-right font-mono text-slate-600 dark:text-slate-400">
-                                  £{unitPrice.toFixed(2)}
+                                  £{Number(t.amount || 0).toFixed(2)}
+                                  {qty > 1 && (
+                                    <span className="block text-[10px] text-slate-400 font-normal">
+                                      (£{unitPrice.toFixed(2)}/ea)
+                                    </span>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-center">
                                   {t.vatApplied ? (

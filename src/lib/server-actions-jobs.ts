@@ -26,6 +26,7 @@ import { isValidOperator } from './server-actions-operators';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { addTransaction, getNextTransactionId } from './server-actions';
+import { getLondonDateString, getLondonCurrentDate } from '@/lib/london-time';
 
 
 const CreateJobSheetSchema = JobSheetSchema.omit({
@@ -930,5 +931,207 @@ export async function createJobSheetFromTillLogs({
     };
   }
 }
+
+/**
+ * Automatically creates Paid Job Sheets for all unassigned Till sales for a target London day.
+ * STRICT REQUIREMENT: Job Sheets are created only against "Walking Client".
+ */
+export async function autoCreateAllPendingTillJids({
+  targetDate,
+  operator = 'PTTill (Auto)',
+}: {
+  targetDate?: Date | string;
+  operator?: string;
+} = {}): Promise<{
+  success: boolean;
+  message: string;
+  createdJobs: Array<{ jobId: string; paymentMethod: string; count: number; total: number }>;
+}> {
+  try {
+    const targetDateObj = targetDate
+      ? typeof targetDate === 'string'
+        ? new Date(targetDate)
+        : targetDate
+      : getLondonCurrentDate();
+
+    const targetLondonDayStr = getLondonDateString(targetDateObj);
+
+    // Query broad range around this target date (+/- 24h)
+    const localStart = new Date(targetDateObj.getFullYear(), targetDateObj.getMonth(), targetDateObj.getDate(), 0, 0, 0, 0);
+    const localEnd = new Date(targetDateObj.getFullYear(), targetDateObj.getMonth(), targetDateObj.getDate(), 23, 59, 59, 999);
+    const queryStart = Timestamp.fromDate(new Date(localStart.getTime() - 24 * 3600 * 1000));
+    const queryEnd = Timestamp.fromDate(new Date(localEnd.getTime() + 24 * 3600 * 1000));
+
+    const q = query(
+      collection(db, 'transactions'),
+      where('date', '>=', queryStart),
+      where('date', '<=', queryEnd)
+    );
+
+    const snapshot = await getDocs(q);
+    const unassignedTxs: Transaction[] = [];
+
+    snapshot.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.type !== 'non-invoicing') return;
+      if (data.jid && data.jid.trim() !== '') return;
+
+      const tDate = (data.date as Timestamp)?.toDate
+        ? (data.date as Timestamp).toDate()
+        : (data.date ? new Date(data.date) : new Date());
+
+      // Match London calendar day
+      if (getLondonDateString(tDate) === targetLondonDayStr) {
+        unassignedTxs.push({
+          ...data,
+          id: docSnap.id,
+          date: tDate,
+        } as Transaction);
+      }
+    });
+
+    if (unassignedTxs.length === 0) {
+      return {
+        success: true,
+        message: `No unassigned till sales found for London date ${targetLondonDayStr}.`,
+        createdJobs: [],
+      };
+    }
+
+    // Group by payment method
+    const paymentMethodsList = ['Cash', 'Card Payment', 'Bank Transfer', 'ST Bank Transfer', 'AIR Bank Transfer'];
+    const createdJobs: Array<{ jobId: string; paymentMethod: string; count: number; total: number }> = [];
+
+    for (const method of paymentMethodsList) {
+      const methodTxs = unassignedTxs.filter((t) => t.paymentMethod === method);
+      if (methodTxs.length === 0) continue;
+
+      const txIds = methodTxs.map((t) => t.id).filter((id): id is string => Boolean(id));
+      const methodTotal = methodTxs.reduce((sum, t) => sum + (Number(t.paidAmount) || Number(t.totalAmount) || 0), 0);
+
+      // Create JID strictly for "Walking Client"
+      const result = await createJobSheetFromTillLogs({
+        transactionIds: txIds,
+        paymentMethod: method,
+        date: targetDateObj,
+        operator,
+        clientName: 'Walking Client',
+      });
+
+      if (result.success && result.jobId) {
+        createdJobs.push({
+          jobId: result.jobId,
+          paymentMethod: method,
+          count: txIds.length,
+          total: methodTotal,
+        });
+      }
+    }
+
+    revalidatePath('/job-sheet');
+    revalidatePath('/js-report');
+    revalidatePath('/non-invoicing');
+    revalidatePath('/reporting');
+    revalidatePath('/dashboard');
+
+    const summaryText = createdJobs
+      .map((j) => `${j.jobId} (${j.paymentMethod}: ${j.count} items, £${j.total.toFixed(2)})`)
+      .join(', ');
+
+    return {
+      success: true,
+      message: createdJobs.length > 0
+        ? `Auto-created ${createdJobs.length} Job Sheet(s) for Walking Client: ${summaryText}.`
+        : 'All transactions for this day already have JIDs assigned.',
+      createdJobs,
+    };
+  } catch (err) {
+    console.error('Error in autoCreateAllPendingTillJids:', err);
+    return {
+      success: false,
+      message: err instanceof Error ? err.message : 'Failed to auto-create Job Sheets from Till logs.',
+      createdJobs: [],
+    };
+  }
+}
+
+/**
+ * Self-healing sweep: checks any past London days (before today) for unassigned till transactions
+ * and automatically groups them into Paid Job Sheets for "Walking Client".
+ */
+export async function sweepPreviousDaysUnassignedTill(): Promise<{
+  success: boolean;
+  totalCreated: number;
+  message: string;
+}> {
+  try {
+    const todayLondonStr = getLondonDateString(new Date());
+
+    // Fetch transactions from the past 7 days
+    const pastLimit = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 3600 * 1000));
+    const q = query(
+      collection(db, 'transactions'),
+      where('date', '>=', pastLimit),
+      orderBy('date', 'asc')
+    );
+
+    const snap = await getDocs(q);
+    const unassignedPastDays = new Map<string, Transaction[]>();
+
+    snap.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.type !== 'non-invoicing') return;
+      if (data.jid && data.jid.trim() !== '') return;
+
+      const tDate = (data.date as Timestamp)?.toDate
+        ? (data.date as Timestamp).toDate()
+        : (data.date ? new Date(data.date) : new Date());
+
+      const txLondonDay = getLondonDateString(tDate);
+      // Strictly past London calendar days (before today)
+      if (txLondonDay < todayLondonStr) {
+        if (!unassignedPastDays.has(txLondonDay)) {
+          unassignedPastDays.set(txLondonDay, []);
+        }
+        unassignedPastDays.get(txLondonDay)!.push({
+          ...data,
+          id: docSnap.id,
+          date: tDate,
+        } as Transaction);
+      }
+    });
+
+    let totalCreated = 0;
+    for (const [dayStr] of unassignedPastDays.entries()) {
+      const [y, m, d] = dayStr.split('-').map(Number);
+      const dayDate = new Date(y, m - 1, d, 12, 0, 0);
+
+      const res = await autoCreateAllPendingTillJids({
+        targetDate: dayDate,
+        operator: 'PTTill (Auto Sweep)',
+      });
+
+      if (res.success) {
+        totalCreated += res.createdJobs.length;
+      }
+    }
+
+    return {
+      success: true,
+      totalCreated,
+      message: totalCreated > 0
+        ? `Auto-sweep completed: created ${totalCreated} past Job Sheet(s) for Walking Client.`
+        : 'No unassigned past till transactions found.',
+    };
+  } catch (err) {
+    console.error('Error in sweepPreviousDaysUnassignedTill:', err);
+    return {
+      success: false,
+      totalCreated: 0,
+      message: err instanceof Error ? err.message : 'Error sweeping past till transactions.',
+    };
+  }
+}
+
 
 

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/till-auto-close",
+      "schedule": "59 23 * * *"
+    }
+  ]
+}

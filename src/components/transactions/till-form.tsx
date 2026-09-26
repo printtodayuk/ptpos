@@ -61,10 +61,10 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
 
   // Derived financial computations
   const numQty = Math.max(1, Number(quantity) || 1);
-  const unitPrice = Math.max(0, Number(amount) || 0);
-  const netSubtotal = Number((numQty * unitPrice).toFixed(2));
-  const vatAmount = vatApplied ? Number((netSubtotal * 0.20).toFixed(2)) : 0;
-  const totalAmount = Number((netSubtotal + vatAmount).toFixed(2));
+  const netAmount = Math.max(0, Number(amount) || 0); // Net price entered by user
+  const unitPrice = numQty > 0 ? Number((netAmount / numQty).toFixed(2)) : netAmount;
+  const vatAmount = vatApplied ? Number((netAmount * 0.20).toFixed(2)) : 0;
+  const totalAmount = Number((netAmount + vatAmount).toFixed(2));
 
   const paymentMethodOptions: { id: PaymentMethod; label: string; icon: typeof Banknote; color: string }[] = [
     { id: 'Cash', label: 'Cash', icon: Banknote, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300' },
@@ -86,11 +86,11 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
       return;
     }
 
-    if (unitPrice <= 0) {
+    if (netAmount <= 0) {
       toast({
         variant: 'destructive',
-        title: 'Amount Required',
-        description: 'Please enter a valid amount greater than 0.',
+        title: 'Net Price Required',
+        description: 'Please enter a valid net price greater than 0.',
       });
       return;
     }
@@ -105,7 +105,7 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
         jobDescription: jobDescription.trim(),
         quantity: numQty,
         unitPrice: unitPrice,
-        amount: netSubtotal, // Pre-VAT line subtotal
+        amount: netAmount, // Net price (pre-VAT)
         vatApplied: vatApplied,
         totalAmount: totalAmount,
         paidAmount: totalAmount,
@@ -251,7 +251,7 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
             {/* Price / Amount */}
             <div className="md:col-span-3 space-y-2">
               <Label htmlFor="amount" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Unit Amount (£) *
+                Net Price (£) *
               </Label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">
@@ -348,10 +348,15 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
             {/* Live Financial Breakdown */}
             <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
               <div>
-                <span className="text-slate-400 block font-medium">Net Subtotal</span>
+                <span className="text-slate-400 block font-medium">Net Price</span>
                 <span className="font-bold text-sm text-slate-800 dark:text-slate-200">
-                  £{netSubtotal.toFixed(2)}
+                  £{netAmount.toFixed(2)}
                 </span>
+                {numQty > 1 && netAmount > 0 && (
+                  <span className="block text-[10px] text-slate-400 font-normal">
+                    (£{unitPrice.toFixed(2)} / each)
+                  </span>
+                )}
               </div>
               <div className="h-7 w-px bg-slate-200 dark:bg-slate-700" />
               <div>
@@ -372,7 +377,7 @@ export function TillForm({ selectedDate, onDateChange, onTransactionAdded }: Til
             {/* Submit Button */}
             <Button
               type="submit"
-              disabled={isPending || unitPrice <= 0}
+              disabled={isPending || netAmount <= 0}
               className="rounded-xl h-12 px-8 font-black text-sm bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all duration-300"
             >
               {isPending ? (
