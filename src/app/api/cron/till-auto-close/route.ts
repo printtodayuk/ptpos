@@ -3,6 +3,7 @@ import { autoCreateAllPendingTillJids, sweepPreviousDaysUnassignedTill } from '@
 import { formatLondonDateTime, getLondonCurrentDate, getLondonTimeParts } from '@/lib/london-time';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 /**
  * Endpoint called at 23:59 London time (or periodically via cron)
